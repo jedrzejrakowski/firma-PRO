@@ -1,7 +1,8 @@
 name: Testy
 
-# Buduje rozwiązanie i uruchamia testy, w tym walidację generowanego
-# dokumentu FA(3) oficjalnym schematem Ministerstwa Finansów.
+# Buduje rozwiązanie i uruchamia testy: walidację dokumentu FA(3) oficjalnym
+# schematem Ministerstwa Finansów oraz izolację danych między firmami
+# sprawdzaną na prawdziwym PostgreSQL.
 
 on:
   push:
@@ -15,6 +16,26 @@ jobs:
   testy:
     name: Budowa i testy
     runs-on: ubuntu-latest
+
+    services:
+      # Testy wielofirmowości celowo nie używają bazy w pamięci - filtry
+      # zapytań, więzy unikalności i typ numeric zachowują się inaczej
+      # w każdym silniku, a to właśnie one są tu sprawdzane.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      FIRMAPRO_TEST_DB: "Host=localhost;Port=5432;Username=postgres;Password=postgres"
 
     steps:
       - name: Pobranie kodu

@@ -6,10 +6,9 @@ przeglądarkowa z myślą o obsłudze wielu firm w jednej instalacji.
 Faktury powstają w strukturze **FA(3)** — wzorze obowiązującym w Krajowym
 Systemie e-Faktur od 1 lutego 2026 r.
 
-> **Stan prac: fundament.** Gotowa jest warstwa dziedziny wraz z generatorem
-> FA(3) i walidacją, sprawdzona oficjalnym schematem Ministerstwa Finansów.
-> Warstwa danych, integracja z KSeF i interfejs webowy są w przygotowaniu —
-> patrz [Plan](#plan).
+> **Stan prac: fundament i baza danych.** Gotowa jest warstwa dziedziny
+> z generatorem FA(3) oraz warstwa danych z izolacją firm. Integracja z KSeF
+> i interfejs webowy są w przygotowaniu — patrz [Plan](#plan).
 
 ---
 
@@ -20,8 +19,8 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Model dziedziny (faktura, pozycje, stawki, podsumowanie) | gotowe |
 | Wyliczanie sum w rozbiciu na pola FA(3) | gotowe |
 | Walidacja przed wysyłką (NIP, NRB, daty, limity schematu) | gotowe |
-| Generator XML FA(3) | gotowe, 57 testów |
-| Warstwa danych (EF Core, PostgreSQL, wielofirmowość) | w przygotowaniu |
+| Generator XML FA(3) | gotowe |
+| Warstwa danych (EF Core, PostgreSQL, wielofirmowość) | gotowe |
 | Integracja z KSeF | w przygotowaniu |
 | Interfejs webowy | w przygotowaniu |
 
@@ -32,19 +31,26 @@ Wymagany **.NET SDK 10.0** lub nowszy.
 ```bash
 git clone https://github.com/jedrzejrakowski/firma-PRO.git
 cd firma-PRO
+
+# Testy warstwy danych potrzebują PostgreSQL
+docker run -d --name firmapro-db -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16
+
 dotnet test
 ```
 
-Testy nie wymagają bazy danych, internetu ani tokena KSeF.
+Testy nie wymagają internetu ani tokena KSeF. Serwer bazy można wskazać
+zmienną `FIRMAPRO_TEST_DB`; każdy przebieg zakłada własną bazę i kasuje ją
+po sobie.
 
 ## Budowa rozwiązania
 
 ```
 src/
 ├── FirmaPro.Domena/     model faktury, stawki VAT, walidacja - bez zależności
-└── FirmaPro.Ksef/       generator XML FA(3)
+├── FirmaPro.Ksef/       generator XML FA(3)
+└── FirmaPro.Dane/       encje, kontekst EF Core, migracje, izolacja firm
 testy/
-└── FirmaPro.Testy/      testy jednostkowe wraz z walidacją schematem XSD
+└── FirmaPro.Testy/      testy jednostkowe i bazodanowe
 schematy/                schemat FA(3) opublikowany przez Ministerstwo Finansów
 ```
 
@@ -99,11 +105,31 @@ celowo szerszych niż w oryginale, więc walidacja lokalna może przepuścić
 dokument, który KSeF odrzuci — nigdy odwrotnie. **Źródłem prawdy pozostaje
 schemat opublikowany przez Ministerstwo Finansów.**
 
+## Izolacja danych między firmami
+
+System obsługuje wiele firm w jednej instalacji, więc wyciek dokumentów
+jednej firmy do drugiej byłby katastrofą. Izolacja jest wymuszona na trzy
+niezależne sposoby:
+
+1. **globalne filtry zapytań** — każde zapytanie o dane firmowe jest
+   automatycznie zawężone; nie da się tego pominąć zapominając o warunku,
+2. **automatyczne ustawianie firmy** przy dodawaniu rekordu — nie trzeba
+   o tym pamiętać, więc nie da się zapomnieć,
+3. **kontrola przy zapisie** — próba dopisania, zmiany lub przeniesienia
+   rekordu należącego do innej firmy kończy się wyjątkiem.
+
+Gdy firma nie jest wybrana, filtry nie przepuszczają niczego. Brak informacji
+o firmie oznacza „nic nie widać", a nie „widać wszystko".
+
+Osobno pilnowana jest **niezmienność wystawionych dokumentów**: po wysłaniu
+faktury do KSeF nie da się zmienić jej treści — zapisywalne pozostają tylko
+pola dotyczące obiegu w KSeF i rozliczenia płatności. Błąd koryguje się
+fakturą korygującą, tak jak wymagają tego przepisy.
+
 ## Plan
 
 1. **Fundament** — model, walidacja, generator FA(3) ✔
-2. **Warstwa danych** — EF Core i PostgreSQL, wielofirmowość wymuszona
-   globalnymi filtrami zapytań, migracje
+2. **Warstwa danych** — EF Core i PostgreSQL, wielofirmowość, migracje ✔
 3. **Integracja z KSeF** — uwierzytelnianie, sesja interaktywna, wysyłka, UPO,
    pobieranie faktur zakupowych
 4. **Interfejs webowy** — konta, wybór firmy, kontrahenci, wystawianie faktur
@@ -116,6 +142,11 @@ schemat opublikowany przez Ministerstwo Finansów.**
 Zgodność generowanego dokumentu ze wzorem sprawdzana jest **prawdziwym
 schematem XSD**, w wariantach obejmujących nabywcę bez NIP-u, kontrahenta
 z numerem VAT UE, sprzedaż zwolnioną, odwrotne obciążenie, WDT i eksport.
+
+Izolacja firm sprawdzana jest na **prawdziwym PostgreSQL**, a nie na bazie
+w pamięci. Filtry zapytań, więzy unikalności i typ `numeric` zachowują się
+inaczej w każdym silniku — testowanie ich na atrapie dawałoby złudne poczucie
+bezpieczeństwa akurat tam, gdzie pomyłka byłaby najdroższa.
 
 Połączenia z żywym KSeF nie da się zweryfikować w środowisku budowy — to
 sprawdzenie należy wykonać u siebie, przeciwko bezpłatnemu środowisku

@@ -1,0 +1,26 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csproj,props,targets}]
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,xml,xsd}]
+indent_style = space
+indent_size = 2
+
+# Migracje generuje narzędzie EF Core i przy każdej zmianie modelu powstają
+# od nowa. Trzymanie ich pod tymi samymi regułami co kod pisany ręcznie
+# oznaczałoby poprawianie po generatorze przy każdej migracji - bez żadnego
+# zysku, bo poprawki i tak zniknęłyby przy regeneracji.
+[**/Migracje/*.cs]
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.IDE0300.severity = none
+dotnet_diagnostic.IDE0301.severity = none
+dotnet_diagnostic.IDE0090.severity = none
+generated_code = true
