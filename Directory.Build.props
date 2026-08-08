@@ -1,0 +1,28 @@
+<Project>
+
+  <!--
+    Ustawienia wspólne dla wszystkich projektów rozwiązania.
+    Trzymamy je w jednym miejscu, żeby nowy projekt automatycznie
+    dostawał te same reguły.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Typy referencyjne z kontrolą wartości pustych. W systemie
+         księgowym niespodziewany null oznacza zwykle błąd w danych. -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Ostrzeżenia traktujemy jak błędy - w kodzie liczącym podatki
+         nie ma miejsca na "to tylko ostrzeżenie". -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <!-- Komunikaty kompilatora po polsku zostawiamy wyłączone - łatwiej
+         szukać rozwiązań błędów po ich angielskiej treści. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

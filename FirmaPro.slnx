@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FirmaPro.Domena/FirmaPro.Domena.csproj" />
+    <Project Path="src/FirmaPro.Ksef/FirmaPro.Ksef.csproj" />
+  </Folder>
+  <Folder Name="/testy/">
+    <Project Path="testy/FirmaPro.Testy/FirmaPro.Testy.csproj" />
+  </Folder>
+</Solution>

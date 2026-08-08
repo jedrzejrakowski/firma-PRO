@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Lokalny odpowiednik schematu typów wspólnych Ministerstwa Finansów:
+      http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/StrukturyDanych_v10-0E.xsd
+
+  PO CO TEN PLIK
+  Schemat FA(3) importuje powyższy schemat z serwera crd.gov.pl. Testy muszą
+  działać bez dostępu do internetu (a także na runnerze CI), dlatego zawiera on
+  wyłącznie te typy, do których faktycznie odwołuje się FA(3) - jest ich 12.
+
+  UWAGA - to NIE jest kopia oryginału
+  Plik odtwarza typy bazowe w zakresie potrzebnym do sprawdzenia struktury
+  dokumentu (kolejność i liczność elementów, formaty dat, wzorce NIP/REGON/KRS).
+  Kilka typów jest tu celowo szerszych niż w oryginale, np. TKodKraju jest
+  wzorcem [A-Z]{2} zamiast pełnej listy kodów ISO. Oznacza to, że walidacja
+  lokalnym schematem może przepuścić dokument, który KSeF odrzuci - nigdy
+  odwrotnie. Źródłem prawdy pozostaje schemat opublikowany przez MF.
+
+  Reguły biznesowe wykraczające poza XSD sprawdza moduł src/walidacja.py.
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns:etd="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/"
+            targetNamespace="http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/"
+            elementFormDefault="qualified"
+            attributeFormDefault="unqualified"
+            xml:lang="pl">
+
+	<!-- Data kalendarzowa. FA(3) zawęża ją dalej do zakresu 2006-2050 (TDataT). -->
+	<xsd:simpleType name="TData">
+		<xsd:restriction base="xsd:date"/>
+	</xsd:simpleType>
+
+	<!-- Data z czasem - używana w Naglowek/DataWytworzeniaFa. -->
+	<xsd:simpleType name="TDataCzas">
+		<xsd:restriction base="xsd:dateTime"/>
+	</xsd:simpleType>
+
+	<!-- Liczba naturalna. FA(3) dokłada minExclusive=0 (numer wiersza od 1). -->
+	<xsd:simpleType name="TNaturalny">
+		<xsd:restriction base="xsd:integer">
+			<xsd:totalDigits value="14"/>
+			<xsd:minInclusive value="0"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<!-- Znacznik logiczny o jedynej dopuszczalnej wartości "1" (= tak). -->
+	<xsd:simpleType name="TWybor1">
+		<xsd:restriction base="xsd:byte">
+			<xsd:enumeration value="1"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<!-- Znacznik dwustanowy: 1 = tak, 2 = nie. -->
+	<xsd:simpleType name="TWybor1_2">
+		<xsd:restriction base="xsd:byte">
+			<xsd:enumeration value="1"/>
+			<xsd:enumeration value="2"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<!-- NIP: 10 cyfr, pierwsza niezerowa, wzorzec zgodny ze schematami MF.
+	     Suma kontrolna NIP nie jest wyrażalna w XSD - sprawdza ją walidacja. -->
+	<xsd:simpleType name="TNrNIP">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:pattern value="[1-9]((\d[1-9])|([1-9]\d))\d{7}"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<!-- Dowolny identyfikator podatkowy (podmiot zagraniczny). -->
+	<xsd:simpleType name="TNrIdentyfikacjiPodatkowej">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="50"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<!-- Numer KRS - 10 cyfr. -->
+	<xsd:simpleType name="TNrKRS">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:pattern value="\d{10}"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<!-- REGON - 9 lub 14 cyfr. -->
+	<xsd:simpleType name="TNrREGON">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:pattern value="\d{9}|\d{14}"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<!-- Kod kraju. Oryginał wylicza kody ISO 3166-1; tutaj wzorzec dwóch
+	     wielkich liter. Poprawność samego kodu sprawdza src/walidacja.py. -->
+	<xsd:simpleType name="TKodKraju">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:pattern value="[A-Z]{2}"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<!-- Adres poczty elektronicznej. -->
+	<xsd:simpleType name="TAdresEmail">
+		<xsd:restriction base="xsd:normalizedString">
+			<xsd:minLength value="3"/>
+			<xsd:maxLength value="3000"/>
+			<xsd:pattern value="[^@\s]+@[^@\s]+"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<!-- Swobodny tekst (stopka faktury, opisy). -->
+	<xsd:simpleType name="TTekstowy">
+		<xsd:restriction base="xsd:string">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="3500"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+</xsd:schema>

@@ -1,0 +1,48 @@
+namespace FirmaPro.Domena;
+
+/// <summary>
+/// Zaokrąglanie kwot pieniężnych.
+/// </summary>
+/// <remarks>
+/// Wszystkie kwoty w systemie są typu <see cref="decimal"/>. Typy
+/// zmiennoprzecinkowe (<c>double</c>, <c>float</c>) nie nadają się do
+/// pieniędzy, bo nie potrafią dokładnie zapisać nawet 0,10 zł - a KSeF
+/// odrzuca faktury, na których sumy się nie zgadzają co do grosza.
+/// </remarks>
+public static class Kwoty
+{
+    /// <summary>Zero z dokładnością do groszy.</summary>
+    public static readonly decimal Zero = 0.00m;
+
+    /// <summary>
+    /// Zaokrągla kwotę do groszy metodą "w górę od połowy".
+    /// </summary>
+    /// <remarks>
+    /// Tak zaokrągla się podatek w polskim systemie podatkowym. Uwaga:
+    /// domyślne <c>Math.Round</c> w .NET stosuje zaokrąglanie bankierskie
+    /// (do najbliższej parzystej), które dałoby tu inne wyniki - dlatego
+    /// zawsze przechodzimy przez tę metodę, a nie przez <c>Math.Round</c>
+    /// wprost.
+    /// </remarks>
+    public static decimal Zaokraglij(decimal kwota) =>
+        Math.Round(kwota, 2, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// Formatuje kwotę tak, jak wymaga tego schemat FA(3): zawsze dwa
+    /// miejsca po przecinku, kropka jako separator, bez separatora tysięcy.
+    /// </summary>
+    public static string NaXml(decimal kwota) =>
+        Zaokraglij(kwota).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Formatuje liczbę (ilość, cenę) bez zbędnych zer i bez notacji
+    /// wykładniczej, której wzorce schematu nie przyjmują.
+    /// </summary>
+    public static string LiczbaNaXml(decimal wartosc, int maksMiejsc)
+    {
+        decimal zaokraglona = Math.Round(wartosc, maksMiejsc, MidpointRounding.AwayFromZero);
+        string tekst = zaokraglona.ToString("0.############################",
+            System.Globalization.CultureInfo.InvariantCulture);
+        return tekst.Length == 0 ? "0" : tekst;
+    }
+}

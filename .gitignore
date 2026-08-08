@@ -1,0 +1,23 @@
+# Wyniki budowy
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+
+# Katalogi narzędzi
+.vs/
+.vscode/
+.idea/
+
+# Dane wrażliwe - tokeny KSeF, ciągi połączenia, klucze
+appsettings.Development.json
+appsettings.Local.json
+*.pfx
+*.p12
+.env
+
+# Pliki robocze
+*.log
+faktury_ksef/
