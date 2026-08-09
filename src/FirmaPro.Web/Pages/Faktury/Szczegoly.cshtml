@@ -1,0 +1,116 @@
+@page "{id:guid}"
+@model FirmaPro.Web.Pages.Faktury.SzczegolyModel
+@{
+    ViewData["Tytul"] = "Faktura " + Model.Faktura.Numer;
+}
+
+<h1>Faktura @Model.Faktura.Numer</h1>
+<p class="podtytul">
+    Wystawiona @Model.Faktura.DataWystawienia.ToString("yyyy-MM-dd")
+    dla @Model.Faktura.NabywcaNazwa
+</p>
+
+<div class="karta">
+    <div class="siatka">
+        <div>
+            <div class="etykieta" style="color:var(--tekst-szary);font-size:0.82rem">Status</div>
+            <p>
+                <span class="znacznik znacznik-@Model.Faktura.Status.ToString().ToLowerInvariant()">
+                    @IndexModel.OpisStatusu(Model.Faktura.Status)
+                </span>
+            </p>
+        </div>
+        <div>
+            <div class="etykieta" style="color:var(--tekst-szary);font-size:0.82rem">Numer KSeF</div>
+            <p class="numer-ksef">
+                @(string.IsNullOrWhiteSpace(Model.Faktura.NumerKsef) ? "—" : Model.Faktura.NumerKsef)
+            </p>
+        </div>
+        <div>
+            <div class="etykieta" style="color:var(--tekst-szary);font-size:0.82rem">Termin płatności</div>
+            <p>@(Model.Faktura.TerminPlatnosci?.ToString("yyyy-MM-dd") ?? "—")</p>
+        </div>
+    </div>
+
+    @if (!Model.SwiezyKomunikat && !string.IsNullOrWhiteSpace(Model.Faktura.UwagiKsef))
+    {
+        <div class="powiadomienie @(Model.Faktura.Status == StatusKsef.Przyjeta ? "powodzenie" : "niepowodzenie")">
+            @Model.Faktura.UwagiKsef
+        </div>
+    }
+</div>
+
+<div class="karta">
+    <h2 style="margin-top:0">Pozycje</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Lp.</th>
+                <th>Nazwa</th>
+                <th>J.m.</th>
+                <th class="liczba">Ilość</th>
+                <th class="liczba">Cena netto</th>
+                <th>Stawka</th>
+                <th class="liczba">Wartość netto</th>
+                <th class="liczba">VAT</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (PozycjaFakturySprzedazy pozycja in Model.Faktura.Pozycje.OrderBy(p => p.NrWiersza))
+            {
+                <tr>
+                    <td>@pozycja.NrWiersza</td>
+                    <td>
+                        @pozycja.Nazwa
+                        @if (!string.IsNullOrWhiteSpace(pozycja.Gtu))
+                        {
+                            <span style="color:var(--tekst-szary)"> (@pozycja.Gtu)</span>
+                        }
+                    </td>
+                    <td>@pozycja.Jednostka</td>
+                    <td class="liczba">@pozycja.Ilosc.ToString("0.######")</td>
+                    <td class="liczba">@pozycja.CenaNetto.ToString("N2")</td>
+                    <td>@SzczegolyModel.OpisStawki(pozycja.KodStawki)</td>
+                    <td class="liczba">@pozycja.WartoscNetto.ToString("N2")</td>
+                    <td class="liczba">@pozycja.KwotaVat.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="podsumowanie-kwot">
+        <div>
+            <div class="etykieta">Netto</div>
+            <div class="kwota">@Model.Faktura.RazemNetto.ToString("N2")</div>
+        </div>
+        <div>
+            <div class="etykieta">VAT</div>
+            <div class="kwota">@Model.Faktura.RazemVat.ToString("N2")</div>
+        </div>
+        <div class="razem">
+            <div class="etykieta">Do zapłaty</div>
+            <div class="kwota">@Model.Faktura.RazemBrutto.ToString("N2") @Model.Faktura.Waluta</div>
+        </div>
+    </div>
+</div>
+
+<div class="paskiem">
+    @if (Model.Faktura.Status != StatusKsef.Przyjeta)
+    {
+        <form method="post" asp-page-handler="Wyslij">
+            <button type="submit">Wyślij do KSeF</button>
+        </form>
+    }
+
+    <a class="przycisk przycisk-drugi" asp-page-handler="Xml"
+       asp-route-id="@Model.Faktura.Id">Pobierz XML</a>
+    <a class="przycisk przycisk-drugi" asp-page="Index">Wróć do listy</a>
+</div>
+
+@if (Model.Faktura.Status != StatusKsef.Przyjeta)
+{
+    <p style="color:var(--tekst-szary);font-size:0.88rem;margin-top:14px">
+        Wysłanej faktury nie można usunąć ani poprawić — błędy koryguje się
+        fakturą korygującą.
+    </p>
+}

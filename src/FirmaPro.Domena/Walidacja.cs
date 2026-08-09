@@ -34,6 +34,17 @@ public sealed class WynikWalidacji
     /// <summary>Czy faktura przeszła bez żadnych zastrzeżeń.</summary>
     public bool BezZastrzezen => _problemy.Count == 0;
 
+    /// <summary>
+    /// Tworzy wynik z jednym błędem - dla zastrzeżeń wykrytych poza
+    /// walidatorem, np. gdy wskazany kontrahent nie istnieje.
+    /// </summary>
+    public static WynikWalidacji ZBledem(string pole, string komunikat)
+    {
+        var wynik = new WynikWalidacji();
+        wynik.Blad(pole, komunikat);
+        return wynik;
+    }
+
     internal void Blad(string pole, string komunikat) =>
         _problemy.Add(new Problem(PoziomProblemu.Blad, pole, komunikat));
 

@@ -1,0 +1,168 @@
+@page
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.UstawieniaModel
+@{
+    ViewData["Tytul"] = "Ustawienia firmy";
+}
+
+<h1>Ustawienia firmy</h1>
+<p class="podtytul">Te dane trafiają na każdą wystawioną fakturę.</p>
+
+<div class="karta" style="max-width:760px">
+    @if (Model.Bledy.Count > 0)
+    {
+        <div class="powiadomienie niepowodzenie">
+            <ul class="bledy">
+                @foreach (string blad in Model.Bledy)
+                {
+                    <li>@blad</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <form method="post">
+        <h2 class="naglowek-sekcji">Dane sprzedawcy</h2>
+
+        <div class="pole">
+            <label for="nazwa">Nazwa firmy</label>
+            <input type="text" id="nazwa" name="Nazwa" value="@Model.Nazwa"
+                   required maxlength="512" />
+        </div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="nip">NIP</label>
+                <input type="text" id="nip" name="Nip" value="@Model.Nip"
+                       required maxlength="13" />
+            </div>
+            <div class="pole">
+                <label for="kraj">Kod kraju</label>
+                <input type="text" id="kraj" name="KodKraju" value="@Model.KodKraju"
+                       required maxlength="2" />
+            </div>
+        </div>
+
+        <div class="pole">
+            <label for="adres1">Ulica i numer</label>
+            <input type="text" id="adres1" name="AdresLinia1" value="@Model.AdresLinia1"
+                   required maxlength="512" />
+        </div>
+
+        <div class="pole">
+            <label for="adres2">Kod pocztowy i miejscowość</label>
+            <input type="text" id="adres2" name="AdresLinia2" value="@Model.AdresLinia2"
+                   maxlength="512" />
+        </div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="email">E-mail</label>
+                <input type="email" id="email" name="Email" value="@Model.Email" />
+            </div>
+            <div class="pole">
+                <label for="telefon">Telefon</label>
+                <input type="text" id="telefon" name="Telefon" value="@Model.Telefon" />
+            </div>
+        </div>
+
+        <h2 class="naglowek-sekcji">Płatności i wygląd faktury</h2>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="rachunek">Rachunek bankowy</label>
+                <input type="text" id="rachunek" name="RachunekBankowy"
+                       value="@Model.RachunekBankowy" maxlength="34" />
+            </div>
+            <div class="pole">
+                <label for="bank">Nazwa banku</label>
+                <input type="text" id="bank" name="NazwaBanku" value="@Model.NazwaBanku" />
+            </div>
+        </div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="miejsce">Miejsce wystawienia</label>
+                <input type="text" id="miejsce" name="MiejsceWystawienia"
+                       value="@Model.MiejsceWystawienia" />
+            </div>
+            <div class="pole">
+                <label for="termin">Domyślny termin płatności (dni)</label>
+                <input type="number" id="termin" name="DomyslnyTerminPlatnosciDni"
+                       value="@Model.DomyslnyTerminPlatnosciDni" min="0" max="365" />
+            </div>
+        </div>
+
+        <div class="pole">
+            <label for="stopka">Stopka faktury</label>
+            <input type="text" id="stopka" name="StopkaFaktury"
+                   value="@Model.StopkaFaktury" maxlength="3500" />
+        </div>
+
+        <h2 class="naglowek-sekcji">Dostęp do KSeF</h2>
+
+        <div class="pole">
+            <label for="srodowisko">Środowisko</label>
+            <select id="srodowisko" name="Srodowisko">
+                @foreach (SrodowiskoKsef srodowisko in Enum.GetValues<SrodowiskoKsef>())
+                {
+                    <option value="@srodowisko" selected="@(srodowisko == Model.Srodowisko)">
+                        @OpisSrodowiska(srodowisko)
+                    </option>
+                }
+            </select>
+        </div>
+
+        @if (Model.TokenZeSrodowiska)
+        {
+            <div class="powiadomienie">
+                Token pobierany jest ze zmiennej środowiskowej <code>KSEF_TOKEN</code>
+                i ma pierwszeństwo przed zapisanym poniżej.
+            </div>
+        }
+
+        <div class="pole">
+            <label for="token">
+                Token KSeF
+                @if (Model.TokenZapisany)
+                {
+                    <span class="znacznik znacznik-ok">zapisany</span>
+                }
+                else
+                {
+                    <span class="znacznik">brak</span>
+                }
+            </label>
+            <input type="password" id="token" name="TokenKsef" autocomplete="new-password"
+                   placeholder="@(Model.TokenZapisany ? "zostaw puste, aby nie zmieniać" : "wklej token wygenerowany w KSeF")" />
+            <p class="wskazowka">
+                Token wygenerujesz na stronie KSeF wybranego środowiska. Zapisujemy go
+                w postaci zaszyfrowanej i nigdy nie pokazujemy ponownie — po zapisaniu
+                zobaczysz wyłącznie informację, że istnieje.
+            </p>
+        </div>
+
+        @if (Model.TokenZapisany)
+        {
+            <div class="pole-wyboru">
+                <input type="checkbox" id="usunToken" name="UsunToken" value="true" />
+                <label for="usunToken">Usuń zapisany token</label>
+            </div>
+        }
+
+        <div class="paskiem">
+            <button type="submit">Zapisz ustawienia</button>
+            <a class="przycisk przycisk-drugi" asp-page="/Faktury/Index">Wróć</a>
+        </div>
+    </form>
+</div>
+
+@functions {
+    private static string OpisSrodowiska(SrodowiskoKsef srodowisko) => srodowisko switch
+    {
+        SrodowiskoKsef.Test => "Testowe — faktury nie mają mocy prawnej",
+        SrodowiskoKsef.Demo => "Demo — dane zbliżone do produkcji, bez skutków prawnych",
+        SrodowiskoKsef.Produkcja => "Produkcyjne — faktury trafiają do obiegu prawnego",
+        _ => srodowisko.ToString()
+    };
+}

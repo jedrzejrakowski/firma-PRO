@@ -1,0 +1,282 @@
+/* Wygląd programu Firma PRO.
+   Układ celowo oszczędny - to narzędzie do pracy, w którym liczy się
+   czytelność tabel i formularzy, a nie efekty wizualne. */
+
+:root {
+    --granat: #1f4e79;
+    --granat-jasny: #2e6da4;
+    --tlo: #f4f6f9;
+    --karta: #ffffff;
+    --linia: #d5dee7;
+    --tekst: #16202b;
+    --tekst-szary: #5c6b7a;
+    --zielen: #0a7a24;
+    --zielen-tlo: #e3f5e7;
+    --czerwien: #b00020;
+    --czerwien-tlo: #fdecef;
+    --zolty-tlo: #fff6e0;
+    --zolty: #8a5b00;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--tlo);
+    color: var(--tekst);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+/* ------------------------------------------------------------ pasek górny */
+
+.pasek {
+    background: var(--granat);
+    color: #fff;
+}
+
+.pasek-tresc {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    min-height: 56px;
+}
+
+.znak {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #fff;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+}
+
+.nawigacja { display: flex; gap: 20px; flex: 1; }
+
+.nawigacja a {
+    color: #d6e4f0;
+    text-decoration: none;
+    padding: 4px 0;
+    border-bottom: 2px solid transparent;
+}
+
+.nawigacja a:hover { color: #fff; border-bottom-color: #7fb3e0; }
+
+.konto { display: flex; align-items: center; gap: 14px; font-size: 0.9rem; }
+.firma { color: #cfe0ee; }
+
+.odnosnik-przycisk {
+    background: none;
+    border: none;
+    color: #cfe0ee;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.odnosnik-przycisk:hover { color: #fff; }
+
+/* ----------------------------------------------------------------- treść */
+
+.tresc {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+}
+
+h1 { font-size: 1.6rem; margin: 0 0 6px; }
+h2 { font-size: 1.15rem; margin: 28px 0 10px; }
+.podtytul { color: var(--tekst-szary); margin: 0 0 22px; }
+
+.karta {
+    background: var(--karta);
+    border: 1px solid var(--linia);
+    border-radius: 4px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+}
+
+.karta-waska { max-width: 420px; margin: 60px auto; }
+
+/* ---------------------------------------------------------------- tabele */
+
+table { width: 100%; border-collapse: collapse; background: var(--karta); }
+
+th {
+    text-align: left;
+    background: var(--granat);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 12px;
+}
+
+td { padding: 9px 12px; border-bottom: 1px solid var(--linia); }
+tbody tr:hover { background: #f7fafd; }
+.liczba { text-align: right; font-variant-numeric: tabular-nums; }
+.nowrap { white-space: nowrap; }
+
+.pusto {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--tekst-szary);
+    background: var(--karta);
+    border: 1px dashed var(--linia);
+    border-radius: 4px;
+}
+
+/* ------------------------------------------------------------ formularze */
+
+label { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }
+
+input[type=text], input[type=email], input[type=password],
+input[type=date], input[type=number], select, textarea {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--linia);
+    border-radius: 3px;
+    font: inherit;
+    background: #fff;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--granat-jasny);
+    outline-offset: -1px;
+}
+
+.pole { margin-bottom: 14px; }
+.siatka { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 16px; }
+
+button, .przycisk {
+    background: var(--granat);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    padding: 8px 18px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+button:hover, .przycisk:hover { background: var(--granat-jasny); }
+
+.przycisk-drugi {
+    background: #fff;
+    color: var(--granat);
+    border: 1px solid var(--granat);
+}
+
+.przycisk-drugi:hover { background: #eef4fa; }
+
+.paskiem { display: flex; gap: 10px; align-items: center; margin-top: 18px; }
+
+/* ---------------------------------------------------------- powiadomienia */
+
+.powiadomienie {
+    padding: 11px 16px;
+    border-radius: 3px;
+    margin-bottom: 18px;
+    border: 1px solid transparent;
+}
+
+.powodzenie { background: var(--zielen-tlo); border-color: #a9dcb6; color: var(--zielen); }
+.niepowodzenie { background: var(--czerwien-tlo); border-color: #f0b6c0; color: var(--czerwien); }
+
+.bledy { margin: 0; padding-left: 20px; }
+
+/* -------------------------------------------------------------- znaczniki */
+
+.znacznik {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.znacznik-robocza { background: #eceff2; color: var(--tekst-szary); }
+.znacznik-wyslana { background: var(--zolty-tlo); color: var(--zolty); }
+.znacznik-przyjeta { background: var(--zielen-tlo); color: var(--zielen); }
+.znacznik-odrzucona { background: var(--czerwien-tlo); color: var(--czerwien); }
+
+.numer-ksef {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 0.82rem;
+}
+
+/* --------------------------------------------------------------- pozycje */
+
+.pozycje th { font-size: 0.8rem; }
+.pozycje td { padding: 6px 8px; }
+.pozycje input, .pozycje select { padding: 5px 7px; }
+
+.usun-wiersz {
+    background: none;
+    color: var(--czerwien);
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0 6px;
+}
+
+.usun-wiersz:hover { background: none; color: #7a0016; }
+
+.stopka {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 18px 20px 40px;
+    color: var(--tekst-szary);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--linia);
+}
+
+.podsumowanie-kwot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 28px;
+    margin-top: 14px;
+    font-variant-numeric: tabular-nums;
+}
+
+.podsumowanie-kwot div { text-align: right; }
+.podsumowanie-kwot .etykieta { color: var(--tekst-szary); font-size: 0.82rem; }
+.podsumowanie-kwot .kwota { font-size: 1.05rem; font-weight: 600; }
+.podsumowanie-kwot .razem .kwota { color: var(--granat); font-size: 1.3rem; }
+
+/* ------------------------------------------------------------- ustawienia */
+
+.naglowek-sekcji {
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tekst-szary);
+    margin: 26px 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--linia);
+}
+
+.karta > form > .naglowek-sekcji:first-child { margin-top: 0; }
+
+.wskazowka {
+    margin: 6px 0 0;
+    color: var(--tekst-szary);
+    font-size: 0.84rem;
+}
+
+.znacznik-ok { background: var(--zielen-tlo); color: var(--zielen); }
+
+.pole-wyboru {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.pole-wyboru input { width: auto; margin: 0; }
+.pole-wyboru label { margin: 0; font-weight: 400; }

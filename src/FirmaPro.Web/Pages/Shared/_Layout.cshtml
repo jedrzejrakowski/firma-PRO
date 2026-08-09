@@ -1,0 +1,57 @@
+@using System.Security.Claims
+@{
+    string? nazwaFirmy = User.FindFirstValue("nazwaFirmy");
+    bool zalogowany = User.Identity?.IsAuthenticated == true;
+}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Tytul"] — Firma PRO</title>
+    <link rel="stylesheet" href="~/css/firmapro.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="pasek">
+        <div class="pasek-tresc">
+            <a class="znak" asp-page="/Index">Firma&nbsp;PRO</a>
+
+            @if (zalogowany)
+            {
+                <nav class="nawigacja">
+                    <a asp-page="/Faktury/Index">Faktury</a>
+                    <a asp-page="/Kontrahenci/Index">Kontrahenci</a>
+                    <a asp-page="/Ustawienia">Ustawienia</a>
+                </nav>
+                <div class="konto">
+                    <span class="firma" title="Firma, w której kontekście pracujesz">
+                        @nazwaFirmy
+                    </span>
+                    <form method="post" asp-page="/Wyloguj">
+                        <button type="submit" class="odnosnik-przycisk">Wyloguj</button>
+                    </form>
+                </div>
+            }
+        </div>
+    </header>
+
+    <main class="tresc">
+        @if (TempData["Komunikat"] is string komunikat)
+        {
+            <div class="powiadomienie powodzenie">@komunikat</div>
+        }
+        @if (TempData["Ostrzezenie"] is string ostrzezenie)
+        {
+            <div class="powiadomienie niepowodzenie">@ostrzezenie</div>
+        }
+
+        @RenderBody()
+    </main>
+
+    <footer class="stopka">
+        Firma PRO · faktury zgodne z KSeF (wzór FA(3))
+    </footer>
+
+    @await RenderSectionAsync("Skrypty", required: false)
+</body>
+</html>

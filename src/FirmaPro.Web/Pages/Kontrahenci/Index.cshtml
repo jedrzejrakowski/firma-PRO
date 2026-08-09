@@ -1,0 +1,57 @@
+@page
+@model FirmaPro.Web.Pages.Kontrahenci.IndexModel
+@{
+    ViewData["Tytul"] = "Kontrahenci";
+}
+
+<h1>Kontrahenci</h1>
+<p class="podtytul">Odbiorcy Twoich faktur.</p>
+
+<p><a class="przycisk" asp-page="Nowy">Dodaj kontrahenta</a></p>
+
+@if (Model.Kontrahenci.Count == 0)
+{
+    <div class="pusto">
+        Nie masz jeszcze żadnego kontrahenta.<br />
+        Dodaj pierwszego, a potem wystawisz mu fakturę.
+    </div>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Nazwa</th>
+                <th>NIP</th>
+                <th>Adres</th>
+                <th>Kontakt</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (Kontrahent kontrahent in Model.Kontrahenci)
+            {
+                <tr>
+                    <td>@kontrahent.Nazwa</td>
+                    <td class="nowrap">
+                        @if (string.IsNullOrWhiteSpace(kontrahent.Nip))
+                        {
+                            <span style="color:var(--tekst-szary)">bez NIP</span>
+                        }
+                        else
+                        {
+                            @kontrahent.Nip
+                        }
+                    </td>
+                    <td>
+                        @kontrahent.AdresLinia1
+                        @if (!string.IsNullOrWhiteSpace(kontrahent.AdresLinia2))
+                        {
+                            <text>, </text> @kontrahent.AdresLinia2
+                        }
+                    </td>
+                    <td>@kontrahent.Email</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -1,0 +1,191 @@
+@page
+@model FirmaPro.Web.Pages.Faktury.NowaModel
+@{
+    ViewData["Tytul"] = "Wystaw fakturę";
+}
+
+<h1>Wystaw fakturę</h1>
+<p class="podtytul">Numer zostanie nadany automatycznie po zapisaniu.</p>
+
+@if (Model.Bledy.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie można wystawić faktury:</strong>
+        <ul class="bledy">
+            @foreach (string blad in Model.Bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+    </div>
+}
+
+<form method="post">
+    <div class="karta">
+        <div class="siatka">
+            <div class="pole">
+                <label for="nabywca">Nabywca</label>
+                <select id="nabywca" name="KontrahentId" required>
+                    <option value="">— wybierz —</option>
+                    @foreach (var kontrahent in Model.Kontrahenci)
+                    {
+                        <option value="@kontrahent.Id"
+                                selected="@(kontrahent.Id == Model.KontrahentId)">
+                            @kontrahent.Nazwa
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="pole">
+                <label for="dataWystawienia">Data wystawienia</label>
+                <input type="date" id="dataWystawienia" name="DataWystawienia"
+                       value="@Model.DataWystawienia.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div class="pole">
+                <label for="dataSprzedazy">Data sprzedaży</label>
+                <input type="date" id="dataSprzedazy" name="DataSprzedazy"
+                       value="@Model.DataSprzedazy?.ToString("yyyy-MM-dd")" />
+            </div>
+
+            <div class="pole">
+                <label for="termin">Termin płatności</label>
+                <input type="date" id="termin" name="TerminPlatnosci"
+                       value="@Model.TerminPlatnosci?.ToString("yyyy-MM-dd")" />
+            </div>
+
+            <div class="pole">
+                <label for="forma">Forma płatności</label>
+                <select id="forma" name="FormaPlatnosci">
+                    @foreach (FormaPlatnosci forma in Enum.GetValues<FormaPlatnosci>())
+                    {
+                        <option value="@((int)forma)" selected="@(forma == Model.FormaPlatnosci)">
+                            @NowaModel.OpisFormy(forma)
+                        </option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="karta">
+        <h2 style="margin-top:0">Pozycje</h2>
+
+        <table class="pozycje" id="tabelaPozycji">
+            <thead>
+                <tr>
+                    <th style="width:36%">Nazwa towaru lub usługi</th>
+                    <th style="width:10%">J.m.</th>
+                    <th style="width:11%">Ilość</th>
+                    <th style="width:14%">Cena netto</th>
+                    <th style="width:14%">Stawka VAT</th>
+                    <th style="width:11%">GTU</th>
+                    <th style="width:4%"></th>
+                </tr>
+            </thead>
+            <tbody id="cialoPozycji">
+                @for (int i = 0; i < Model.Pozycje.Count; i++)
+                {
+                    <tr>
+                        <td><input type="text" name="Pozycje[@i].Nazwa" value="@Model.Pozycje[i].Nazwa" maxlength="512" /></td>
+                        <td><input type="text" name="Pozycje[@i].Jednostka" value="@Model.Pozycje[i].Jednostka" /></td>
+                        <td><input type="number" step="0.000001" min="0" name="Pozycje[@i].Ilosc" value="@Model.Pozycje[i].Ilosc" /></td>
+                        <td><input type="number" step="0.01" min="0" name="Pozycje[@i].CenaNetto" value="@Model.Pozycje[i].CenaNetto" /></td>
+                        <td>
+                            <select name="Pozycje[@i].KodStawki">
+                                @foreach (StawkaVat stawka in StawkaVat.Wszystkie)
+                                {
+                                    <option value="@stawka.Kod" selected="@(stawka.Kod == Model.Pozycje[i].KodStawki)">
+                                        @stawka.Opis
+                                    </option>
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <select name="Pozycje[@i].Gtu">
+                                <option value="">—</option>
+                                @foreach (string gtu in NowaModel.KodyGtu)
+                                {
+                                    <option value="@gtu" selected="@(gtu == Model.Pozycje[i].Gtu)">@gtu</option>
+                                }
+                            </select>
+                        </td>
+                        <td><button type="button" class="usun-wiersz" title="Usuń wiersz">×</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <p style="margin-top:12px">
+            <button type="button" class="przycisk przycisk-drugi" id="dodajWiersz">
+                Dodaj pozycję
+            </button>
+        </p>
+    </div>
+
+    <div class="karta" id="kartaZwolnienia" style="display:none">
+        <div class="pole">
+            <label for="zwolnienie">Podstawa zwolnienia z podatku</label>
+            <input type="text" id="zwolnienie" name="PodstawaZwolnienia"
+                   value="@Model.PodstawaZwolnienia" maxlength="256"
+                   placeholder="np. art. 43 ust. 1 pkt 19 ustawy o VAT" />
+            <p style="color:var(--tekst-szary);font-size:0.86rem;margin:6px 0 0">
+                Wymagane, gdy na fakturze jest pozycja ze stawką „zwolniona”.
+            </p>
+        </div>
+    </div>
+
+    <div class="paskiem">
+        <button type="submit">Wystaw fakturę</button>
+        <a class="przycisk przycisk-drugi" asp-page="Index">Anuluj</a>
+    </div>
+</form>
+
+@section Skrypty {
+<script>
+    // Dodawanie i usuwanie wierszy pozycji. Nazwy pól muszą zachować ciągłą
+    // numerację, inaczej ASP.NET Core nie zwiąże ich z listą.
+    (function () {
+        const cialo = document.getElementById('cialoPozycji');
+        const kartaZwolnienia = document.getElementById('kartaZwolnienia');
+
+        function przenumeruj() {
+            cialo.querySelectorAll('tr').forEach((wiersz, indeks) => {
+                wiersz.querySelectorAll('[name]').forEach(pole => {
+                    pole.name = pole.name.replace(/Pozycje\[\d+\]/, 'Pozycje[' + indeks + ']');
+                });
+            });
+        }
+
+        function pokazZwolnienieGdyTrzeba() {
+            const jest = Array.from(cialo.querySelectorAll('select[name$=".KodStawki"]'))
+                .some(pole => pole.value === 'zw');
+            kartaZwolnienia.style.display = jest ? '' : 'none';
+        }
+
+        document.getElementById('dodajWiersz').addEventListener('click', () => {
+            const wzor = cialo.querySelector('tr');
+            const nowy = wzor.cloneNode(true);
+            nowy.querySelectorAll('input').forEach(pole => {
+                pole.value = pole.type === 'number' ? '' : '';
+            });
+            nowy.querySelector('input[name$=".Jednostka"]').value = 'szt.';
+            cialo.appendChild(nowy);
+            przenumeruj();
+            pokazZwolnienieGdyTrzeba();
+        });
+
+        cialo.addEventListener('click', zdarzenie => {
+            if (!zdarzenie.target.classList.contains('usun-wiersz')) return;
+            if (cialo.querySelectorAll('tr').length === 1) return;
+            zdarzenie.target.closest('tr').remove();
+            przenumeruj();
+            pokazZwolnienieGdyTrzeba();
+        });
+
+        cialo.addEventListener('change', pokazZwolnienieGdyTrzeba);
+        pokazZwolnienieGdyTrzeba();
+    })();
+</script>
+}

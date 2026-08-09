@@ -3,6 +3,7 @@
     <Project Path="src/FirmaPro.Dane/FirmaPro.Dane.csproj" />
     <Project Path="src/FirmaPro.Domena/FirmaPro.Domena.csproj" />
     <Project Path="src/FirmaPro.Ksef/FirmaPro.Ksef.csproj" />
+    <Project Path="src/FirmaPro.Web/FirmaPro.Web.csproj" />
   </Folder>
   <Folder Name="/testy/">
     <Project Path="testy/FirmaPro.Testy/FirmaPro.Testy.csproj" />

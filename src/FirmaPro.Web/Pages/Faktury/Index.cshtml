@@ -1,0 +1,58 @@
+@page
+@model FirmaPro.Web.Pages.Faktury.IndexModel
+@{
+    ViewData["Tytul"] = "Faktury";
+}
+
+<h1>Faktury sprzedaży</h1>
+<p class="podtytul">Wystaw fakturę i wyślij ją do Krajowego Systemu e-Faktur.</p>
+
+<p><a class="przycisk" asp-page="Nowa">Wystaw fakturę</a></p>
+
+@if (Model.Faktury.Count == 0)
+{
+    <div class="pusto">
+        Nie wystawiono jeszcze żadnej faktury.<br />
+        Zacznij od przycisku „Wystaw fakturę”.
+    </div>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Numer</th>
+                <th>Data</th>
+                <th>Nabywca</th>
+                <th class="liczba">Netto</th>
+                <th class="liczba">VAT</th>
+                <th class="liczba">Brutto</th>
+                <th>Status</th>
+                <th>Numer KSeF</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (FakturaSprzedazy faktura in Model.Faktury)
+            {
+                <tr>
+                    <td class="nowrap"><strong>@faktura.Numer</strong></td>
+                    <td class="nowrap">@faktura.DataWystawienia.ToString("yyyy-MM-dd")</td>
+                    <td>@faktura.NabywcaNazwa</td>
+                    <td class="liczba">@faktura.RazemNetto.ToString("N2")</td>
+                    <td class="liczba">@faktura.RazemVat.ToString("N2")</td>
+                    <td class="liczba"><strong>@faktura.RazemBrutto.ToString("N2")</strong></td>
+                    <td>
+                        <span class="znacznik znacznik-@faktura.Status.ToString().ToLowerInvariant()">
+                            @IndexModel.OpisStatusu(faktura.Status)
+                        </span>
+                    </td>
+                    <td class="numer-ksef">@faktura.NumerKsef</td>
+                    <td class="nowrap">
+                        <a asp-page="Szczegoly" asp-route-id="@faktura.Id">Szczegóły</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -10,4 +10,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- IHttpClientFactory - klient KSeF korzysta z puli połączeń zamiast
+         tworzyć własne, co przy dłuższej pracy wyczerpywałoby gniazda. -->
+    <PackageReference Include="Microsoft.Extensions.Http" />
+  </ItemGroup>
+
 </Project>

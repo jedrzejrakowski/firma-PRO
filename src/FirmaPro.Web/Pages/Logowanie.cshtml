@@ -1,0 +1,40 @@
+@page
+@model LogowanieModel
+@{
+    ViewData["Tytul"] = "Logowanie";
+    Layout = "_Layout";
+}
+
+<div class="karta karta-waska">
+    <h1>Zaloguj się</h1>
+    <p class="podtytul">Wystawiaj faktury i wysyłaj je do KSeF.</p>
+
+    @if (Model.Blad is not null)
+    {
+        <div class="powiadomienie niepowodzenie">@Model.Blad</div>
+    }
+
+    <form method="post">
+        <div class="pole">
+            <label for="email">Adres e-mail</label>
+            <input type="email" id="email" name="Email" value="@Model.Email"
+                   required autofocus autocomplete="username" />
+        </div>
+
+        <div class="pole">
+            <label for="haslo">Hasło</label>
+            <input type="password" id="haslo" name="Haslo"
+                   required autocomplete="current-password" />
+        </div>
+
+        <button type="submit">Zaloguj</button>
+    </form>
+
+    @if (Model.PokazDaneDemonstracyjne)
+    {
+        <div class="powiadomienie" style="background:#eef4fa;border-color:#c3d9ec;margin-top:22px">
+            <strong>Konto demonstracyjne</strong><br />
+            @UslugaZakladania.DemoEmail / @UslugaZakladania.DemoHaslo
+        </div>
+    }
+</div>

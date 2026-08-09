@@ -6,9 +6,11 @@ przeglądarkowa z myślą o obsłudze wielu firm w jednej instalacji.
 Faktury powstają w strukturze **FA(3)** — wzorze obowiązującym w Krajowym
 Systemie e-Faktur od 1 lutego 2026 r.
 
-> **Stan prac: gotowe zaplecze.** Działa warstwa dziedziny z generatorem
-> FA(3), warstwa danych z izolacją firm oraz komunikacja z KSeF. Brakuje
-> interfejsu webowego — patrz [Plan](#plan).
+> **Stan prac: program działa od przeglądarki do pliku XML.** Można się
+> zalogować, prowadzić kartotekę kontrahentów, wystawić fakturę, obejrzeć ją
+> i pobrać dokument FA(3). Wysyłka do KSeF jest zaimplementowana, ale nie
+> została jeszcze potwierdzona połączeniem z żywym systemem — patrz
+> [Czego jeszcze nie sprawdzono](#czego-jeszcze-nie-sprawdzono).
 
 ---
 
@@ -23,26 +25,42 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Warstwa danych (EF Core, PostgreSQL, wielofirmowość) | gotowe |
 | Komunikacja z KSeF (wysyłka, UPO, faktury zakupowe) | gotowe |
 | Link weryfikacyjny kodu QR (KOD I) | gotowe |
-| Interfejs webowy | w przygotowaniu |
+| Logowanie i konta użytkowników | gotowe |
+| Kartoteka kontrahentów | gotowe |
+| Wystawianie faktur i podgląd dokumentu | gotowe |
+| Ustawienia firmy wraz z tokenem KSeF | gotowe |
 | Wizualizacja PDF | w przygotowaniu |
+| Rejestr VAT, JPK_V7 | w przygotowaniu |
 
 ## Uruchomienie
 
-Wymagany **.NET SDK 10.0** lub nowszy.
+Wymagany **.NET SDK 10.0** lub nowszy oraz PostgreSQL.
 
 ```bash
 git clone https://github.com/jedrzejrakowski/firma-PRO.git
 cd firma-PRO
 
-# Testy warstwy danych potrzebują PostgreSQL
 docker run -d --name firmapro-db -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16
 
+export FIRMAPRO_DB="Host=localhost;Port=5432;Database=firmapro;Username=postgres;Password=postgres"
+dotnet run --project src/FirmaPro.Web
+```
+
+Program sam zakłada bazę i wykonuje migracje. Przy pierwszym uruchomieniu
+tworzy też firmę demonstracyjną z kontem `demo@firmapro.pl` i hasłem
+`demo1234`, żeby dało się od razu wejść i zobaczyć działający system.
+**Przed udostępnieniem programu komukolwiek trzeba założyć własne konto
+i usunąć demonstracyjne.**
+
+### Testy
+
+```bash
 dotnet test
 ```
 
-Testy nie wymagają internetu ani tokena KSeF. Serwer bazy można wskazać
-zmienną `FIRMAPRO_TEST_DB`; każdy przebieg zakłada własną bazę i kasuje ją
-po sobie.
+Testy nie wymagają internetu ani tokena KSeF, ale potrzebują serwera bazy —
+wskazuje go zmienna `FIRMAPRO_TEST_DB`. Każdy przebieg zakłada własną bazę
+i kasuje ją po sobie.
 
 ## Budowa rozwiązania
 
@@ -50,15 +68,20 @@ po sobie.
 src/
 ├── FirmaPro.Domena/     model faktury, stawki VAT, walidacja - bez zależności
 ├── FirmaPro.Ksef/       generator XML FA(3), kryptografia, klient API
-└── FirmaPro.Dane/       encje, kontekst EF Core, migracje, izolacja firm
+├── FirmaPro.Dane/       encje, kontekst EF Core, migracje, izolacja firm
+└── FirmaPro.Web/        aplikacja przeglądarkowa (ASP.NET Core, Razor Pages)
 testy/
-└── FirmaPro.Testy/      testy jednostkowe i bazodanowe
+└── FirmaPro.Testy/      testy jednostkowe, bazodanowe i całej aplikacji
 schematy/                schemat FA(3) opublikowany przez Ministerstwo Finansów
 ```
 
 Warstwa dziedziny nie zależy od bazy danych ani od interfejsu. To celowe:
 reguły podatkowe zmieniają się z innego powodu i w innym rytmie niż ekrany
 czy sposób przechowywania danych, więc trzymamy je osobno.
+
+Strony nie znają ani generatora XML, ani klienta KSeF — sięgają po nie przez
+usługi w `FirmaPro.Web/Uslugi`. Dzięki temu zmiana wyglądu ekranu nie może
+zepsuć treści dokumentu wysyłanego do urzędu.
 
 ## Decyzje, które warto znać
 
@@ -145,15 +168,38 @@ nigdy nie widzi konkretnej implementacji, więc podmiana sposobu rozmowy
 z KSeF — na przykład na bibliotekę wydawaną przez Ministerstwo Finansów —
 nie wymaga zmian w warstwie aplikacji.
 
+Środowisko (testowe, demo, produkcyjne) jest ustawieniem **firmy**, a nie
+całej instalacji: jedna firma może dopiero sprawdzać integrację, gdy druga
+wystawia już faktury produkcyjne. Klient powstaje więc na żądanie, przez
+`IFabrykaKlientowKsef`, dla środowiska tej firmy, której dotyczy wysyłka.
+
+### Token KSeF
+
+Token pozwala wystawiać faktury w imieniu firmy — to najbardziej wrażliwa
+dana w całym systemie. Traktowany jest odpowiednio:
+
+- w bazie leży **zaszyfrowany** (`IOchronaTokena`), nigdy otwartym tekstem,
+- **nigdy nie wraca na stronę** — formularz ustawień pokazuje wyłącznie to,
+  czy token jest zapisany; puste pole oznacza „zostaw jak było", więc zapis
+  zmiany adresu nie odcina firmy od KSeF,
+- nie trafia do dziennika zdarzeń ani do komunikatów o błędach,
+- zmienna środowiskowa `KSEF_TOKEN` ma pierwszeństwo przed wartością
+  z bazy — pozwala pracować, nie zapisując sekretu w ogóle.
+
+Docelowo, przy wdrożeniu produkcyjnym, klucze ochrony powinny trafić do
+zewnętrznego magazynu sekretów; zmienia się wtedy tylko implementacja
+`IOchronaTokena`.
+
 ## Plan
 
 1. **Fundament** — model, walidacja, generator FA(3) ✔
 2. **Warstwa danych** — EF Core i PostgreSQL, wielofirmowość, migracje ✔
 3. **Integracja z KSeF** — uwierzytelnianie, sesja, wysyłka, UPO, zakupy ✔
-4. **Interfejs webowy** — konta, wybór firmy, kontrahenci, wystawianie faktur
-5. **Rejestr VAT** — wynika niemal wprost z faktur i jest pomostem do JPK
-6. **JPK_V7** — osobna integracja z Ministerstwem, z własnym uwierzytelnianiem
-7. Dalej: magazyn, KPiR, CRM
+4. **Interfejs webowy** — konta, kontrahenci, wystawianie faktur, ustawienia ✔
+5. **Wizualizacja PDF** — wydruk faktury z kodem QR
+6. **Rejestr VAT** — wynika niemal wprost z faktur i jest pomostem do JPK
+7. **JPK_V7** — osobna integracja z Ministerstwem, z własnym uwierzytelnianiem
+8. Dalej: magazyn, KPiR, CRM
 
 ## Uwaga o testach
 
@@ -172,6 +218,19 @@ w pamięci. Filtry zapytań, więzy unikalności i typ `numeric` zachowują się
 inaczej w każdym silniku — testowanie ich na atrapie dawałoby złudne poczucie
 bezpieczeństwa akurat tam, gdzie pomyłka byłaby najdroższa.
 
-Połączenia z żywym KSeF nie da się zweryfikować w środowisku budowy — to
-sprawdzenie należy wykonać u siebie, przeciwko bezpłatnemu środowisku
-testowemu Ministerstwa.
+Aplikacja webowa sprawdzana jest **uruchomiona w całości**: testy logują się
+formularzem, wystawiają fakturę, pobierają jej XML i zapisują ustawienia,
+przechodząc tę samą drogę co użytkownik. Powód jest praktyczny — błąd
+w konfiguracji usług potrafi wywrócić stronę mimo bezbłędnej kompilacji,
+a właśnie taki błąd zdarzył się przy tworzeniu klienta KSeF.
+
+## Czego jeszcze nie sprawdzono
+
+**Połączenia z żywym KSeF nie da się zweryfikować w środowisku budowy** —
+dostęp do `ksef.mf.gov.pl` jest tam zablokowany. Sprawdzenie należy wykonać
+u siebie, przeciwko bezpłatnemu środowisku testowemu Ministerstwa: zapisać
+token w Ustawieniach, wystawić fakturę i wysłać ją.
+
+Zweryfikowana jest natomiast **zawartość** przesyłki: dokument przechodzi
+walidację oryginalnym schematem XSD, a koperta kryptograficzna — test
+z atrapą serwera, która naprawdę odszyfrowuje przesłane dane.

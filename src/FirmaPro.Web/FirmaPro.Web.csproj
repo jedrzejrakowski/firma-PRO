@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\FirmaPro.Domena\FirmaPro.Domena.csproj" />
+    <ProjectReference Include="..\FirmaPro.Dane\FirmaPro.Dane.csproj" />
+    <ProjectReference Include="..\FirmaPro.Ksef\FirmaPro.Ksef.csproj" />
+  </ItemGroup>
+
+  <!-- PasswordHasher pochodzi z platformy webowej ASP.NET Core, więc nie
+       trzeba dokładać osobnego pakietu. Pełnego ASP.NET Core Identity nie
+       używamy - własne encje użytkownika i firmy są prostsze i lepiej pasują
+       do wielofirmowości. -->
+
+</Project>

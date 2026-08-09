@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="xunit" />
@@ -23,6 +24,7 @@
     <ProjectReference Include="..\..\src\FirmaPro.Domena\FirmaPro.Domena.csproj" />
     <ProjectReference Include="..\..\src\FirmaPro.Ksef\FirmaPro.Ksef.csproj" />
     <ProjectReference Include="..\..\src\FirmaPro.Dane\FirmaPro.Dane.csproj" />
+    <ProjectReference Include="..\..\src\FirmaPro.Web\FirmaPro.Web.csproj" />
   </ItemGroup>
 
 </Project>
