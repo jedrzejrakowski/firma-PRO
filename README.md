@@ -6,9 +6,9 @@ przeglądarkowa z myślą o obsłudze wielu firm w jednej instalacji.
 Faktury powstają w strukturze **FA(3)** — wzorze obowiązującym w Krajowym
 Systemie e-Faktur od 1 lutego 2026 r.
 
-> **Stan prac: fundament i baza danych.** Gotowa jest warstwa dziedziny
-> z generatorem FA(3) oraz warstwa danych z izolacją firm. Integracja z KSeF
-> i interfejs webowy są w przygotowaniu — patrz [Plan](#plan).
+> **Stan prac: gotowe zaplecze.** Działa warstwa dziedziny z generatorem
+> FA(3), warstwa danych z izolacją firm oraz komunikacja z KSeF. Brakuje
+> interfejsu webowego — patrz [Plan](#plan).
 
 ---
 
@@ -21,8 +21,10 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Walidacja przed wysyłką (NIP, NRB, daty, limity schematu) | gotowe |
 | Generator XML FA(3) | gotowe |
 | Warstwa danych (EF Core, PostgreSQL, wielofirmowość) | gotowe |
-| Integracja z KSeF | w przygotowaniu |
+| Komunikacja z KSeF (wysyłka, UPO, faktury zakupowe) | gotowe |
+| Link weryfikacyjny kodu QR (KOD I) | gotowe |
 | Interfejs webowy | w przygotowaniu |
+| Wizualizacja PDF | w przygotowaniu |
 
 ## Uruchomienie
 
@@ -47,7 +49,7 @@ po sobie.
 ```
 src/
 ├── FirmaPro.Domena/     model faktury, stawki VAT, walidacja - bez zależności
-├── FirmaPro.Ksef/       generator XML FA(3)
+├── FirmaPro.Ksef/       generator XML FA(3), kryptografia, klient API
 └── FirmaPro.Dane/       encje, kontekst EF Core, migracje, izolacja firm
 testy/
 └── FirmaPro.Testy/      testy jednostkowe i bazodanowe
@@ -126,12 +128,28 @@ faktury do KSeF nie da się zmienić jej treści — zapisywalne pozostają tylk
 pola dotyczące obiegu w KSeF i rozliczenia płatności. Błąd koryguje się
 fakturą korygującą, tak jak wymagają tego przepisy.
 
+## Komunikacja z KSeF
+
+Obsługiwaną metodą uwierzytelniania jest **token KSeF** — generuje się go raz
+w aplikacji webowej KSeF i od tego momentu system działa bez udziału podpisu
+kwalifikowanego. Druga dopuszczalna metoda (podpis XAdES) wymaga certyfikatu
+kwalifikowanego i nie jest zaimplementowana.
+
+Faktury przesyłane są zgodnie z wymaganiami systemu: każda sesja dostaje nowy
+klucz **AES-256-CBC**, a ten klucz szyfrowany jest **RSA-OAEP (SHA-256)**
+certyfikatem Ministerstwa Finansów **pobieranym z API**, a nie zaszytym
+w kodzie — dzięki temu program przetrwa rotację certyfikatów.
+
+Cała komunikacja schowana jest za interfejsem `IKlientKsef`. Reszta systemu
+nigdy nie widzi konkretnej implementacji, więc podmiana sposobu rozmowy
+z KSeF — na przykład na bibliotekę wydawaną przez Ministerstwo Finansów —
+nie wymaga zmian w warstwie aplikacji.
+
 ## Plan
 
 1. **Fundament** — model, walidacja, generator FA(3) ✔
 2. **Warstwa danych** — EF Core i PostgreSQL, wielofirmowość, migracje ✔
-3. **Integracja z KSeF** — uwierzytelnianie, sesja interaktywna, wysyłka, UPO,
-   pobieranie faktur zakupowych
+3. **Integracja z KSeF** — uwierzytelnianie, sesja, wysyłka, UPO, zakupy ✔
 4. **Interfejs webowy** — konta, wybór firmy, kontrahenci, wystawianie faktur
 5. **Rejestr VAT** — wynika niemal wprost z faktur i jest pomostem do JPK
 6. **JPK_V7** — osobna integracja z Ministerstwem, z własnym uwierzytelnianiem
@@ -142,6 +160,12 @@ fakturą korygującą, tak jak wymagają tego przepisy.
 Zgodność generowanego dokumentu ze wzorem sprawdzana jest **prawdziwym
 schematem XSD**, w wariantach obejmujących nabywcę bez NIP-u, kontrahenta
 z numerem VAT UE, sprzedaż zwolnioną, odwrotne obciążenie, WDT i eksport.
+
+Komunikacja z KSeF sprawdzana jest atrapą serwera, która **naprawdę
+odszyfrowuje** przesyłkę: rozszyfrowuje token kluczem prywatnym, odtwarza
+klucz sesji, odszyfrowuje fakturę i porównuje ją bajt w bajt z oryginałem
+wraz ze skrótami SHA-256. Dzięki temu test wykrywa błąd w kopercie
+kryptograficznej, a nie tylko literówkę w nazwie pola.
 
 Izolacja firm sprawdzana jest na **prawdziwym PostgreSQL**, a nie na bazie
 w pamięci. Filtry zapytań, więzy unikalności i typ `numeric` zachowują się

@@ -71,14 +71,6 @@ public sealed class Firma : EncjaBazowa
     public ICollection<CzlonkostwoWFirmie> Czlonkowie { get; set; } = [];
 }
 
-/// <summary>Środowiska KSeF udostępniane przez Ministerstwo Finansów.</summary>
-public enum SrodowiskoKsef
-{
-    Test,
-    Demo,
-    Produkcja
-}
-
 /// <summary>Konto użytkownika systemu.</summary>
 public sealed class Uzytkownik : EncjaBazowa
 {
