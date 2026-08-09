@@ -57,6 +57,15 @@ public sealed class Firma : EncjaBazowa
     public SrodowiskoKsef Srodowisko { get; set; } = SrodowiskoKsef.Test;
 
     /// <summary>
+    /// Rytm rozliczania VAT - miesięczny albo kwartalny.
+    /// </summary>
+    /// <remarks>
+    /// Decyduje o podziale rejestru na okresy oraz o tym, ile okresów zostaje
+    /// na odliczenie podatku z faktury zakupu (art. 86 ust. 11).
+    /// </remarks>
+    public TypOkresu TypOkresuVat { get; set; } = TypOkresu.Miesieczny;
+
+    /// <summary>
     /// Token KSeF zaszyfrowany kluczem aplikacji.
     /// </summary>
     /// <remarks>
@@ -179,6 +188,26 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
     public DateOnly? DataSprzedazy { get; set; }
     public string? MiejsceWystawienia { get; set; }
 
+    /// <summary>
+    /// Data wskazująca okres rejestru VAT.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Wyliczana przy wystawieniu z reguły ogólnej (art. 19a ust. 1: decyduje
+    /// data sprzedaży), ale zapisana w bazie jako osobna kolumna. Rejestr może
+    /// dzięki temu wybrać dokumenty jednym warunkiem po indeksie, zamiast
+    /// wczytywać szerszy przedział i odsiewać go w pamięci - a takie odsiewanie
+    /// po cichu gubiłoby dokumenty leżące poza przyjętym marginesem.
+    /// </para>
+    /// <para>
+    /// Wartość można poprawić ręcznie przy wyjątkach - mediach i najmie, gdzie
+    /// obowiązek podatkowy powstaje z chwilą wystawienia faktury. Zmiana nie
+    /// dotyka treści dokumentu wysłanego do KSeF, tylko jego przypisania
+    /// do okresu.
+    /// </para>
+    /// </remarks>
+    public DateOnly DataUjeciaVat { get; set; }
+
     public string Waluta { get; set; } = "PLN";
     public RodzajFaktury Rodzaj { get; set; } = RodzajFaktury.Vat;
 
@@ -297,4 +326,95 @@ public sealed class SeriaNumeracji : EncjaBazowa, INalezyDoFirmy
     public int OstatniNumer { get; set; }
 
     public bool Domyslna { get; set; } = true;
+}
+
+/// <summary>
+/// Faktura otrzymana od dostawcy, ujmowana w rejestrze zakupów.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Zakup zapisujemy w rozbiciu na stawki, a nie na pozycje towarowe. Rejestr
+/// VAT i deklaracja potrzebują wyłącznie kwot w stawkach; przepisywanie
+/// wszystkich pozycji z cudzej faktury byłoby pracą, z której nic nie wynika.
+/// Gdy dojdzie magazyn, pozycje trafią do niego jako osobne zagadnienie.
+/// </para>
+/// <para>
+/// Osobno trzymamy trzy daty, bo każda znaczy co innego: data wystawienia jest
+/// na dokumencie, data wpływu decyduje o najwcześniejszym możliwym odliczeniu,
+/// a data ujęcia wskazuje okres, w którym podatek faktycznie odliczamy.
+/// </para>
+/// </remarks>
+public sealed class FakturaZakupu : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+    public Firma? Firma { get; set; }
+
+    /// <summary>Numer nadany przez sprzedawcę - nie mamy nad nim kontroli.</summary>
+    public string Numer { get; set; } = string.Empty;
+
+    public DateOnly DataWystawienia { get; set; }
+
+    /// <summary>Data wpływu faktury do nabywcy.</summary>
+    public DateOnly DataWplywu { get; set; }
+
+    /// <summary>
+    /// Data powstania obowiązku podatkowego u sprzedawcy - zwykle data
+    /// dostawy towaru albo wykonania usługi.
+    /// </summary>
+    public DateOnly DataObowiazkuPodatkowego { get; set; }
+
+    /// <summary>Data wskazująca okres, w którym odliczany jest podatek.</summary>
+    public DateOnly DataUjecia { get; set; }
+
+    public Guid? KontrahentId { get; set; }
+    public Kontrahent? Kontrahent { get; set; }
+
+    /// <summary>
+    /// Dane sprzedawcy przepisane z dokumentu.
+    /// </summary>
+    /// <remarks>
+    /// Tak samo jak przy sprzedaży: dokument ma pokazywać dane z dnia
+    /// wystawienia, a nie te, które akurat są w kartotece.
+    /// </remarks>
+    public string SprzedawcaNazwa { get; set; } = string.Empty;
+    public string? SprzedawcaNip { get; set; }
+
+    public string Waluta { get; set; } = "PLN";
+
+    public RodzajZakupu Rodzaj { get; set; } = RodzajZakupu.TowaryIUslugi;
+
+    /// <summary>
+    /// Czy podatek z tej faktury podlega odliczeniu.
+    /// </summary>
+    /// <remarks>
+    /// Zakup służący sprzedaży zwolnionej albo celom prywatnym trafia do
+    /// rejestru, ale podatku z niego się nie odlicza.
+    /// </remarks>
+    public bool Odliczany { get; set; } = true;
+
+    public decimal RazemNetto { get; set; }
+    public decimal RazemVat { get; set; }
+    public decimal RazemBrutto { get; set; }
+
+    /// <summary>Numer nadany przez KSeF, gdy faktura pochodzi z systemu.</summary>
+    public string? NumerKsef { get; set; }
+
+    public string? Uwagi { get; set; }
+
+    public ICollection<KwotaVatZakupu> Kwoty { get; set; } = [];
+}
+
+/// <summary>Kwoty faktury zakupu w jednej stawce podatku.</summary>
+public sealed class KwotaVatZakupu : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    public Guid FakturaZakupuId { get; set; }
+    public FakturaZakupu? Faktura { get; set; }
+
+    /// <summary>Kod stawki zgodny ze schematem FA(3).</summary>
+    public string KodStawki { get; set; } = "23";
+
+    public decimal Netto { get; set; }
+    public decimal Vat { get; set; }
 }

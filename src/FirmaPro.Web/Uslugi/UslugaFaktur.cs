@@ -281,6 +281,10 @@ public sealed class UslugaFaktur(
             Numer = model.Numer,
             DataWystawienia = model.DataWystawienia,
             DataSprzedazy = model.DataSprzedazy,
+            // Okres rejestru VAT wynika z daty sprzedaży, nie wystawienia -
+            // zapisujemy go od razu, żeby rejestr nie musiał go zgadywać.
+            DataUjeciaVat = TerminyVat.DataUjeciaSprzedazy(
+                model.DataWystawienia, model.DataSprzedazy),
             MiejsceWystawienia = model.MiejsceWystawienia,
             Waluta = model.Waluta,
             Rodzaj = model.Rodzaj,

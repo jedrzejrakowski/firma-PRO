@@ -80,6 +80,8 @@ public class FirmaProDbContext : DbContext
     public DbSet<Kontrahent> Kontrahenci => Set<Kontrahent>();
     public DbSet<FakturaSprzedazy> FakturySprzedazy => Set<FakturaSprzedazy>();
     public DbSet<PozycjaFakturySprzedazy> PozycjeFaktur => Set<PozycjaFakturySprzedazy>();
+    public DbSet<FakturaZakupu> FakturyZakupu => Set<FakturaZakupu>();
+    public DbSet<KwotaVatZakupu> KwotyVatZakupu => Set<KwotaVatZakupu>();
     public DbSet<SeriaNumeracji> SerieNumeracji => Set<SeriaNumeracji>();
 
     // Nazwa parametru musi odpowiadać deklaracji z klasy bazowej, dlatego
@@ -93,6 +95,7 @@ public class FirmaProDbContext : DbContext
         KonfigurujUzytkownikow(modelBuilder);
         KonfigurujKontrahentow(modelBuilder);
         KonfigurujFaktury(modelBuilder);
+        KonfigurujZakupy(modelBuilder);
         KonfigurujNumeracje(modelBuilder);
 
         ZastosujFiltryFirmy(modelBuilder);
@@ -118,6 +121,7 @@ public class FirmaProDbContext : DbContext
             // Nazwy środowisk zapisujemy tekstem - w bazie czyta się je bez
             // zaglądania do kodu, a dodanie nowego nie przesuwa numeracji.
             e.Property(f => f.Srodowisko).HasConversion<string>().HasMaxLength(16);
+            e.Property(f => f.TypOkresuVat).HasConversion<string>().HasMaxLength(16);
             e.HasIndex(f => f.Nip);
         });
     }
@@ -225,6 +229,8 @@ public class FirmaProDbContext : DbContext
             // nawet gdy dwie osoby wystawiają dokument w tej samej chwili.
             e.HasIndex(f => new { f.FirmaId, f.Numer }).IsUnique();
             e.HasIndex(f => new { f.FirmaId, f.DataWystawienia });
+            // Rejestr VAT wybiera dokumenty po dacie ujęcia.
+            e.HasIndex(f => new { f.FirmaId, f.DataUjeciaVat });
             e.HasIndex(f => f.NumerKsef);
         });
 
@@ -257,6 +263,63 @@ public class FirmaProDbContext : DbContext
         });
     }
 
+    private static void KonfigurujZakupy(ModelBuilder budowniczy)
+    {
+        budowniczy.Entity<FakturaZakupu>(e =>
+        {
+            e.ToTable("faktury_zakupu");
+            e.HasKey(f => f.Id);
+
+            e.Property(f => f.Numer).HasMaxLength(256).IsRequired();
+            e.Property(f => f.Waluta).HasMaxLength(3).IsRequired();
+            e.Property(f => f.SprzedawcaNazwa).HasMaxLength(512).IsRequired();
+            e.Property(f => f.SprzedawcaNip).HasMaxLength(16);
+            e.Property(f => f.Rodzaj).HasConversion<string>().HasMaxLength(16);
+            e.Property(f => f.NumerKsef).HasMaxLength(64);
+            e.Property(f => f.Uwagi).HasMaxLength(2000);
+
+            e.Property(f => f.RazemNetto).HasPrecision(18, 2);
+            e.Property(f => f.RazemVat).HasPrecision(18, 2);
+            e.Property(f => f.RazemBrutto).HasPrecision(18, 2);
+
+            e.HasOne(f => f.Kontrahent)
+                .WithMany()
+                .HasForeignKey(f => f.KontrahentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Numer faktury zakupu nadaje sprzedawca, więc dwa różne podmioty
+            // mogą wystawić dokumenty o tym samym numerze. Niepowtarzalność
+            // ma sens dopiero w połączeniu z NIP-em wystawcy - i tylko wtedy,
+            // gdy ten NIP w ogóle jest znany.
+            e.HasIndex(f => new { f.FirmaId, f.SprzedawcaNip, f.Numer })
+                .IsUnique()
+                .HasFilter("\"SprzedawcaNip\" IS NOT NULL");
+
+            // Rejestr VAT wybiera dokumenty po dacie ujęcia - to po niej
+            // najczęściej przeszukujemy tę tabelę.
+            e.HasIndex(f => new { f.FirmaId, f.DataUjecia });
+        });
+
+        budowniczy.Entity<KwotaVatZakupu>(e =>
+        {
+            e.ToTable("kwoty_vat_zakupu");
+            e.HasKey(k => k.Id);
+
+            e.Property(k => k.KodStawki).HasMaxLength(8).IsRequired();
+            e.Property(k => k.Netto).HasPrecision(18, 2);
+            e.Property(k => k.Vat).HasPrecision(18, 2);
+
+            e.HasOne(k => k.Faktura)
+                .WithMany(f => f!.Kwoty)
+                .HasForeignKey(k => k.FakturaZakupuId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Jedna stawka może wystąpić na fakturze tylko raz - inaczej
+            // rejestr pokazywałby ten sam podatek w dwóch wierszach.
+            e.HasIndex(k => new { k.FakturaZakupuId, k.KodStawki }).IsUnique();
+        });
+    }
+
     private static void KonfigurujNumeracje(ModelBuilder budowniczy)
     {
         budowniczy.Entity<SeriaNumeracji>(e =>
@@ -281,6 +344,10 @@ public class FirmaProDbContext : DbContext
             .HasQueryFilter(f => f.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<PozycjaFakturySprzedazy>()
             .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<FakturaZakupu>()
+            .HasQueryFilter(f => f.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<KwotaVatZakupu>()
+            .HasQueryFilter(k => k.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<SeriaNumeracji>()
             .HasQueryFilter(s => s.FirmaId == AktualnaFirmaId);
     }
@@ -396,6 +463,9 @@ public class FirmaProDbContext : DbContext
             nameof(FakturaSprzedazy.SkrotXml),
             nameof(FakturaSprzedazy.Zaplacono),
             nameof(FakturaSprzedazy.DataZaplaty),
+            // Okres rejestru VAT to kwalifikacja księgowa, a nie treść
+            // dokumentu - jego poprawienie nie narusza wysłanej faktury.
+            nameof(FakturaSprzedazy.DataUjeciaVat),
             nameof(EncjaBazowa.ZmienionoUtc)
         ];
 

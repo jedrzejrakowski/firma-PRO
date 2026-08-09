@@ -280,3 +280,51 @@ button:hover, .przycisk:hover { background: var(--granat-jasny); }
 
 .pole-wyboru input { width: auto; margin: 0; }
 .pole-wyboru label { margin: 0; font-weight: 400; }
+
+/* --------------------------------------------------------- rejestr VAT */
+
+.naglowek-z-wyborem {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.wybor-okresu { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.wybor-okresu label { margin: 0; font-size: 0.85rem; color: var(--tekst-szary); }
+.wybor-okresu select { width: auto; min-width: 190px; }
+
+.kafelki {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 14px;
+    margin: 6px 0 10px;
+}
+
+.kafelek {
+    background: var(--karta);
+    border: 1px solid var(--linia);
+    border-radius: 6px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.kafelek .etykieta { color: var(--tekst-szary); font-size: 0.82rem; }
+.kafelek .kwota { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kafelek.wyroznik { border-color: var(--granat); }
+.kafelek.wyroznik .kwota { color: var(--granat); }
+
+.naglowek-podsekcji {
+    font-size: 0.9rem;
+    color: var(--tekst-szary);
+    margin: 22px 0 10px;
+}
+
+table.waska { max-width: 560px; }
+
+tfoot td { border-top: 2px solid var(--linia); background: #fbfcfd; }
+
+.ostrzezenie { background: var(--zolty-tlo); border-color: #e6cf95; color: var(--zolty); }

@@ -53,6 +53,8 @@ budowniczy.Services.AddSingleton<IOchronaTokena, OchronaTokena>();
 budowniczy.Services.AddScoped<UslugaNumeracji>();
 budowniczy.Services.AddScoped<UslugaFaktur>();
 budowniczy.Services.AddScoped<UslugaZakladania>();
+budowniczy.Services.AddScoped<UslugaZakupow>();
+budowniczy.Services.AddScoped<UslugaRejestruVat>();
 
 // Klient KSeF korzysta z puli połączeń, żeby nie wyczerpywać gniazd
 // sieciowych. Adres bazowy ustawia fabryka - zależy od środowiska firmy.

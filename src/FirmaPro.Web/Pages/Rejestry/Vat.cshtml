@@ -1,0 +1,210 @@
+@page
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.Rejestry.VatModel
+@{
+    ViewData["Tytul"] = "Rejestr VAT";
+    RozliczenieOkresu rozliczenie = Model.Rejestr.Rozliczenie;
+}
+
+<div class="naglowek-z-wyborem">
+    <div>
+        <h1>Rejestr VAT</h1>
+        <p class="podtytul">@Model.Okres.Nazwa</p>
+    </div>
+
+    <form method="get" class="wybor-okresu">
+        <label for="okres">Okres</label>
+        <select id="okres" name="okres" onchange="this.form.submit()">
+            @foreach (OkresRozliczeniowy okres in Model.DostepneOkresy)
+            {
+                <option value="@okres.Kod" selected="@(okres == Model.Okres)">@okres.Nazwa</option>
+            }
+        </select>
+        <noscript><button type="submit">Pokaż</button></noscript>
+    </form>
+</div>
+
+<div class="kafelki">
+    <div class="kafelek">
+        <span class="etykieta">Podatek należny</span>
+        <span class="kwota">@rozliczenie.PodatekNalezny.ToString("N2")</span>
+    </div>
+    <div class="kafelek">
+        <span class="etykieta">Podatek naliczony</span>
+        <span class="kwota">@rozliczenie.PodatekNaliczony.ToString("N2")</span>
+    </div>
+    @if (rozliczenie.Nadwyzka > 0)
+    {
+        <div class="kafelek wyroznik">
+            <span class="etykieta">Nadwyżka do przeniesienia</span>
+            <span class="kwota">@rozliczenie.Nadwyzka.ToString("N2")</span>
+        </div>
+    }
+    else
+    {
+        <div class="kafelek wyroznik">
+            <span class="etykieta">Podatek do zapłaty</span>
+            <span class="kwota">@rozliczenie.DoZaplaty.ToString("N2")</span>
+        </div>
+    }
+</div>
+
+<p class="wskazowka" style="margin-bottom:26px">
+    Kwota dotyczy wyłącznie tego okresu. Nadwyżka przeniesiona z poprzednich
+    miesięcy zostanie uwzględniona dopiero w deklaracji JPK_V7.
+</p>
+
+<h2 class="naglowek-sekcji">Sprzedaż</h2>
+
+@if (Model.Rejestr.Sprzedaz.Wpisy.Count == 0)
+{
+    <p class="pusto">Brak sprzedaży w tym okresie.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Data ujęcia</th>
+                <th>Numer</th>
+                <th>Nabywca</th>
+                <th>NIP</th>
+                <th class="liczba">Netto</th>
+                <th class="liczba">VAT</th>
+                <th class="liczba">Brutto</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (WpisSprzedazy wpis in Model.Rejestr.Sprzedaz.Wpisy)
+            {
+                <tr>
+                    <td class="nowrap">@wpis.DataUjecia.ToString("yyyy-MM-dd")</td>
+                    <td class="nowrap"><strong>@wpis.Numer</strong></td>
+                    <td>@wpis.NabywcaNazwa</td>
+                    <td class="nowrap numer-ksef">@(wpis.NabywcaNip ?? "—")</td>
+                    <td class="liczba">@wpis.RazemNetto.ToString("N2")</td>
+                    <td class="liczba">@wpis.RazemVat.ToString("N2")</td>
+                    <td class="liczba">@wpis.RazemBrutto.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4"><strong>Razem</strong></td>
+                <td class="liczba"><strong>@Model.Rejestr.Sprzedaz.RazemNetto.ToString("N2")</strong></td>
+                <td class="liczba"><strong>@Model.Rejestr.Sprzedaz.PodatekNalezny.ToString("N2")</strong></td>
+                <td class="liczba"><strong>@Model.Rejestr.Sprzedaz.RazemBrutto.ToString("N2")</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <h3 class="naglowek-podsekcji">W rozbiciu na stawki</h3>
+    <table class="waska">
+        <thead>
+            <tr>
+                <th>Stawka</th>
+                <th class="liczba">Netto</th>
+                <th class="liczba">VAT</th>
+                <th class="liczba">Brutto</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (KwotyWStawce kwoty in Model.Rejestr.Sprzedaz.WedlugStawek)
+            {
+                <tr>
+                    <td>@kwoty.Stawka.Opis</td>
+                    <td class="liczba">@kwoty.Netto.ToString("N2")</td>
+                    <td class="liczba">@kwoty.Vat.ToString("N2")</td>
+                    <td class="liczba">@kwoty.Brutto.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2 class="naglowek-sekcji">Zakupy</h2>
+
+@if (Model.Rejestr.Zakupy.Wpisy.Count == 0)
+{
+    <p class="pusto">Brak zakupów w tym okresie.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Numer</th>
+                <th>Sprzedawca</th>
+                <th>NIP</th>
+                <th>Wystawiono</th>
+                <th>Wpłynęła</th>
+                <th>Rodzaj</th>
+                <th class="liczba">Netto</th>
+                <th class="liczba">VAT</th>
+                <th class="liczba">Do odliczenia</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (WpisZakupu wpis in Model.Rejestr.Zakupy.Wpisy)
+            {
+                <tr>
+                    <td class="nowrap"><strong>@wpis.Numer</strong></td>
+                    <td>@wpis.SprzedawcaNazwa</td>
+                    <td class="nowrap numer-ksef">@(wpis.SprzedawcaNip ?? "—")</td>
+                    <td class="nowrap">@wpis.DataWystawienia.ToString("yyyy-MM-dd")</td>
+                    <td class="nowrap">@wpis.DataWplywu.ToString("yyyy-MM-dd")</td>
+                    <td class="nowrap">
+                        @(wpis.Rodzaj == RodzajZakupu.SrodkiTrwale ? "środki trwałe" : "towary i usługi")
+                    </td>
+                    <td class="liczba">@wpis.Netto.ToString("N2")</td>
+                    <td class="liczba">@wpis.Vat.ToString("N2")</td>
+                    <td class="liczba">
+                        @if (wpis.Odliczany)
+                        {
+                            @wpis.VatDoOdliczenia.ToString("N2")
+                        }
+                        else
+                        {
+                            <span class="znacznik">nie odlicza się</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="6"><strong>Razem</strong></td>
+                <td class="liczba"><strong>@Model.Rejestr.Zakupy.RazemNetto.ToString("N2")</strong></td>
+                <td class="liczba"><strong>@Model.Rejestr.Zakupy.RazemVat.ToString("N2")</strong></td>
+                <td class="liczba"><strong>@Model.Rejestr.Zakupy.PodatekNaliczony.ToString("N2")</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <h3 class="naglowek-podsekcji">W podziale wymaganym przez deklarację</h3>
+    <table class="waska">
+        <thead>
+            <tr>
+                <th>Rodzaj nabycia</th>
+                <th class="liczba">Netto</th>
+                <th class="liczba">VAT do odliczenia</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Środki trwałe</td>
+                <td class="liczba">@Model.Rejestr.Zakupy.NettoSrodkiTrwale.ToString("N2")</td>
+                <td class="liczba">@Model.Rejestr.Zakupy.VatSrodkiTrwale.ToString("N2")</td>
+            </tr>
+            <tr>
+                <td>Pozostałe towary i usługi</td>
+                <td class="liczba">@Model.Rejestr.Zakupy.NettoPozostale.ToString("N2")</td>
+                <td class="liczba">@Model.Rejestr.Zakupy.VatPozostale.ToString("N2")</td>
+            </tr>
+        </tbody>
+    </table>
+}
+
+<div class="paskiem" style="margin-top:26px">
+    <a class="przycisk przycisk-drugi" asp-page="/Zakupy/Index">Faktury zakupu</a>
+</div>

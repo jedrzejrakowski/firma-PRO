@@ -1,0 +1,287 @@
+@page
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.Zakupy.NowaModel
+@{
+    ViewData["Tytul"] = "Nowa faktura zakupu";
+}
+
+<h1>Faktura zakupu</h1>
+<p class="podtytul">Przepisz dokument otrzymany od dostawcy.</p>
+
+@if (Model.Bledy.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie można zapisać faktury:</strong>
+        <ul class="bledy">
+            @foreach (string blad in Model.Bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+    </div>
+}
+
+@if (Model.Ostrzezenia.Count > 0)
+{
+    <div class="powiadomienie ostrzezenie">
+        <strong>Zwróć uwagę:</strong>
+        <ul class="bledy">
+            @foreach (string uwaga in Model.Ostrzezenia)
+            {
+                <li>@uwaga</li>
+            }
+        </ul>
+    </div>
+}
+
+<form method="post">
+    <div class="karta">
+        <div class="siatka">
+            <div class="pole">
+                <label for="numer">Numer faktury</label>
+                <input type="text" id="numer" name="Numer" value="@Model.Numer"
+                       required autofocus maxlength="256" />
+            </div>
+
+            <div class="pole">
+                <label for="sprzedawca">Sprzedawca z kartoteki</label>
+                <select id="sprzedawca" name="KontrahentId">
+                    <option value="">— spoza kartoteki —</option>
+                    @foreach (var kontrahent in Model.Kontrahenci)
+                    {
+                        <option value="@kontrahent.Id" selected="@(kontrahent.Id == Model.KontrahentId)">
+                            @kontrahent.Nazwa
+                        </option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="nazwa">Nazwa sprzedawcy</label>
+                <input type="text" id="nazwa" name="SprzedawcaNazwa"
+                       value="@Model.SprzedawcaNazwa" maxlength="512" />
+            </div>
+
+            <div class="pole">
+                <label for="nip">NIP sprzedawcy</label>
+                <input type="text" id="nip" name="SprzedawcaNip"
+                       value="@Model.SprzedawcaNip" maxlength="16" />
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Wybranie sprzedawcy z kartoteki wypełni oba pola powyżej.
+        </p>
+    </div>
+
+    <div class="karta">
+        <h2 class="naglowek-sekcji">Daty</h2>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="dataWystawienia">Data wystawienia</label>
+                <input type="date" id="dataWystawienia" name="DataWystawienia"
+                       value="@Model.DataWystawienia.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div class="pole">
+                <label for="dataWplywu">Data wpływu</label>
+                <input type="date" id="dataWplywu" name="DataWplywu"
+                       value="@Model.DataWplywu.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div class="pole">
+                <label for="dataObowiazku">Obowiązek podatkowy u sprzedawcy</label>
+                <input type="date" id="dataObowiazku" name="DataObowiazkuPodatkowego"
+                       value="@Model.DataObowiazkuPodatkowego?.ToString("yyyy-MM-dd")" />
+            </div>
+
+            <div class="pole">
+                <label for="dataUjecia">Okres odliczenia</label>
+                <input type="date" id="dataUjecia" name="DataUjecia"
+                       value="@Model.DataUjecia?.ToString("yyyy-MM-dd")" />
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Puste pola program uzupełni sam: obowiązek podatkowy przyjmie datę
+            wystawienia, a odliczenie trafi do pierwszego okresu, w którym jest
+            możliwe — czyli po otrzymaniu faktury (art. 86 ust. 10 i 10b).
+        </p>
+    </div>
+
+    <div class="karta">
+        <h2 class="naglowek-sekcji">Kwoty</h2>
+
+        <table class="pozycje">
+            <thead>
+                <tr>
+                    <th>Stawka</th>
+                    <th class="liczba">Netto</th>
+                    <th class="liczba">VAT</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="kwoty">
+                @for (int i = 0; i < Model.Kwoty.Count; i++)
+                {
+                    <tr>
+                        <td>
+                            <select name="Kwoty[@i].KodStawki">
+                                @foreach (StawkaVat stawka in FirmaPro.Web.Pages.Zakupy.NowaModel.DostepneStawki)
+                                {
+                                    <option value="@stawka.Kod"
+                                            selected="@(stawka.Kod == Model.Kwoty[i].KodStawki)">
+                                        @stawka.Opis
+                                    </option>
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" class="liczba"
+                                   name="Kwoty[@i].Netto" value="@Model.Kwoty[i].Netto" />
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" class="liczba"
+                                   name="Kwoty[@i].Vat" value="@Model.Kwoty[i].Vat" />
+                        </td>
+                        <td>
+                            <button type="button" class="usun-wiersz" title="Usuń">&times;</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <button type="button" id="dodajStawke" class="przycisk-drugi">Dodaj stawkę</button>
+    </div>
+
+    <div class="karta">
+        <h2 class="naglowek-sekcji">Kwalifikacja</h2>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="rodzaj">Rodzaj nabycia</label>
+                <select id="rodzaj" name="Rodzaj">
+                    <option value="@RodzajZakupu.TowaryIUslugi"
+                            selected="@(Model.Rodzaj == RodzajZakupu.TowaryIUslugi)">
+                        Towary i usługi pozostałe
+                    </option>
+                    <option value="@RodzajZakupu.SrodkiTrwale"
+                            selected="@(Model.Rodzaj == RodzajZakupu.SrodkiTrwale)">
+                        Środki trwałe
+                    </option>
+                </select>
+            </div>
+
+            <div class="pole">
+                <label for="uwagi">Uwagi</label>
+                <input type="text" id="uwagi" name="Uwagi" value="@Model.Uwagi"
+                       maxlength="2000" />
+            </div>
+        </div>
+
+        <div class="pole-wyboru">
+            <input type="checkbox" id="odliczany" name="Odliczany" value="true"
+                   checked="@Model.Odliczany" />
+            @* Odznaczone pole wyboru nie wysyła nic, a właściwość ma wartość
+               początkową "true" - bez tego ukrytego pola odznaczenie zostałoby
+               po cichu zignorowane i zakup trafiłby do odliczenia mimo woli
+               użytkownika. Kolejność ma znaczenie: przy zaznaczonym polu wiąże
+               się pierwsza z przesłanych wartości. *@
+            <input type="hidden" name="Odliczany" value="false" />
+            <label for="odliczany">Podatek z tej faktury podlega odliczeniu</label>
+        </div>
+
+        <p class="wskazowka">
+            Odznacz przy zakupach służących sprzedaży zwolnionej albo celom
+            prywatnym — trafią do rejestru, ale nie pomniejszą podatku.
+        </p>
+    </div>
+
+    <div class="paskiem">
+        <button type="submit">Zapisz w rejestrze</button>
+        <a class="przycisk przycisk-drugi" asp-page="Index">Anuluj</a>
+    </div>
+</form>
+
+@section Skrypty {
+<script>
+    (function () {
+        const cialo = document.getElementById('kwoty');
+
+        // Nazwy pól niosą numer wiersza, więc po każdej zmianie liczby
+        // wierszy trzeba je ponumerować od nowa - inaczej wiązanie modelu
+        // pogubi wartości.
+        function przenumeruj() {
+            cialo.querySelectorAll('tr').forEach((wiersz, indeks) => {
+                wiersz.querySelectorAll('[name]').forEach(pole => {
+                    pole.name = pole.name.replace(/Kwoty\[\d+\]/, `Kwoty[${indeks}]`);
+                });
+            });
+        }
+
+        // Podpowiedź kwoty podatku: liczona z wybranej stawki, ale tylko
+        // dopóki użytkownik sam czegoś nie wpisał.
+        const procenty = { '23': 23, '22': 22, '8': 8, '7': 7, '5': 5, '4': 4, '3': 3 };
+
+        function podpowiedzVat(wiersz) {
+            const stawka = wiersz.querySelector('select').value;
+            const netto = parseFloat(wiersz.querySelector('[name$=".Netto"]').value) || 0;
+            const poleVat = wiersz.querySelector('[name$=".Vat"]');
+
+            if (poleVat.dataset.recznie === '1') return;
+
+            const procent = procenty[stawka];
+            poleVat.value = procent ? (Math.round(netto * procent) / 100).toFixed(2) : '0.00';
+        }
+
+        cialo.addEventListener('input', zdarzenie => {
+            const wiersz = zdarzenie.target.closest('tr');
+            if (zdarzenie.target.name.endsWith('.Vat')) {
+                zdarzenie.target.dataset.recznie = '1';
+                return;
+            }
+            podpowiedzVat(wiersz);
+        });
+
+        cialo.addEventListener('change', zdarzenie => {
+            if (zdarzenie.target.tagName === 'SELECT') {
+                const poleVat = zdarzenie.target.closest('tr').querySelector('[name$=".Vat"]');
+                poleVat.dataset.recznie = '';
+                podpowiedzVat(zdarzenie.target.closest('tr'));
+            }
+        });
+
+        document.getElementById('dodajStawke').addEventListener('click', () => {
+            const nowy = cialo.querySelector('tr').cloneNode(true);
+            nowy.querySelectorAll('input').forEach(pole => {
+                pole.value = '';
+                pole.dataset.recznie = '';
+            });
+            cialo.appendChild(nowy);
+            przenumeruj();
+        });
+
+        cialo.addEventListener('click', zdarzenie => {
+            if (!zdarzenie.target.classList.contains('usun-wiersz')) return;
+            if (cialo.querySelectorAll('tr').length === 1) return;
+            zdarzenie.target.closest('tr').remove();
+            przenumeruj();
+        });
+
+        // Wybór sprzedawcy z kartoteki blokuje ręczne pola, żeby nie dało się
+        // zapisać dwóch różnych nazw dla tego samego dokumentu.
+        const lista = document.getElementById('sprzedawca');
+        function przelaczPolaSprzedawcy() {
+            const zKartoteki = lista.value !== '';
+            document.getElementById('nazwa').readOnly = zKartoteki;
+            document.getElementById('nip').readOnly = zKartoteki;
+        }
+        lista.addEventListener('change', przelaczPolaSprzedawcy);
+        przelaczPolaSprzedawcy();
+    })();
+</script>
+}

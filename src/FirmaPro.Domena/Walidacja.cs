@@ -45,10 +45,20 @@ public sealed class WynikWalidacji
         return wynik;
     }
 
-    internal void Blad(string pole, string komunikat) =>
+    /// <summary>
+    /// Dopisuje błąd blokujący zapis dokumentu.
+    /// </summary>
+    /// <remarks>
+    /// Dostępne także poza warstwą dziedziny: reguły, które wymagają
+    /// zajrzenia do bazy (na przykład sprawdzenie, czy kontrahent istnieje),
+    /// nie mieszczą się w walidatorze, a ich wynik ma trafić do tej samej
+    /// listy zastrzeżeń, którą widzi użytkownik.
+    /// </remarks>
+    public void Blad(string pole, string komunikat) =>
         _problemy.Add(new Problem(PoziomProblemu.Blad, pole, komunikat));
 
-    internal void Ostrzez(string pole, string komunikat) =>
+    /// <summary>Dopisuje zastrzeżenie, które nie blokuje zapisu.</summary>
+    public void Ostrzez(string pole, string komunikat) =>
         _problemy.Add(new Problem(PoziomProblemu.Ostrzezenie, pole, komunikat));
 
     /// <summary>Składa zastrzeżenia w czytelny tekst dla użytkownika.</summary>

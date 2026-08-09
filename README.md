@@ -8,7 +8,8 @@ Systemie e-Faktur od 1 lutego 2026 r.
 
 > **Stan prac: program działa od przeglądarki do gotowego dokumentu.** Można
 > się zalogować, prowadzić kartotekę kontrahentów, wystawić fakturę, obejrzeć
-> ją, pobrać plik FA(3) oraz wydruk PDF dla kontrahenta. Wysyłka do KSeF jest
+> ją, pobrać plik FA(3) oraz wydruk PDF dla kontrahenta, wprowadzić faktury
+> zakupu i zobaczyć rejestr VAT za wybrany okres. Wysyłka do KSeF jest
 > zaimplementowana, ale nie została jeszcze potwierdzona połączeniem z żywym
 > systemem — patrz [Czego jeszcze nie sprawdzono](#czego-jeszcze-nie-sprawdzono).
 
@@ -30,7 +31,9 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Wystawianie faktur i podgląd dokumentu | gotowe |
 | Ustawienia firmy wraz z tokenem KSeF | gotowe |
 | Wizualizacja PDF z kodem QR | gotowe |
-| Rejestr VAT, JPK_V7 | w przygotowaniu |
+| Faktury zakupu | gotowe |
+| Rejestr VAT sprzedaży i zakupów | gotowe |
+| JPK_V7 | w przygotowaniu |
 
 ## Uruchomienie
 
@@ -221,6 +224,45 @@ patrz `src/FirmaPro.Wydruk/Czcionki/LICENCJA.md`. Gdyby brać go z systemu,
 ten sam dokument wyglądałby inaczej na serwerze i na komputerze księgowej,
 a przy braku czcionki wydruk sypałby się dopiero u klienta.
 
+## Rejestr VAT
+
+Rejestr nie jest osobno przechowywany - powstaje z faktur przy każdym otwarciu
+ekranu. Dzięki temu poprawka w dokumencie widać od razu w rejestrze i nie ma
+dwóch źródeł prawdy, które mogłyby się rozjechać.
+
+### Data na fakturze rzadko decyduje o okresie
+
+To najczęstsze źródło pomyłek, więc reguły siedzą w osobnym miejscu
+(`TerminyVat`) i mają własne testy:
+
+- **sprzedaż** trafia do okresu, w którym wykonano usługę lub dostarczono
+  towar (art. 19a ust. 1), a nie w którym wystawiono fakturę. Usługa wykonana
+  28 sierpnia, zafakturowana 3 września, należy do sierpnia;
+- **zakup** można odliczyć najwcześniej w okresie, w którym u sprzedawcy
+  powstał obowiązek podatkowy, ale nie wcześniej niż po otrzymaniu faktury
+  (art. 86 ust. 10 i 10b pkt 1);
+- kto nie odliczył od razu, ma na to jeszcze trzy okresy przy rozliczeniu
+  miesięcznym albo dwa przy kwartalnym (art. 86 ust. 11). Późniejsze
+  odliczenie wymaga już korekty wstecz - program to sprawdza i nie pozwala
+  zapisać dokumentu z datą spoza terminu.
+
+Reguły są ogólne i obejmują typową sprzedaż oraz typowy zakup. Przy mediach,
+najmie, zaliczkach czy metodzie kasowej obowiązek podatkowy powstaje inaczej -
+dlatego okres da się wskazać ręcznie. **Program nie próbuje rozpoznać wyjątku
+sam**: zła podpowiedź w podatkach jest gorsza niż jej brak.
+
+### Co pokazuje ekran
+
+Sprzedaż w rozbiciu na stawki, zakupy z podziałem na środki trwałe
+i pozostałe nabycia (tego podziału wymaga JPK_V7) oraz różnicę podatku
+za okres. Nadwyżka przeniesiona z poprzednich miesięcy **nie** jest tu
+doliczana - należy do deklaracji, nie do rejestru, i tam zostanie
+uwzględniona.
+
+Zakup służący sprzedaży zwolnionej albo celom prywatnym można oznaczyć jako
+nieodliczany. Zostaje wtedy w rejestrze jako dokument, ale nie wchodzi ani
+do podatku naliczonego, ani do kwot wykazywanych w deklaracji.
+
 ## Plan
 
 1. **Fundament** — model, walidacja, generator FA(3) ✔
@@ -228,7 +270,7 @@ a przy braku czcionki wydruk sypałby się dopiero u klienta.
 3. **Integracja z KSeF** — uwierzytelnianie, sesja, wysyłka, UPO, zakupy ✔
 4. **Interfejs webowy** — konta, kontrahenci, wystawianie faktur, ustawienia ✔
 5. **Wizualizacja PDF** — wydruk faktury z kodem QR ✔
-6. **Rejestr VAT** — wynika niemal wprost z faktur i jest pomostem do JPK
+6. **Rejestr VAT** — sprzedaż, zakupy i rozliczenie okresu ✔
 7. **JPK_V7** — osobna integracja z Ministerstwem, z własnym uwierzytelnianiem
 8. Dalej: magazyn, KPiR, CRM
 

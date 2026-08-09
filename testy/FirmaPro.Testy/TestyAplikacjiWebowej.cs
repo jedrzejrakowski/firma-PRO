@@ -307,7 +307,178 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
         Assert.DoesNotContain(Token, await StanTokenaAsync(klient), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Faktura wystawiona przez program trafia do rejestru VAT.
+    /// </summary>
+    /// <remarks>
+    /// Sprawdza całą drogę: wystawienie dokumentu, wprowadzenie zakupu
+    /// i policzenie różnicy podatku za okres.
+    /// </remarks>
+    [Fact]
+    public async Task SprzedazIZakupTrafiajaDoRejestru()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        string idKontrahenta = await PierwszyKontrahentAsync(klient);
+
+        // Testy dzielą jedną firmę demonstracyjną, a większość z nich wystawia
+        // dokumenty z datą dzisiejszą. Ten sprawdza sumy okresu, więc pracuje
+        // w miesiącu, do którego nikt inny nic nie dopisuje.
+        var dzien = new DateOnly(2026, 3, 12);
+        string data = Data(dzien);
+
+        // sprzedaż: 1000 zł netto przy 23% daje 230 zł podatku należnego
+        using (HttpResponseMessage wystawienie = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Faktury/Nowa", new Dictionary<string, string>
+            {
+                ["KontrahentId"] = idKontrahenta,
+                ["DataWystawienia"] = data,
+                ["DataSprzedazy"] = data,
+                ["Pozycje[0].Nazwa"] = "Usługa do rejestru",
+                ["Pozycje[0].Jednostka"] = "szt.",
+                ["Pozycje[0].Ilosc"] = "1",
+                ["Pozycje[0].CenaNetto"] = "1000",
+                ["Pozycje[0].KodStawki"] = "23"
+            }))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, wystawienie.StatusCode);
+        }
+
+        // zakup: 400 zł netto przy 23% daje 92 zł podatku naliczonego
+        using (HttpResponseMessage zakup = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Zakupy/Nowa", new Dictionary<string, string>
+            {
+                ["Numer"] = "FZ/REJESTR/1",
+                ["DataWystawienia"] = data,
+                ["DataWplywu"] = data,
+                ["SprzedawcaNazwa"] = "Dostawca sp. z o.o.",
+                ["SprzedawcaNip"] = "1180000001",
+                ["Rodzaj"] = "TowaryIUslugi",
+                ["Odliczany"] = "true",
+                ["Kwoty[0].KodStawki"] = "23",
+                ["Kwoty[0].Netto"] = "400",
+                ["Kwoty[0].Vat"] = "92"
+            }))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, zakup.StatusCode);
+        }
+
+        using HttpResponseMessage rejestr = await klient.GetAsync(
+            new Uri("/Rejestry/Vat?okres=2026-03", UriKind.Relative));
+
+        rejestr.EnsureSuccessStatusCode();
+        string html = await AplikacjaTestowa.TrescAsync(rejestr);
+
+        Assert.Contains("FZ/REJESTR/1", html, StringComparison.Ordinal);
+        Assert.Contains("Dostawca sp. z o.o.", html, StringComparison.Ordinal);
+
+        // 1 000,00 netto sprzedaży i 400,00 netto zakupu
+        Assert.Contains("1,000.00", html, StringComparison.Ordinal);
+        Assert.Contains("400.00", html, StringComparison.Ordinal);
+
+        // 230 - 92 = 138 zł do zapłaty
+        Assert.Contains("230.00", html, StringComparison.Ordinal);
+        Assert.Contains("92.00", html, StringComparison.Ordinal);
+        Assert.Contains("138.00", html, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Odznaczenie odliczenia musi dotrzeć do bazy.
+    /// </summary>
+    /// <remarks>
+    /// Odznaczone pole wyboru nie wysyła nic, a właściwość modelu ma wartość
+    /// początkową „true". Bez ukrytego pola z wartością „false" zakup trafiałby
+    /// do odliczenia mimo woli użytkownika - i to po cichu, bo formularz
+    /// zapisywałby się bez żadnego ostrzeżenia.
+    /// </remarks>
+    [Fact]
+    public async Task OdznaczenieOdliczeniaJestZapisywane()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        var dzien = new DateOnly(2026, 4, 8);
+
+        using (HttpResponseMessage zapis = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Zakupy/Nowa", new Dictionary<string, string>
+            {
+                ["Numer"] = "FZ/BEZ-ODLICZENIA/1",
+                ["DataWystawienia"] = Data(dzien),
+                ["DataWplywu"] = Data(dzien),
+                ["SprzedawcaNazwa"] = "Restauracja Pod Lipą",
+                ["Rodzaj"] = "TowaryIUslugi",
+                // Pole wyboru odznaczone: przeglądarka wysyła wyłącznie
+                // ukryte pole z wartością "false".
+                ["Odliczany"] = "false",
+                ["Kwoty[0].KodStawki"] = "23",
+                ["Kwoty[0].Netto"] = "300",
+                ["Kwoty[0].Vat"] = "69"
+            }))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, zapis.StatusCode);
+        }
+
+        using HttpResponseMessage rejestr = await klient.GetAsync(
+            new Uri("/Rejestry/Vat?okres=2026-04", UriKind.Relative));
+
+        string html = await AplikacjaTestowa.TrescAsync(rejestr);
+
+        Assert.Contains("FZ/BEZ-ODLICZENIA/1", html, StringComparison.Ordinal);
+        Assert.Contains("nie odlicza się", html, StringComparison.Ordinal);
+
+        // Kwota 69,00 nadal widnieje w kolumnie VAT - taka jest na dokumencie.
+        // Chodzi o to, żeby nie weszła do podatku naliczonego.
+        Assert.Equal("0.00", KwotaKafelka(html, "Podatek naliczony"));
+    }
+
+    /// <summary>
+    /// Zakupu nie da się odliczyć przed otrzymaniem faktury.
+    /// </summary>
+    [Fact]
+    public async Task ZakupOdliczonyZaWczesnieJestOdrzucany()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        DateOnly dzisiaj = DateOnly.FromDateTime(DateTime.Today);
+
+        using HttpResponseMessage odpowiedz = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Zakupy/Nowa", new Dictionary<string, string>
+            {
+                ["Numer"] = "FZ/ZA-WCZESNIE",
+                ["DataWystawienia"] = Data(dzisiaj.AddMonths(-2)),
+                ["DataWplywu"] = Data(dzisiaj),
+                ["DataObowiazkuPodatkowego"] = Data(dzisiaj.AddMonths(-2)),
+                // odliczenie w miesiącu wystawienia, choć faktura wpłynęła dziś
+                ["DataUjecia"] = Data(dzisiaj.AddMonths(-2)),
+                ["SprzedawcaNazwa"] = "Dostawca sp. z o.o.",
+                ["Rodzaj"] = "TowaryIUslugi",
+                ["Odliczany"] = "true",
+                ["Kwoty[0].KodStawki"] = "23",
+                ["Kwoty[0].Netto"] = "100",
+                ["Kwoty[0].Vat"] = "23"
+            });
+
+        Assert.Equal(HttpStatusCode.OK, odpowiedz.StatusCode);
+        Assert.Contains("prawo do odliczenia powstaje dopiero",
+            await AplikacjaTestowa.TrescAsync(odpowiedz), StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------------ pomocnicze
+
+    private static string Data(DateOnly data) =>
+        data.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    /// <summary>Odczytuje kwotę z kafelka podsumowania o podanej etykiecie.</summary>
+    private static string KwotaKafelka(string html, string etykieta)
+    {
+        string zwezony = Regex.Replace(html, @"\s+", " ");
+
+        Match dopasowanie = Regex.Match(zwezony,
+            Regex.Escape(etykieta) + @"</span> <span class=""kwota"">([^<]+)</span>",
+            RegexOptions.None, TimeSpan.FromSeconds(5));
+
+        Assert.True(dopasowanie.Success, $"Nie znaleziono kafelka „{etykieta}”.");
+        return dopasowanie.Groups[1].Value;
+    }
 
     /// <summary>
     /// Ścieżka z nagłówka przekierowania.

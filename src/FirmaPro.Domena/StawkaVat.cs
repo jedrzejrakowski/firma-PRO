@@ -16,9 +16,15 @@ namespace FirmaPro.Domena;
 /// </remarks>
 public sealed record StawkaVat
 {
+    // Licznik nadaje stawkom kolejność w chwili ich tworzenia, czyli tę samą,
+    // w której są tu wypisane. Dzięki temu sortowanie w rejestrze i na
+    // wydrukach nie wymaga szukania stawki na liście.
+    private static int _kolejnyNumer;
+
     private StawkaVat(string kod, decimal? procent, string poleNetto,
                       string? poleVat, string opis)
     {
+        Kolejnosc = _kolejnyNumer++;
         Kod = kod;
         Procent = procent;
         PoleNetto = poleNetto;
@@ -40,6 +46,9 @@ public sealed record StawkaVat
 
     /// <summary>Opis do pokazania użytkownikowi.</summary>
     public string Opis { get; }
+
+    /// <summary>Miejsce stawki w kolejności przyjętej w schemacie FA(3).</summary>
+    public int Kolejnosc { get; }
 
     /// <summary>Czy przy tej stawce w ogóle nalicza się podatek.</summary>
     public bool NaliczaPodatek => Procent is > 0m;
