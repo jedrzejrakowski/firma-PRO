@@ -20,6 +20,11 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
+  <ItemGroup Label="Wydruk PDF">
+    <PackageVersion Include="PDFsharp" Version="6.2.4" />
+    <PackageVersion Include="QRCoder" Version="1.8.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Komunikacja HTTP">
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.10" />
   </ItemGroup>

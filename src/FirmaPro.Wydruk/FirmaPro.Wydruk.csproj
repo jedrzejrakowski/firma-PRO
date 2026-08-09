@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FirmaPro.Domena\FirmaPro.Domena.csproj" />
+    <ProjectReference Include="..\FirmaPro.Ksef\FirmaPro.Ksef.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Obie biblioteki są na licencji MIT, więc nie nakładają żadnych
+         warunków na sprzedaż programu. To był główny powód, dla którego
+         wydruk nie powstał na QuestPDF - tam bezpłatna licencja przestaje
+         obowiązywać po przekroczeniu progu przychodu firmy. -->
+    <PackageReference Include="PDFsharp" />
+    <PackageReference Include="QRCoder" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Czcionka jedzie razem z programem. Gdyby brać ją z systemu, ten sam
+         dokument wyglądałby inaczej na serwerze i na komputerze księgowej,
+         a przy braku czcionki wydruk sypałby się dopiero u klienta. -->
+    <EmbeddedResource Include="Czcionki\LiberationSans-Regular.ttf" />
+    <EmbeddedResource Include="Czcionki\LiberationSans-Bold.ttf" />
+  </ItemGroup>
+
+</Project>

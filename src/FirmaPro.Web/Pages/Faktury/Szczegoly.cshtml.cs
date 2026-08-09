@@ -70,6 +70,21 @@ public sealed class SzczegolyModel(FirmaProDbContext baza, UslugaFaktur uslugaFa
         return File(xml, "application/xml", nazwa);
     }
 
+    /// <summary>Udostępnia wizualizację faktury w PDF - do wysłania nabywcy.</summary>
+    public async Task<IActionResult> OnGetPdfAsync(Guid id, CancellationToken anulowanie)
+    {
+        FakturaSprzedazy? faktura = await WczytajAsync(id, anulowanie);
+        if (faktura is null)
+        {
+            return NotFound();
+        }
+
+        byte[] pdf = await uslugaFaktur.ZbudujPdfAsync(id, anulowanie);
+        string nazwa = BezpiecznaNazwa(faktura.Numer) + ".pdf";
+
+        return File(pdf, "application/pdf", nazwa);
+    }
+
     private Task<FakturaSprzedazy?> WczytajAsync(Guid id, CancellationToken anulowanie) =>
         baza.FakturySprzedazy
             .Include(f => f.Pozycje)

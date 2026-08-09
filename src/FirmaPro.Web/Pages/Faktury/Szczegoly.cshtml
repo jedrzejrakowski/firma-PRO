@@ -102,6 +102,8 @@
         </form>
     }
 
+    <a class="przycisk" asp-page-handler="Pdf"
+       asp-route-id="@Model.Faktura.Id">Pobierz PDF</a>
     <a class="przycisk przycisk-drugi" asp-page-handler="Xml"
        asp-route-id="@Model.Faktura.Id">Pobierz XML</a>
     <a class="przycisk przycisk-drugi" asp-page="Index">Wróć do listy</a>

@@ -6,11 +6,11 @@ przeglądarkowa z myślą o obsłudze wielu firm w jednej instalacji.
 Faktury powstają w strukturze **FA(3)** — wzorze obowiązującym w Krajowym
 Systemie e-Faktur od 1 lutego 2026 r.
 
-> **Stan prac: program działa od przeglądarki do pliku XML.** Można się
-> zalogować, prowadzić kartotekę kontrahentów, wystawić fakturę, obejrzeć ją
-> i pobrać dokument FA(3). Wysyłka do KSeF jest zaimplementowana, ale nie
-> została jeszcze potwierdzona połączeniem z żywym systemem — patrz
-> [Czego jeszcze nie sprawdzono](#czego-jeszcze-nie-sprawdzono).
+> **Stan prac: program działa od przeglądarki do gotowego dokumentu.** Można
+> się zalogować, prowadzić kartotekę kontrahentów, wystawić fakturę, obejrzeć
+> ją, pobrać plik FA(3) oraz wydruk PDF dla kontrahenta. Wysyłka do KSeF jest
+> zaimplementowana, ale nie została jeszcze potwierdzona połączeniem z żywym
+> systemem — patrz [Czego jeszcze nie sprawdzono](#czego-jeszcze-nie-sprawdzono).
 
 ---
 
@@ -29,7 +29,7 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Kartoteka kontrahentów | gotowe |
 | Wystawianie faktur i podgląd dokumentu | gotowe |
 | Ustawienia firmy wraz z tokenem KSeF | gotowe |
-| Wizualizacja PDF | w przygotowaniu |
+| Wizualizacja PDF z kodem QR | gotowe |
 | Rejestr VAT, JPK_V7 | w przygotowaniu |
 
 ## Uruchomienie
@@ -69,6 +69,7 @@ src/
 ├── FirmaPro.Domena/     model faktury, stawki VAT, walidacja - bez zależności
 ├── FirmaPro.Ksef/       generator XML FA(3), kryptografia, klient API
 ├── FirmaPro.Dane/       encje, kontekst EF Core, migracje, izolacja firm
+├── FirmaPro.Wydruk/     wizualizacja faktury w PDF wraz z kodem QR
 └── FirmaPro.Web/        aplikacja przeglądarkowa (ASP.NET Core, Razor Pages)
 testy/
 └── FirmaPro.Testy/      testy jednostkowe, bazodanowe i całej aplikacji
@@ -190,13 +191,43 @@ Docelowo, przy wdrożeniu produkcyjnym, klucze ochrony powinny trafić do
 zewnętrznego magazynu sekretów; zmienia się wtedy tylko implementacja
 `IOchronaTokena`.
 
+## Wydruk faktury
+
+Kontrahent dostaje z KSeF plik XML, ale chce czegoś, co da się przeczytać
+i podpiąć pod przelew. Program składa więc wizualizację w PDF: dane obu
+stron, tabelę pozycji, podsumowanie w rozbiciu na stawki, kwotę do zapłaty
+wraz z zapisem słownym oraz kod QR do weryfikacji dokumentu.
+
+**Kod QR trafia na wydruk tylko wtedy, gdy faktura naprawdę jest w KSeF.**
+Powstaje z zapisanego skrótu przesłanego pliku, a nie z dokumentu składanego
+na nowo — plik XML niesie znacznik czasu wytworzenia, więc wygenerowany
+ponownie miałby inny skrót i kod prowadziłby do dokumentu, którego system nie
+zna. Dokument jeszcze niewysłany drukuje się z wyraźnym ostrzeżeniem
+**PROJEKT**, bo faktura zaczyna istnieć w obrocie prawnym dopiero po
+przyjęciu przez KSeF.
+
+Sam kod rysowany jest wektorowo, prostokąt po prostokącie, a nie wklejany
+jako obrazek. Dzięki temu pozostaje ostry przy każdej rozdzielczości drukarki
+— a to ostrość krawędzi decyduje o tym, czy telefon go odczyta.
+
+Wydruk korzysta z dwóch bibliotek, obu na licencji **MIT**: `PDFsharp`
+składa dokument, `QRCoder` wylicza siatkę kodu. Licencja miała tu znaczenie:
+popularny QuestPDF jest wygodniejszy w użyciu, ale jego bezpłatna licencja
+przestaje obowiązywać po przekroczeniu progu przychodu firmy, a to zły
+fundament pod program, który ma być sprzedawany.
+
+Krój pisma (Liberation Sans, licencja SIL OFL) jest osadzony w bibliotece —
+patrz `src/FirmaPro.Wydruk/Czcionki/LICENCJA.md`. Gdyby brać go z systemu,
+ten sam dokument wyglądałby inaczej na serwerze i na komputerze księgowej,
+a przy braku czcionki wydruk sypałby się dopiero u klienta.
+
 ## Plan
 
 1. **Fundament** — model, walidacja, generator FA(3) ✔
 2. **Warstwa danych** — EF Core i PostgreSQL, wielofirmowość, migracje ✔
 3. **Integracja z KSeF** — uwierzytelnianie, sesja, wysyłka, UPO, zakupy ✔
 4. **Interfejs webowy** — konta, kontrahenci, wystawianie faktur, ustawienia ✔
-5. **Wizualizacja PDF** — wydruk faktury z kodem QR
+5. **Wizualizacja PDF** — wydruk faktury z kodem QR ✔
 6. **Rejestr VAT** — wynika niemal wprost z faktur i jest pomostem do JPK
 7. **JPK_V7** — osobna integracja z Ministerstwem, z własnym uwierzytelnianiem
 8. Dalej: magazyn, KPiR, CRM
@@ -234,3 +265,8 @@ token w Ustawieniach, wystawić fakturę i wysłać ją.
 Zweryfikowana jest natomiast **zawartość** przesyłki: dokument przechodzi
 walidację oryginalnym schematem XSD, a koperta kryptograficzna — test
 z atrapą serwera, która naprawdę odszyfrowuje przesłane dane.
+
+Kod QR na wydruku został odczytany z gotowego pliku PDF czytnikiem kodów
+i porównany ze skrótem SHA-256 wysłanego dokumentu — link prowadzi dokładnie
+tam, gdzie powinien. Nie sprawdzono natomiast, czy strona KSeF pod tym
+adresem pokaże fakturę; to znów wymaga połączenia z żywym systemem.

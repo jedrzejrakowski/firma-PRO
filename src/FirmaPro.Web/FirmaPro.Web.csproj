@@ -4,6 +4,7 @@
     <ProjectReference Include="..\FirmaPro.Domena\FirmaPro.Domena.csproj" />
     <ProjectReference Include="..\FirmaPro.Dane\FirmaPro.Dane.csproj" />
     <ProjectReference Include="..\FirmaPro.Ksef\FirmaPro.Ksef.csproj" />
+    <ProjectReference Include="..\FirmaPro.Wydruk\FirmaPro.Wydruk.csproj" />
   </ItemGroup>
 
   <!-- PasswordHasher pochodzi z platformy webowej ASP.NET Core, więc nie

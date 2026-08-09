@@ -133,6 +133,49 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
     }
 
     /// <summary>
+    /// Wizualizację faktury da się pobrać z poziomu przeglądarki.
+    /// </summary>
+    /// <remarks>
+    /// Faktura nie została wysłana do KSeF, więc wydruk jest projektem -
+    /// i tak ma się otworzyć, a nie zwrócić błędu.
+    /// </remarks>
+    [Fact]
+    public async Task MoznaPobracWizualizacjeFakturyWPdf()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        string idKontrahenta = await PierwszyKontrahentAsync(klient);
+        string dzis = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        using HttpResponseMessage wystawienie = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Faktury/Nowa", new Dictionary<string, string>
+            {
+                ["KontrahentId"] = idKontrahenta,
+                ["DataWystawienia"] = dzis,
+                ["Pozycje[0].Nazwa"] = "Usługa do wydruku",
+                ["Pozycje[0].Jednostka"] = "szt.",
+                ["Pozycje[0].Ilosc"] = "3",
+                ["Pozycje[0].CenaNetto"] = "200",
+                ["Pozycje[0].KodStawki"] = "23"
+            });
+
+        Assert.Equal(HttpStatusCode.Redirect, wystawienie.StatusCode);
+
+        string idFaktury = Sciezka(wystawienie)["/Faktury/Szczegoly/".Length..];
+
+        using HttpResponseMessage plik = await klient.GetAsync(
+            new Uri($"/Faktury/Szczegoly/{idFaktury}?handler=Pdf", UriKind.Relative));
+
+        plik.EnsureSuccessStatusCode();
+        Assert.Equal("application/pdf", plik.Content.Headers.ContentType?.MediaType);
+
+        byte[] pdf = await plik.Content.ReadAsByteArrayAsync();
+
+        Assert.True(pdf.Length > 1000, "Pusty wydruk nie jest wizualizacją faktury.");
+        Assert.Equal("%PDF-"u8.ToArray(), pdf[..5]);
+    }
+
+    /// <summary>
     /// Wysyłka bez tokena ma skończyć się czytelnym komunikatem.
     /// </summary>
     /// <remarks>

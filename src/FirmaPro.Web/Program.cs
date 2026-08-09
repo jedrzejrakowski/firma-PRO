@@ -1,9 +1,18 @@
+using System.Globalization;
 using FirmaPro.Dane;
 using FirmaPro.Ksef;
 using FirmaPro.Web.Uslugi;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+
+// Formularze przeglądarki wysyłają liczby z kropką dziesiętną - tego wymaga
+// pole <input type="number"> niezależnie od języka użytkownika. Gdyby serwer
+// pracował w polskiej kulturze, "145.50" nie dałoby się odczytać jako liczby
+// i cena po cichu wracałaby jako błąd walidacji. Kultura jest więc ustalona
+// na sztywno, zamiast zależeć od ustawień maszyny.
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 WebApplicationBuilder budowniczy = WebApplication.CreateBuilder(args);
 

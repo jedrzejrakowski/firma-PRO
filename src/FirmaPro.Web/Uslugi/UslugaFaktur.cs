@@ -2,6 +2,7 @@ using FirmaPro.Dane;
 using FirmaPro.Dane.Encje;
 using FirmaPro.Domena;
 using FirmaPro.Ksef;
+using FirmaPro.Wydruk;
 using Microsoft.EntityFrameworkCore;
 
 namespace FirmaPro.Web.Uslugi;
@@ -187,6 +188,36 @@ public sealed class UslugaFaktur(
 
         Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
         return Fa3Generator.ZbudujXml(NaModel(faktura, firma));
+    }
+
+    /// <summary>
+    /// Buduje wizualizację faktury w PDF - do wysłania kontrahentowi.
+    /// </summary>
+    /// <remarks>
+    /// Kod QR trafia na wydruk wyłącznie wtedy, gdy faktura jest już w KSeF.
+    /// Powstaje z zapisanego skrótu przesłanego pliku, a nie z dokumentu
+    /// budowanego na nowo: XML niesie znacznik czasu wytworzenia, więc jego
+    /// ponowne złożenie dałoby inny skrót i kod prowadzący donikąd.
+    /// </remarks>
+    public async Task<byte[]> ZbudujPdfAsync(Guid fakturaId,
+                                             CancellationToken anulowanie = default)
+    {
+        FakturaSprzedazy faktura = await baza.FakturySprzedazy
+            .Include(f => f.Pozycje)
+            .SingleAsync(f => f.Id == fakturaId, anulowanie);
+
+        Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
+
+        OpcjeWydruku opcje =
+            faktura.Status == StatusKsef.Przyjeta
+            && !string.IsNullOrWhiteSpace(faktura.NumerKsef)
+            && !string.IsNullOrWhiteSpace(faktura.SkrotXml)
+                ? OpcjeWydruku.DlaPrzyjetejZeSkrotu(
+                    faktura.NumerKsef!, firma.Nip, faktura.DataWystawienia,
+                    faktura.SkrotXml!, firma.Srodowisko)
+                : OpcjeWydruku.DlaProjektu();
+
+        return WydrukFaktury.Utworz(NaModel(faktura, firma), opcje);
     }
 
     // ------------------------------------------------------------ pomocnicze
