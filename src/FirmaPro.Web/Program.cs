@@ -54,6 +54,7 @@ budowniczy.Services.AddScoped<UslugaNumeracji>();
 budowniczy.Services.AddScoped<UslugaFaktur>();
 budowniczy.Services.AddScoped<UslugaZakladania>();
 budowniczy.Services.AddScoped<UslugaZakupow>();
+budowniczy.Services.AddScoped<UslugaImportuZakupow>();
 budowniczy.Services.AddScoped<UslugaRejestruVat>();
 budowniczy.Services.AddScoped<UslugaDeklaracji>();
 

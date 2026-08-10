@@ -49,6 +49,28 @@ public sealed class AtrapaKsef : HttpMessageHandler
     public List<byte[]> OdebraneFaktury { get; } = [];
     public bool SesjaZamknieta { get; private set; }
 
+    /// <summary>
+    /// Faktury zakupowe zwracane przez zapytanie o metadane.
+    /// </summary>
+    /// <remarks>
+    /// Test może podmienić zawartość, żeby sprawdzić zachowanie przy innych
+    /// datach albo kwotach. Domyślnie jest jedna faktura - tyle wystarcza
+    /// testom klienta, które sprawdzają samo odwzorowanie pól.
+    /// </remarks>
+    public List<MetadaneFaktury> FakturyZakupowe { get; } =
+    [
+        new MetadaneFaktury(
+            "7010001453-20260807-0AAAAA-BBBBBB-CC",
+            "FS/7/2026",
+            new DateOnly(2026, 8, 7),
+            new DateTimeOffset(2026, 8, 7, 9, 15, 0, TimeSpan.Zero),
+            new SprzedawcaMetadanych("7010001453", "Dostawca sp. z o.o."),
+            1000.00m,
+            230.00m,
+            1230.00m,
+            "PLN")
+    ];
+
     /// <summary>Tworzy samopodpisany certyfikat udający certyfikat KSeF.</summary>
     private static (RSA, byte[]) ZbudujCertyfikat()
     {
@@ -220,25 +242,8 @@ public sealed class AtrapaKsef : HttpMessageHandler
 
         if (sciezka.StartsWith("invoices/query/metadata", StringComparison.Ordinal))
         {
-            return Json(HttpStatusCode.OK, new
-            {
-                hasMore = false,
-                invoices = new[]
-                {
-                    new
-                    {
-                        ksefNumber = "7010001453-20260807-0AAAAA-BBBBBB-CC",
-                        invoiceNumber = "FS/7/2026",
-                        issueDate = "2026-08-07",
-                        invoicingDate = "2026-08-07T09:15:00+00:00",
-                        seller = new { nip = "7010001453", name = "Dostawca sp. z o.o." },
-                        netAmount = 1000.00m,
-                        vatAmount = 230.00m,
-                        grossAmount = 1230.00m,
-                        currency = "PLN"
-                    }
-                }
-            });
+            return Json(HttpStatusCode.OK,
+                new { hasMore = false, invoices = FakturyZakupowe });
         }
 
         if (sciezka.StartsWith("invoices/ksef/", StringComparison.Ordinal))

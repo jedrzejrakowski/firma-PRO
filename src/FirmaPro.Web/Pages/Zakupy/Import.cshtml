@@ -1,0 +1,165 @@
+@page
+@using FirmaPro.Domena
+@using FirmaPro.Ksef
+@using FirmaPro.Web.Uslugi
+@model FirmaPro.Web.Pages.Zakupy.ImportModel
+@{
+    ViewData["Tytul"] = "Pobierz faktury z KSeF";
+}
+
+<h1>Faktury zakupu z KSeF</h1>
+<p class="podtytul">
+    Dokumenty, na których Twoja firma figuruje jako nabywca.
+</p>
+
+@if (Model.Blad is not null)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie udało się pobrać listy:</strong>
+        <p>@Model.Blad</p>
+    </div>
+}
+
+<form method="post" asp-page-handler="Szukaj">
+    <div class="karta">
+        <div class="siatka">
+            <div class="pole">
+                <label for="dataOd">Wystawione od</label>
+                <input type="date" id="dataOd" name="DataOd"
+                       value="@Model.DataOd.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div class="pole">
+                <label for="dataDo">Wystawione do</label>
+                <input type="date" id="dataDo" name="DataDo"
+                       value="@Model.DataDo.ToString("yyyy-MM-dd")" required />
+            </div>
+        </div>
+
+        <div class="paskiem">
+            <button type="submit">Szukaj w KSeF</button>
+            <a class="przycisk przycisk-drugi" asp-page="Index">Wróć do rejestru</a>
+        </div>
+    </div>
+</form>
+
+@if (Model.Szukano && Model.Znalezione.Count == 0)
+{
+    <p class="pusto">KSeF nie ma w tym okresie faktur wystawionych na Twoją firmę.</p>
+}
+
+@if (Model.Znalezione.Count > 0)
+{
+    <form method="post" asp-page-handler="Importuj">
+        <input type="hidden" name="DataOd" value="@Model.DataOd.ToString("yyyy-MM-dd")" />
+        <input type="hidden" name="DataDo" value="@Model.DataDo.ToString("yyyy-MM-dd")" />
+
+        <table class="pobieranie">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="wszystkie" title="Zaznacz wszystkie" /></th>
+                    <th>Numer</th>
+                    <th>Sprzedawca</th>
+                    <th>Wystawiono</th>
+                    <th class="liczba">Netto</th>
+                    <th class="liczba">VAT</th>
+                    <th class="liczba">Brutto</th>
+                    <th>Odliczenie w okresie</th>
+                    <th>Rodzaj nabycia</th>
+                    <th>Odliczenie</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Znalezione.Count; i++)
+                {
+                    ZnalezionaFaktura znaleziona = Model.Znalezione[i];
+                    FakturaZakupowa dane = znaleziona.Dane;
+
+                    <tr>
+                        <td>
+                            @* Numer wysyłamy dla każdego wiersza, także już wpisanego:
+                               wiązanie listy kończy się na pierwszym brakującym
+                               indeksie, więc luka urwałaby resztę tabeli. *@
+                            <input type="hidden" name="Pozycje[@i].NumerKsef"
+                                   value="@dane.NumerKsef" />
+
+                            @if (znaleziona.JuzWRejestrze)
+                            {
+                                <span class="znacznik znacznik-robocza">w rejestrze</span>
+                            }
+                            else
+                            {
+                                <input type="checkbox" class="wybor"
+                                       name="Pozycje[@i].Zaznaczona" value="true"
+                                       checked="@Model.Pozycje.ElementAtOrDefault(i)?.Zaznaczona" />
+                            }
+                            <input type="hidden" name="Pozycje[@i].Zaznaczona" value="false" />
+                        </td>
+                        <td class="nowrap"><strong>@dane.Numer</strong></td>
+                        <td>
+                            @dane.SprzedawcaNazwa
+                            @if (!string.IsNullOrWhiteSpace(dane.SprzedawcaNip))
+                            {
+                                <span class="drobne">NIP @dane.SprzedawcaNip</span>
+                            }
+                        </td>
+                        <td class="nowrap">@dane.DataWystawienia?.ToString("yyyy-MM-dd")</td>
+                        <td class="liczba">@dane.Netto.ToString("N2")</td>
+                        <td class="liczba">@dane.Vat.ToString("N2")</td>
+                        <td class="liczba"><strong>@dane.Brutto.ToString("N2")</strong></td>
+                        <td class="nowrap">@Model.OpisOkresu(dane)</td>
+                        <td>
+                            @if (!znaleziona.JuzWRejestrze)
+                            {
+                                <select name="Pozycje[@i].Rodzaj">
+                                    <option value="@RodzajZakupu.TowaryIUslugi">
+                                        Nabycia pozostałe
+                                    </option>
+                                    <option value="@RodzajZakupu.SrodkiTrwale">
+                                        Środki trwałe
+                                    </option>
+                                </select>
+                            }
+                        </td>
+                        <td>
+                            @if (!znaleziona.JuzWRejestrze)
+                            {
+                                @* Odznaczone pole wyboru nie wysyła nic, a wartość
+                                   początkowa właściwości to „true" - ukryte pole
+                                   sprawia, że odznaczenie naprawdę coś znaczy. *@
+                                <input type="checkbox" name="Pozycje[@i].Odliczany"
+                                       value="true" checked />
+                                <input type="hidden" name="Pozycje[@i].Odliczany" value="false" />
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <p class="wskazowka">
+            KSeF nie wie, czy zakup jest środkiem trwałym ani czy przysługuje od
+            niego odliczenie — to rozstrzygnięcia nabywcy, więc program o nie pyta.
+            Kwoty pobiera z KSeF, nie z tego formularza.
+        </p>
+
+        <div class="paskiem">
+            <button type="submit">Pobierz zaznaczone</button>
+        </div>
+    </form>
+}
+
+@section Skrypty {
+<script>
+    (function () {
+        const wszystkie = document.getElementById('wszystkie');
+        if (!wszystkie) return;
+
+        wszystkie.addEventListener('change', () => {
+            document.querySelectorAll('input.wybor').forEach(pole => {
+                pole.checked = wszystkie.checked;
+            });
+        });
+    })();
+</script>
+}

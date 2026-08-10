@@ -34,6 +34,7 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Ustawienia firmy wraz z tokenem KSeF | gotowe |
 | Wizualizacja PDF z kodem QR | gotowe |
 | Faktury zakupu | gotowe |
+| Pobieranie faktur zakupu z KSeF | gotowe, **niesprawdzone na żywym KSeF** |
 | Rejestr VAT sprzedaży i zakupów | gotowe |
 | Deklaracja i plik JPK_V7M | gotowe, **układ pliku niesprawdzony schematem** |
 | Wysyłka JPK do urzędu | poza zakresem — plik składa się aplikacją MF |
@@ -302,6 +303,36 @@ Zakup służący sprzedaży zwolnionej albo celom prywatnym można oznaczyć jak
 nieodliczany. Zostaje wtedy w rejestrze jako dokument, ale nie wchodzi ani
 do podatku naliczonego, ani do kwot wykazywanych w deklaracji.
 
+### Pobieranie zakupów z KSeF
+
+Faktur zakupu nie trzeba przepisywać - program potrafi wciągnąć je prosto
+z KSeF (`Zakupy → Pobierz z KSeF`). Pyta o zakres dat, pokazuje wszystko,
+co system ma na Twoją firmę jako nabywcę, i przenosi do rejestru dokumenty,
+które zaznaczysz.
+
+**Import nie jest automatyczny i celowo taki nie będzie.** KSeF wie, ile
+faktura kosztowała, ale nie wie dwóch rzeczy, które decydują o podatku: czy
+zakup jest środkiem trwałym i czy w ogóle przysługuje od niego odliczenie.
+To rozstrzygnięcia nabywcy, więc program pokazuje listę i pyta, zamiast
+zgadywać.
+
+Reszta dzieje się sama:
+
+- **datą wpływu** jest dzień przyjęcia faktury przez KSeF - od tej chwili
+  nabywca ma do niej dostęp, więc to ona wyznacza najwcześniejszy możliwy
+  okres odliczenia (art. 86 ust. 10b pkt 1). Okres widać na liście jeszcze
+  przed pobraniem;
+- **żadna faktura nie wejdzie do rejestru dwa razy** - decyduje o tym numer
+  KSeF, pilnowany więzem unikalności w bazie, a nie samą kontrolą w kodzie.
+  Dokument już wpisany zostaje na liście, ale oznaczony; ukrycie go kazałoby
+  zgadywać, czy czegoś nie brakuje;
+- **kwoty pochodzą wyłącznie z KSeF**, nie z formularza w przeglądarce.
+  Zaznaczenie wiersza mówi tylko „weź tę fakturę".
+
+Metadane z KSeF niosą kwoty netto i VAT łącznie, bez rozbicia na stawki -
+i to wystarcza. Zakupy wykazuje się w rejestrze i w JPK_V7 sumami, a nie
+w podziale na stawki, w odróżnieniu od sprzedaży.
+
 ## JPK_V7
 
 Deklaracja powstaje z tego samego rejestru, który widać na ekranie — nie ma
@@ -391,8 +422,13 @@ inaczej w każdym silniku — testowanie ich na atrapie dawałoby złudne poczuc
 bezpieczeństwa akurat tam, gdzie pomyłka byłaby najdroższa.
 
 Aplikacja webowa sprawdzana jest **uruchomiona w całości**: testy logują się
-formularzem, wystawiają fakturę, pobierają jej XML i zapisują ustawienia,
-przechodząc tę samą drogę co użytkownik. Powód jest praktyczny — błąd
+formularzem, wystawiają fakturę, pobierają jej XML, zapisują ustawienia
+i pobierają zakupy z KSeF przez wygenerowany formularz, przechodząc tę samą
+drogę co użytkownik. Pobieranie zakupów sprawdzane jest łącznie z tym, co
+naprawdę wychodzi z przeglądarki - zaznaczone pole wyboru wysyła dwie
+wartości, a odznaczone samo „false" z ukrytego pola; właśnie w tej kolejności
+siedziała kiedyś usterka przepuszczająca zakup do odliczenia wbrew woli
+użytkownika. Powód jest praktyczny — błąd
 w konfiguracji usług potrafi wywrócić stronę mimo bezbłędnej kompilacji,
 a właśnie taki błąd zdarzył się przy tworzeniu klienta KSeF.
 
@@ -409,6 +445,12 @@ z atrapą serwera, która naprawdę odszyfrowuje przesłane dane.
 
 Plik JPK_V7 ma sprawdzone kwoty i zgodność sum kontrolnych z zawartością
 ewidencji, ale **nie jego układ** — patrz [JPK_V7](#jpk_v7).
+
+Pobieranie zakupów z KSeF sprawdzone jest atrapą serwera - odwzorowanie pól,
+wyznaczanie okresu odliczenia i ochrona przed dwukrotnym wpisaniem faktury.
+Nie sprawdzono natomiast, czy **prawdziwe** metadane z KSeF mają dokładnie
+te nazwy pól, których spodziewa się klient; wynikają one ze specyfikacji
+OpenAPI, nie z odpowiedzi żywego serwera.
 
 Kod QR na wydruku został odczytany z gotowego pliku PDF czytnikiem kodów
 i porównany ze skrótem SHA-256 wysłanego dokumentu — link prowadzi dokładnie

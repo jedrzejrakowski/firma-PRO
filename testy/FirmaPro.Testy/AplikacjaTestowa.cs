@@ -1,7 +1,10 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using FirmaPro.Ksef;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -27,6 +30,17 @@ public sealed partial class AplikacjaTestowa : WebApplicationFactory<Program>, I
 {
     private readonly BazaTestowa _baza = new();
 
+    /// <summary>
+    /// Atrapa KSeF podstawiana na czas jednego testu.
+    /// </summary>
+    /// <remarks>
+    /// Domyślnie <c>null</c> - wtedy aplikacja tworzy prawdziwego klienta,
+    /// tak jak w produkcji. Test, który chce przejść całą drogę przez KSeF,
+    /// podstawia atrapę i po sobie sprząta. Testy w jednym zbiorze wykonują
+    /// się po kolei, więc podstawienie nie przecieka do sąsiadów.
+    /// </remarks>
+    public AtrapaKsef? Ksef { get; set; }
+
     public async Task InitializeAsync() => await _baza.InitializeAsync();
 
     async Task IAsyncLifetime.DisposeAsync()
@@ -44,6 +58,15 @@ public sealed partial class AplikacjaTestowa : WebApplicationFactory<Program>, I
 
         // Zapytania SQL w dzienniku zaśmiecałyby wynik testów.
         builder.ConfigureLogging(dziennik => dziennik.SetMinimumLevel(LogLevel.Warning));
+
+        // Wybór klienta zapada przy obsłudze żądania, a nie przy starcie
+        // aplikacji - dzięki temu test może podstawić atrapę już po tym,
+        // jak aplikacja wstała.
+        builder.ConfigureTestServices(uslugi =>
+            uslugi.AddScoped<IFabrykaKlientowKsef>(dostawca =>
+                Ksef is { } atrapa
+                    ? new FabrykaZAtrapy(atrapa)
+                    : ActivatorUtilities.CreateInstance<FabrykaKlientowKsef>(dostawca)));
     }
 
     /// <summary>
@@ -85,10 +108,29 @@ public sealed partial class AplikacjaTestowa : WebApplicationFactory<Program>, I
     /// podszyciem się (CSRF). Test musi więc najpierw pobrać stronę i wyjąć
     /// token z formularza - dokładnie tak, jak robi to przeglądarka.
     /// </remarks>
-    public static async Task<HttpResponseMessage> WyslijFormularzAsync(
+    public static Task<HttpResponseMessage> WyslijFormularzAsync(
         HttpClient klient,
         string adres,
         IDictionary<string, string> pola,
+        string? adresFormularza = null)
+    {
+        ArgumentNullException.ThrowIfNull(pola);
+        return WyslijParyAsync(klient, adres, pola, adresFormularza);
+    }
+
+    /// <summary>
+    /// Wysyła formularz, w którym nazwa pola może się powtórzyć.
+    /// </summary>
+    /// <remarks>
+    /// Przeglądarka wysyła dwie wartości dla zaznaczonego pola wyboru:
+    /// „true" z samego pola i „false" z ukrytego pola pod nim. Słownik takiego
+    /// żądania nie odwzoruje, a to właśnie w kolejności tych dwóch wartości
+    /// siedziała kiedyś usterka.
+    /// </remarks>
+    public static async Task<HttpResponseMessage> WyslijParyAsync(
+        HttpClient klient,
+        string adres,
+        IEnumerable<KeyValuePair<string, string>> pola,
         string? adresFormularza = null)
     {
         ArgumentNullException.ThrowIfNull(klient);
@@ -100,10 +142,9 @@ public sealed partial class AplikacjaTestowa : WebApplicationFactory<Program>, I
 
         string tresc = await strona.Content.ReadAsStringAsync();
 
-        var wszystkie = new Dictionary<string, string>(pola, StringComparer.Ordinal)
-        {
-            ["__RequestVerificationToken"] = TokenFormularza(tresc)
-        };
+        List<KeyValuePair<string, string>> wszystkie = [.. pola];
+        wszystkie.Add(new KeyValuePair<string, string>(
+            "__RequestVerificationToken", TokenFormularza(tresc)));
 
         using var zawartosc = new FormUrlEncodedContent(wszystkie);
         return await klient.PostAsync(new Uri(adres, UriKind.Relative), zawartosc);

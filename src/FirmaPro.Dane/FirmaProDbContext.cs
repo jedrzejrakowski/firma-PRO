@@ -312,6 +312,14 @@ public class FirmaProDbContext : DbContext
             // Rejestr VAT wybiera dokumenty po dacie ujęcia - to po niej
             // najczęściej przeszukujemy tę tabelę.
             e.HasIndex(f => new { f.FirmaId, f.DataUjecia });
+
+            // Faktura pobrana z KSeF może trafić do rejestru tylko raz.
+            // Import bywa uruchamiany po kilka razy za ten sam okres, więc
+            // ochrona przed dublem musi być w bazie, a nie w kodzie: dwa
+            // równoległe importy i tak by ją ominęły.
+            e.HasIndex(f => new { f.FirmaId, f.NumerKsef })
+                .IsUnique()
+                .HasFilter("\"NumerKsef\" IS NOT NULL");
         });
 
         budowniczy.Entity<KwotaVatZakupu>(e =>

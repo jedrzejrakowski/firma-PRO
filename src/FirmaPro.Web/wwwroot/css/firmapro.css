@@ -328,3 +328,17 @@ table.waska { max-width: 560px; }
 tfoot td { border-top: 2px solid var(--linia); background: #fbfcfd; }
 
 .ostrzezenie { background: var(--zolty-tlo); border-color: #e6cf95; color: var(--zolty); }
+
+/* ------------------------------------------------ pobieranie faktur z KSeF */
+
+/* Dane drugorzędne pod główną treścią komórki - NIP pod nazwą sprzedawcy. */
+.drobne {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--tekst-szary);
+}
+
+/* Nazwy rodzajów nabycia są długie; w tabeli lista rozwijana ma się
+   rozciągnąć do treści, a nie ucinać ją na szerokości kolumny. */
+.pobieranie select { width: auto; min-width: 150px; }
+.pobieranie td { vertical-align: middle; }

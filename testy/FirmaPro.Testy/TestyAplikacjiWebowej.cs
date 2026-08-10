@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
+using FirmaPro.Ksef;
 
 namespace FirmaPro.Testy;
 
@@ -227,6 +228,156 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
         Assert.Equal(HttpStatusCode.OK, po.StatusCode);
         Assert.Contains("Brak tokena KSeF", await AplikacjaTestowa.TrescAsync(po),
             StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Strona pobierania zakupów odpowiada także wtedy, gdy nie ma tokena.
+    /// </summary>
+    /// <remarks>
+    /// Sam mechanizm importu sprawdzają testy usługi, rozmawiające z atrapą
+    /// KSeF. Tu chodzi o coś innego: czy strona jest w ogóle podpięta do
+    /// kontenera usług i czy brak tokena kończy się komunikatem, a nie
+    /// stroną błędu.
+    /// </remarks>
+    [Fact]
+    public async Task StronaPobieraniaZakupowZglaszaBrakTokena()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+        await UsunTokenAsync(klient);
+
+        using HttpResponseMessage strona =
+            await klient.GetAsync(new Uri("/Zakupy/Import", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, strona.StatusCode);
+        Assert.Contains("Szukaj w KSeF", await AplikacjaTestowa.TrescAsync(strona),
+            StringComparison.Ordinal);
+
+        using HttpResponseMessage szukanie = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Zakupy/Import?handler=Szukaj",
+            new Dictionary<string, string>
+            {
+                ["DataOd"] = "2026-08-01",
+                ["DataDo"] = "2026-08-31"
+            },
+            adresFormularza: "/Zakupy/Import");
+
+        Assert.Equal(HttpStatusCode.OK, szukanie.StatusCode);
+        Assert.Contains("Brak tokena KSeF", await AplikacjaTestowa.TrescAsync(szukanie),
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Cała droga pobierania zakupu: od zapytania do wpisu w rejestrze.
+    /// </summary>
+    /// <remarks>
+    /// Test przechodzi przez wygenerowany formularz, a nie obok niego. To tu
+    /// wychodzą usterki, których nie widać w testach usługi: pomylona nazwa
+    /// pola, zgubiony numer wiersza albo odznaczone pole wyboru, które mimo
+    /// wszystko przepuszcza fakturę do odliczenia.
+    /// </remarks>
+    [Fact]
+    public async Task PobranyZakupTrafiaDoRejestruPrzezFormularz()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+        using var atrapa = new AtrapaKsef(oczekiwanyToken: "TOKEN-KSEF-123");
+
+        // Druga faktura posłuży do sprawdzenia zakupu bez prawa do odliczenia.
+        atrapa.FakturyZakupowe.Add(new MetadaneFaktury(
+            "1180000001-20260812-0CCCCC-DDDDDD-EE",
+            "FS/12/2026",
+            new DateOnly(2026, 8, 12),
+            new DateTimeOffset(2026, 8, 12, 7, 0, 0, TimeSpan.Zero),
+            new SprzedawcaMetadanych("1180000001", "Hotel Nadmorski"),
+            500.00m,
+            40.00m,
+            540.00m,
+            "PLN"));
+
+        Dictionary<string, string> pola = DaneFirmy();
+        pola["TokenKsef"] = "TOKEN-KSEF-123";
+
+        using (HttpResponseMessage zapis =
+               await AplikacjaTestowa.WyslijFormularzAsync(klient, "/Ustawienia", pola))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, zapis.StatusCode);
+        }
+
+        aplikacja.Ksef = atrapa;
+
+        try
+        {
+            using HttpResponseMessage szukanie = await AplikacjaTestowa.WyslijFormularzAsync(
+                klient, "/Zakupy/Import?handler=Szukaj",
+                new Dictionary<string, string>
+                {
+                    ["DataOd"] = "2026-08-01",
+                    ["DataDo"] = "2026-08-31"
+                },
+                adresFormularza: "/Zakupy/Import");
+
+            Assert.Equal(HttpStatusCode.OK, szukanie.StatusCode);
+
+            string lista = await AplikacjaTestowa.TrescAsync(szukanie);
+            Assert.Contains("FS/7/2026", lista, StringComparison.Ordinal);
+            Assert.Contains("Pozycje[0].NumerKsef", lista, StringComparison.Ordinal);
+
+            // Zaznaczone pole wyboru wysyła dwie wartości: swoją i tę
+            // z ukrytego pola pod nim. Powtórzone nazwy odwzorowują to, co
+            // naprawdę wychodzi z przeglądarki.
+            using HttpResponseMessage import = await AplikacjaTestowa.WyslijParyAsync(
+                klient, "/Zakupy/Import?handler=Importuj",
+                [
+                    new("DataOd", "2026-08-01"),
+                    new("DataDo", "2026-08-31"),
+                    new("Pozycje[0].NumerKsef", "7010001453-20260807-0AAAAA-BBBBBB-CC"),
+                    new("Pozycje[0].Zaznaczona", "true"),
+                    new("Pozycje[0].Zaznaczona", "false"),
+                    new("Pozycje[0].Rodzaj", "SrodkiTrwale"),
+                    new("Pozycje[0].Odliczany", "true"),
+                    new("Pozycje[0].Odliczany", "false"),
+
+                    // Druga faktura z odznaczonym odliczeniem - przeglądarka
+                    // przysyła wtedy samo "false" z ukrytego pola.
+                    new("Pozycje[1].NumerKsef", "1180000001-20260812-0CCCCC-DDDDDD-EE"),
+                    new("Pozycje[1].Zaznaczona", "true"),
+                    new("Pozycje[1].Zaznaczona", "false"),
+                    new("Pozycje[1].Rodzaj", "TowaryIUslugi"),
+                    new("Pozycje[1].Odliczany", "false")
+                ],
+                adresFormularza: "/Zakupy/Import");
+
+            Assert.Equal(HttpStatusCode.Redirect, import.StatusCode);
+            Assert.Equal("/Zakupy", Sciezka(import));
+
+            using HttpResponseMessage rejestr =
+                await klient.GetAsync(new Uri("/Zakupy", UriKind.Relative));
+
+            string zakupy = await AplikacjaTestowa.TrescAsync(rejestr);
+            Assert.Contains("FS/7/2026", zakupy, StringComparison.Ordinal);
+            Assert.Contains("Dostawca sp. z o.o.", zakupy, StringComparison.Ordinal);
+            Assert.Contains("środek trwały", zakupy, StringComparison.Ordinal);
+            Assert.Contains("FS/12/2026", zakupy, StringComparison.Ordinal);
+            Assert.Contains("bez odliczenia", zakupy, StringComparison.Ordinal);
+
+            // Drugie pobranie tego samego okresu ma pokazać, że faktura już
+            // jest w rejestrze, zamiast proponować ją po raz drugi.
+            using HttpResponseMessage powtorka = await AplikacjaTestowa.WyslijFormularzAsync(
+                klient, "/Zakupy/Import?handler=Szukaj",
+                new Dictionary<string, string>
+                {
+                    ["DataOd"] = "2026-08-01",
+                    ["DataDo"] = "2026-08-31"
+                },
+                adresFormularza: "/Zakupy/Import");
+
+            Assert.Contains("w rejestrze", await AplikacjaTestowa.TrescAsync(powtorka),
+                StringComparison.Ordinal);
+        }
+        finally
+        {
+            aplikacja.Ksef = null;
+            await UsunTokenAsync(klient);
+        }
     }
 
     /// <summary>
