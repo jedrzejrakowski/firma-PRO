@@ -1,0 +1,183 @@
+@page
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.Rejestry.JpkModel
+@{
+    ViewData["Tytul"] = "Deklaracja JPK_V7";
+}
+
+<div class="naglowek-z-wyborem">
+    <div>
+        <h1>Deklaracja JPK_V7</h1>
+        <p class="podtytul">@Model.Okres.Nazwa</p>
+    </div>
+
+    <form method="get" class="wybor-okresu">
+        <label for="okres">Okres</label>
+        <select id="okres" name="okres" onchange="this.form.submit()">
+            @foreach (OkresRozliczeniowy okres in Model.DostepneOkresy)
+            {
+                <option value="@okres.Kod" selected="@(okres == Model.Okres)">@okres.Nazwa</option>
+            }
+        </select>
+        <noscript><button type="submit">Pokaż</button></noscript>
+    </form>
+</div>
+
+<div class="powiadomienie ostrzezenie">
+    <strong>Sprawdź plik przed wysłaniem do urzędu.</strong>
+    Kwoty są policzone z rejestru i obłożone testami, ale sam układ pliku nie
+    został potwierdzony oficjalnym schematem Ministerstwa Finansów — nie było
+    do niego dostępu w środowisku, w którym program powstawał. Zanim złożysz
+    deklarację po raz pierwszy, wczytaj plik bezpłatną aplikacją
+    <em>Klient JPK_WEB</em>: ona sprawdzi go schematem i pokaże ewentualne błędy.
+</div>
+
+@if (Model.Podglad.BrakujaceUstawienia is string brak)
+{
+    <div class="powiadomienie niepowodzenie">
+        @brak
+        <a asp-page="/Ustawienia">Przejdź do ustawień</a>
+    </div>
+}
+
+@if (!Model.Deklaracja.Walidacja.BezZastrzezen)
+{
+    <div class="powiadomienie ostrzezenie">
+        <strong>Uwagi do danych:</strong>
+        <ul class="bledy">
+            @foreach (Problem problem in Model.Deklaracja.Walidacja.Problemy)
+            {
+                <li>@problem.Komunikat</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="kafelki">
+    <div class="kafelek">
+        <span class="etykieta">Podatek należny (P_38)</span>
+        <span class="kwota">@Model.Deklaracja.PodatekNalezny</span>
+    </div>
+    <div class="kafelek">
+        <span class="etykieta">Podatek naliczony (P_48)</span>
+        <span class="kwota">@Model.Deklaracja.PodatekNaliczony</span>
+    </div>
+    @if (Model.Deklaracja.Nadwyzka > 0)
+    {
+        <div class="kafelek wyroznik">
+            <span class="etykieta">Nadwyżka na następny okres</span>
+            <span class="kwota">@Model.Deklaracja.DoPrzeniesienia</span>
+        </div>
+    }
+    else
+    {
+        <div class="kafelek wyroznik">
+            <span class="etykieta">Do wpłaty do urzędu (P_51)</span>
+            <span class="kwota">@Model.Deklaracja.DoWplaty</span>
+        </div>
+    }
+</div>
+
+<p class="wskazowka" style="margin-bottom:22px">
+    Kwoty deklaracji podawane są w pełnych złotych — w odróżnieniu od ewidencji,
+    która zostaje w groszach. Nadwyżka z poprzedniego okresu (P_39) bierze się
+    z zamkniętej deklaracji za @Model.Okres.Poprzedni.Nazwa; dopóki tamten okres
+    nie zostanie zamknięty, program przyjmuje zero.
+</p>
+
+<h2 class="naglowek-sekcji">Pozycje deklaracji</h2>
+
+@if (Model.Deklaracja.WypelnionePola.Count == 0)
+{
+    <p class="pusto">Deklaracja zerowa — w tym okresie nie ma żadnych kwot.</p>
+}
+else
+{
+    <table class="waska" style="max-width:760px">
+        <thead>
+            <tr>
+                <th style="width:70px">Pole</th>
+                <th>Opis</th>
+                <th class="liczba">Kwota</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ((int numer, long wartosc) in Model.Deklaracja.WypelnionePola)
+            {
+                <tr>
+                    <td class="nowrap"><strong>P_@numer</strong></td>
+                    <td>@FirmaPro.Web.Pages.Rejestry.JpkModel.OpisPola(numer)</td>
+                    <td class="liczba">@wartosc</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2 class="naglowek-sekcji">Ewidencja w pliku</h2>
+
+<table class="waska">
+    <tbody>
+        <tr>
+            <td>Wierszy sprzedaży</td>
+            <td class="liczba">@Model.Podglad.Rejestr.Sprzedaz.Wpisy.Count</td>
+        </tr>
+        <tr>
+            <td>Podatek należny z ewidencji</td>
+            <td class="liczba">@Model.Podglad.Rejestr.Sprzedaz.PodatekNalezny.ToString("N2")</td>
+        </tr>
+        <tr>
+            <td>Wierszy zakupów z prawem do odliczenia</td>
+            <td class="liczba">@Model.Podglad.Rejestr.Zakupy.Wpisy.Count(w => w.Odliczany)</td>
+        </tr>
+        <tr>
+            <td>Podatek naliczony z ewidencji</td>
+            <td class="liczba">@Model.Podglad.Rejestr.Zakupy.PodatekNaliczony.ToString("N2")</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="paskiem" style="margin-top:26px">
+    @if (Model.Podglad.BrakujaceUstawienia is null)
+    {
+        <a class="przycisk" asp-page-handler="Plik" asp-route-okres="@Model.Okres.Kod">
+            Pobierz plik JPK_V7M
+        </a>
+        <a class="przycisk przycisk-drugi" asp-page-handler="Plik"
+           asp-route-okres="@Model.Okres.Kod" asp-route-korekta="true">
+            Pobierz jako korektę
+        </a>
+    }
+
+    <a class="przycisk przycisk-drugi" asp-page="Vat" asp-route-okres="@Model.Okres.Kod">
+        Zobacz rejestr
+    </a>
+</div>
+
+<div class="karta" style="margin-top:26px;max-width:760px">
+    <h2 class="naglowek-sekcji">Zamknięcie okresu</h2>
+
+    @if (Model.Podglad.OkresZamkniety)
+    {
+        <p>
+            Okres jest zamknięty. Nadwyżka
+            <strong>@Model.Deklaracja.DoPrzeniesienia zł</strong> przechodzi
+            na @Model.Okres.Nastepny.Nazwa.
+        </p>
+        <form method="post" asp-page-handler="Otworz" asp-route-okres="@Model.Okres.Kod">
+            <button type="submit" class="przycisk-drugi">Otwórz okres ponownie</button>
+        </form>
+    }
+    else
+    {
+        <p class="wskazowka" style="margin-top:0">
+            Zamknięcie utrwala kwotę przechodzącą na następny okres. Późniejsze
+            poprawki w dokumentach tego miesiąca nie zmienią już punktu wyjścia
+            następnej deklaracji — a to właśnie ma się nie zmieniać po złożeniu
+            pliku w urzędzie.
+        </p>
+        <form method="post" asp-page-handler="Zamknij" asp-route-okres="@Model.Okres.Kod">
+            <button type="submit">Zamknij okres @Model.Okres.Nazwa</button>
+        </form>
+    }
+</div>

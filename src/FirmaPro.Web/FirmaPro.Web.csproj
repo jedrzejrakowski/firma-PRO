@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FirmaPro.Domena\FirmaPro.Domena.csproj" />
     <ProjectReference Include="..\FirmaPro.Dane\FirmaPro.Dane.csproj" />
+    <ProjectReference Include="..\FirmaPro.Jpk\FirmaPro.Jpk.csproj" />
     <ProjectReference Include="..\FirmaPro.Ksef\FirmaPro.Ksef.csproj" />
     <ProjectReference Include="..\FirmaPro.Wydruk\FirmaPro.Wydruk.csproj" />
   </ItemGroup>

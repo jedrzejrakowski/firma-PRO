@@ -66,6 +66,16 @@ public sealed class Firma : EncjaBazowa
     public TypOkresu TypOkresuVat { get; set; } = TypOkresu.Miesieczny;
 
     /// <summary>
+    /// Czterocyfrowy kod urzędu skarbowego, do którego trafia JPK_V7.
+    /// </summary>
+    /// <remarks>
+    /// Kody publikuje Ministerstwo Finansów. W tym samym mieście urząd dla
+    /// osób fizycznych ma inny kod niż dla pozostałych podatników, więc nie
+    /// da się go wyprowadzić z adresu.
+    /// </remarks>
+    public string? KodUrzeduSkarbowego { get; set; }
+
+    /// <summary>
     /// Token KSeF zaszyfrowany kluczem aplikacji.
     /// </summary>
     /// <remarks>
@@ -417,4 +427,36 @@ public sealed class KwotaVatZakupu : EncjaBazowa, INalezyDoFirmy
 
     public decimal Netto { get; set; }
     public decimal Vat { get; set; }
+}
+
+
+/// <summary>
+/// Zapamiętane rozliczenie okresu - to, co przechodzi na następny miesiąc.
+/// </summary>
+/// <remarks>
+/// Deklaracja za dany okres potrzebuje nadwyżki podatku z okresu
+/// poprzedniego. Program mógłby ją wyliczać w łańcuchu wstecz, ale wtedy
+/// poprawka w starej fakturze po cichu zmieniałaby wszystkie późniejsze
+/// deklaracje - także te już złożone w urzędzie. Dlatego kwota zostaje
+/// zapisana w chwili zamknięcia okresu i od tego momentu się nie zmienia.
+/// </remarks>
+public sealed class ZamkniecieOkresuVat : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+    public Firma? Firma { get; set; }
+
+    public int Rok { get; set; }
+
+    /// <summary>Miesiąc (1-12) albo kwartał (1-4), zależnie od rytmu rozliczeń.</summary>
+    public int Numer { get; set; }
+
+    public TypOkresu Typ { get; set; } = TypOkresu.Miesieczny;
+
+    /// <summary>Nadwyżka przechodząca na następny okres, w pełnych złotych.</summary>
+    public long NadwyzkaDoPrzeniesienia { get; set; }
+
+    /// <summary>Podatek wpłacony do urzędu za ten okres, w pełnych złotych.</summary>
+    public long PodatekDoWplaty { get; set; }
+
+    public DateTimeOffset DataZamkniecia { get; set; }
 }

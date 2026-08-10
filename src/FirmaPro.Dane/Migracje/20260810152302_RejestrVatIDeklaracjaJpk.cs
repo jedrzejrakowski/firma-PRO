@@ -6,11 +6,18 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FirmaPro.Dane.Migracje
 {
     /// <inheritdoc />
-    public partial class RejestrVatIFakturyZakupu : Migration
+    public partial class RejestrVatIDeklaracjaJpk : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<string>(
+                name: "KodUrzeduSkarbowego",
+                table: "firmy",
+                type: "character varying(8)",
+                maxLength: 8,
+                nullable: true);
+
             migrationBuilder.AddColumn<string>(
                 name: "TypOkresuVat",
                 table: "firmy",
@@ -69,6 +76,32 @@ namespace FirmaPro.Dane.Migracje
                 });
 
             migrationBuilder.CreateTable(
+                name: "zamkniecia_okresow_vat",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    FirmaId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Rok = table.Column<int>(type: "integer", nullable: false),
+                    Numer = table.Column<int>(type: "integer", nullable: false),
+                    Typ = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    NadwyzkaDoPrzeniesienia = table.Column<long>(type: "bigint", nullable: false),
+                    PodatekDoWplaty = table.Column<long>(type: "bigint", nullable: false),
+                    DataZamkniecia = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    UtworzonoUtc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    ZmienionoUtc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_zamkniecia_okresow_vat", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_zamkniecia_okresow_vat_firmy_FirmaId",
+                        column: x => x.FirmaId,
+                        principalTable: "firmy",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "kwoty_vat_zakupu",
                 columns: table => new
                 {
@@ -119,6 +152,12 @@ namespace FirmaPro.Dane.Migracje
                 table: "kwoty_vat_zakupu",
                 columns: new[] { "FakturaZakupuId", "KodStawki" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_zamkniecia_okresow_vat_FirmaId_Typ_Rok_Numer",
+                table: "zamkniecia_okresow_vat",
+                columns: new[] { "FirmaId", "Typ", "Rok", "Numer" },
+                unique: true);
         }
 
         /// <inheritdoc />
@@ -128,11 +167,18 @@ namespace FirmaPro.Dane.Migracje
                 name: "kwoty_vat_zakupu");
 
             migrationBuilder.DropTable(
+                name: "zamkniecia_okresow_vat");
+
+            migrationBuilder.DropTable(
                 name: "faktury_zakupu");
 
             migrationBuilder.DropIndex(
                 name: "IX_faktury_sprzedazy_FirmaId_DataUjeciaVat",
                 table: "faktury_sprzedazy");
+
+            migrationBuilder.DropColumn(
+                name: "KodUrzeduSkarbowego",
+                table: "firmy");
 
             migrationBuilder.DropColumn(
                 name: "TypOkresuVat",

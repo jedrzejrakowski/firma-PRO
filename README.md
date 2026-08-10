@@ -9,7 +9,8 @@ Systemie e-Faktur od 1 lutego 2026 r.
 > **Stan prac: program działa od przeglądarki do gotowego dokumentu.** Można
 > się zalogować, prowadzić kartotekę kontrahentów, wystawić fakturę, obejrzeć
 > ją, pobrać plik FA(3) oraz wydruk PDF dla kontrahenta, wprowadzić faktury
-> zakupu i zobaczyć rejestr VAT za wybrany okres. Wysyłka do KSeF jest
+> zakupu, zobaczyć rejestr VAT i deklarację JPK_V7 za wybrany okres oraz
+> pobrać gotowy plik. Wysyłka do KSeF jest
 > zaimplementowana, ale nie została jeszcze potwierdzona połączeniem z żywym
 > systemem — patrz [Czego jeszcze nie sprawdzono](#czego-jeszcze-nie-sprawdzono).
 
@@ -33,7 +34,8 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Wizualizacja PDF z kodem QR | gotowe |
 | Faktury zakupu | gotowe |
 | Rejestr VAT sprzedaży i zakupów | gotowe |
-| JPK_V7 | w przygotowaniu |
+| Deklaracja i plik JPK_V7M | gotowe, **układ pliku niesprawdzony schematem** |
+| Wysyłka JPK do urzędu | poza zakresem — plik składa się aplikacją MF |
 
 ## Uruchomienie
 
@@ -72,6 +74,7 @@ src/
 ├── FirmaPro.Domena/     model faktury, stawki VAT, walidacja - bez zależności
 ├── FirmaPro.Ksef/       generator XML FA(3), kryptografia, klient API
 ├── FirmaPro.Dane/       encje, kontekst EF Core, migracje, izolacja firm
+├── FirmaPro.Jpk/        deklaracja i plik JPK_V7M
 ├── FirmaPro.Wydruk/     wizualizacja faktury w PDF wraz z kodem QR
 └── FirmaPro.Web/        aplikacja przeglądarkowa (ASP.NET Core, Razor Pages)
 testy/
@@ -263,6 +266,66 @@ Zakup służący sprzedaży zwolnionej albo celom prywatnym można oznaczyć jak
 nieodliczany. Zostaje wtedy w rejestrze jako dokument, ale nie wchodzi ani
 do podatku naliczonego, ani do kwot wykazywanych w deklaracji.
 
+## JPK_V7
+
+Deklaracja powstaje z tego samego rejestru, który widać na ekranie — nie ma
+osobnego miejsca, w którym dałoby się ją „poprawić" niezależnie od dokumentów.
+
+### Dwie reguły zaokrąglania w jednym pliku
+
+Część **deklaracyjna** podawana jest w pełnych złotych (art. 63 § 1 Ordynacji
+podatkowej), część **ewidencyjna** — w groszach. Zaokrąglana jest suma w każdym
+polu, a nie każdy dokument z osobna; pola podsumowujące (P_38, P_48) liczone są
+z już zaokrąglonych pól składowych, żeby deklaracja zgadzała się sama ze sobą.
+
+### Nadwyżka między okresami
+
+Deklaracja za dany miesiąc potrzebuje nadwyżki z miesiąca poprzedniego.
+Program mógłby ją wyliczać w łańcuchu wstecz, ale wtedy **poprawka w starej
+fakturze po cichu zmieniałaby deklaracje już złożone w urzędzie**. Dlatego
+kwota utrwalana jest przy zamknięciu okresu i od tego momentu się nie zmienia.
+Dopóki poprzedni okres nie jest zamknięty, program przyjmuje zero — zamiast
+podpowiadać liczbę, której nikt nie zatwierdził.
+
+### Czego program nie robi
+
+**Nie wysyła pliku do urzędu.** Złożenie JPK wymaga podpisu kwalifikowanego,
+profilu zaufanego albo danych autoryzujących i odbywa się przez bramkę
+Ministerstwa. Plik pobiera się z programu i składa bezpłatną aplikacją
+*Klient JPK_WEB* — która przy okazji sprawdzi go schematem.
+
+Deklaracja obejmuje sprzedaż i zakupy krajowe. Transakcje, których system
+jeszcze nie zbiera — wewnątrzwspólnotowe nabycie, import usług, ulga na złe
+długi, korekty środków trwałych — mają w deklaracji własne pola i wymagają
+osobnego uzupełnienia. Sprzedaż w stawce, która nie ma odpowiednika w JPK_V7
+(ryczałt dla taksówek, rozliczany deklaracją VAT-12), nie znika po cichu:
+program pokazuje ostrzeżenie.
+
+### Czego nie udało się sprawdzić
+
+**Układ pliku nie został potwierdzony oficjalnym schematem XSD.** W środowisku,
+w którym powstawał ten kod, serwisy Ministerstwa Finansów są niedostępne, więc
+nazwy i kolejność elementów pochodzą z dokumentacji struktury, a nie z samego
+schematu. Przy fakturach FA(3) walidacja prawdziwym schematem wychwyciła błędy
+nie do przewidzenia — tutaj takiego zabezpieczenia zabrakło.
+
+Miejsca, którym warto przyjrzeć się najpierw:
+
+- numer pola „nadwyżka do przeniesienia na następny okres" (przyjęto P_62),
+- nazwy i kolejność elementów `SprzedazWiersz` i `ZakupWiersz`,
+- oznaczenia nowe w strukturze obowiązującej od lutego 2026 r. (`NrKSeF`),
+- przestrzeń nazw i atrybuty `KodFormularza`.
+
+Błąd w którymkolwiek z tych miejsc **wychodzi głośno** — walidator odrzuci plik
+przy pierwszej próbie. Groźniejsze byłyby błędne kwoty, więc to one są obłożone
+testami.
+
+**Jak to potwierdzić:** pobierz schemat JPK_V7M ze strony Ministerstwa Finansów
+(Struktury JPK), zapisz go w katalogu `schematy/` pod nazwą zaczynającą się od
+`Schemat_JPK_V7M` i uruchom `dotnet test`. Test walidujący plik schematem
+uruchomi się wtedy sam. Dopóki pliku nie ma, zgłasza się jako **pominięty** —
+brak sprawdzenia nie ma wyglądać jak sprawdzenie.
+
 ## Plan
 
 1. **Fundament** — model, walidacja, generator FA(3) ✔
@@ -271,7 +334,7 @@ do podatku naliczonego, ani do kwot wykazywanych w deklaracji.
 4. **Interfejs webowy** — konta, kontrahenci, wystawianie faktur, ustawienia ✔
 5. **Wizualizacja PDF** — wydruk faktury z kodem QR ✔
 6. **Rejestr VAT** — sprzedaż, zakupy i rozliczenie okresu ✔
-7. **JPK_V7** — osobna integracja z Ministerstwem, z własnym uwierzytelnianiem
+7. **JPK_V7** — deklaracja i plik do złożenia ✔ (do potwierdzenia schematem)
 8. Dalej: magazyn, KPiR, CRM
 
 ## Uwaga o testach
@@ -307,6 +370,9 @@ token w Ustawieniach, wystawić fakturę i wysłać ją.
 Zweryfikowana jest natomiast **zawartość** przesyłki: dokument przechodzi
 walidację oryginalnym schematem XSD, a koperta kryptograficzna — test
 z atrapą serwera, która naprawdę odszyfrowuje przesłane dane.
+
+Plik JPK_V7 ma sprawdzone kwoty i zgodność sum kontrolnych z zawartością
+ewidencji, ale **nie jego układ** — patrz [JPK_V7](#jpk_v7).
 
 Kod QR na wydruku został odczytany z gotowego pliku PDF czytnikiem kodów
 i porównany ze skrótem SHA-256 wysłanego dokumentu — link prowadzi dokładnie

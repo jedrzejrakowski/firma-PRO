@@ -82,6 +82,7 @@ public class FirmaProDbContext : DbContext
     public DbSet<PozycjaFakturySprzedazy> PozycjeFaktur => Set<PozycjaFakturySprzedazy>();
     public DbSet<FakturaZakupu> FakturyZakupu => Set<FakturaZakupu>();
     public DbSet<KwotaVatZakupu> KwotyVatZakupu => Set<KwotaVatZakupu>();
+    public DbSet<ZamkniecieOkresuVat> ZamknieciaOkresow => Set<ZamkniecieOkresuVat>();
     public DbSet<SeriaNumeracji> SerieNumeracji => Set<SeriaNumeracji>();
 
     // Nazwa parametru musi odpowiadać deklaracji z klasy bazowej, dlatego
@@ -96,6 +97,7 @@ public class FirmaProDbContext : DbContext
         KonfigurujKontrahentow(modelBuilder);
         KonfigurujFaktury(modelBuilder);
         KonfigurujZakupy(modelBuilder);
+        KonfigurujZamknieciaOkresow(modelBuilder);
         KonfigurujNumeracje(modelBuilder);
 
         ZastosujFiltryFirmy(modelBuilder);
@@ -122,6 +124,7 @@ public class FirmaProDbContext : DbContext
             // zaglądania do kodu, a dodanie nowego nie przesuwa numeracji.
             e.Property(f => f.Srodowisko).HasConversion<string>().HasMaxLength(16);
             e.Property(f => f.TypOkresuVat).HasConversion<string>().HasMaxLength(16);
+            e.Property(f => f.KodUrzeduSkarbowego).HasMaxLength(8);
             e.HasIndex(f => f.Nip);
         });
     }
@@ -320,6 +323,20 @@ public class FirmaProDbContext : DbContext
         });
     }
 
+    private static void KonfigurujZamknieciaOkresow(ModelBuilder budowniczy)
+    {
+        budowniczy.Entity<ZamkniecieOkresuVat>(e =>
+        {
+            e.ToTable("zamkniecia_okresow_vat");
+            e.HasKey(z => z.Id);
+            e.Property(z => z.Typ).HasConversion<string>().HasMaxLength(16);
+
+            // Okres można zamknąć tylko raz - inaczej dwie różne kwoty
+            // pretendowałyby do roli nadwyżki przechodzącej dalej.
+            e.HasIndex(z => new { z.FirmaId, z.Typ, z.Rok, z.Numer }).IsUnique();
+        });
+    }
+
     private static void KonfigurujNumeracje(ModelBuilder budowniczy)
     {
         budowniczy.Entity<SeriaNumeracji>(e =>
@@ -348,6 +365,8 @@ public class FirmaProDbContext : DbContext
             .HasQueryFilter(f => f.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<KwotaVatZakupu>()
             .HasQueryFilter(k => k.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<ZamkniecieOkresuVat>()
+            .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<SeriaNumeracji>()
             .HasQueryFilter(s => s.FirmaId == AktualnaFirmaId);
     }

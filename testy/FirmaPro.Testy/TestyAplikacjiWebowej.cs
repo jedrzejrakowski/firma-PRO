@@ -462,7 +462,153 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
             await AplikacjaTestowa.TrescAsync(odpowiedz), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Nadwyżka przechodzi na następny okres dopiero po zamknięciu.
+    /// </summary>
+    /// <remarks>
+    /// Sprawdza cały łańcuch: zakup daje nadwyżkę, zamknięcie okresu ją
+    /// utrwala, a deklaracja za następny miesiąc pokazuje ją w pozycji
+    /// „nadwyżka z poprzedniej deklaracji" i pomniejsza podatek do wpłaty.
+    /// </remarks>
+    [Fact]
+    public async Task NadwyzkaPrzechodziNaNastepnyOkresPoZamknieciu()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+        await UstawKodUrzeduAsync(klient);
+
+        string idKontrahenta = await PierwszyKontrahentAsync(klient);
+
+        // maj: sam zakup, więc powstaje nadwyżka 230 zł
+        await WprowadzZakupAsync(klient, "FZ/JPK/MAJ", new DateOnly(2026, 5, 12), "1000");
+
+        using (HttpResponseMessage maj = await klient.GetAsync(
+            new Uri("/Rejestry/Jpk?okres=2026-05", UriKind.Relative)))
+        {
+            string html = await AplikacjaTestowa.TrescAsync(maj);
+            Assert.Equal("230", KwotaKafelka(html, "Nadwyżka na następny okres"));
+        }
+
+        // czerwiec bez zamknięcia maja: nadwyżki jeszcze nie widać
+        await WystawFaktureAsync(klient, idKontrahenta, new DateOnly(2026, 6, 10), "2000");
+
+        using (HttpResponseMessage czerwiec = await klient.GetAsync(
+            new Uri("/Rejestry/Jpk?okres=2026-06", UriKind.Relative)))
+        {
+            string html = await AplikacjaTestowa.TrescAsync(czerwiec);
+            Assert.Equal("460", KwotaKafelka(html, "Do wpłaty do urzędu (P_51)"));
+        }
+
+        // zamknięcie maja utrwala nadwyżkę
+        using (HttpResponseMessage zamkniecie = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Rejestry/Jpk?handler=Zamknij&okres=2026-05",
+            new Dictionary<string, string>(),
+            adresFormularza: "/Rejestry/Jpk?okres=2026-05"))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, zamkniecie.StatusCode);
+        }
+
+        using (HttpResponseMessage czerwiec = await klient.GetAsync(
+            new Uri("/Rejestry/Jpk?okres=2026-06", UriKind.Relative)))
+        {
+            string html = await AplikacjaTestowa.TrescAsync(czerwiec);
+
+            // 460 podatku należnego minus 230 nadwyżki z maja
+            Assert.Equal("230", KwotaKafelka(html, "Do wpłaty do urzędu (P_51)"));
+            Assert.Contains("Nadwyżka z poprzedniej deklaracji", html,
+                StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>Plik JPK da się pobrać dopiero po uzupełnieniu kodu urzędu.</summary>
+    [Fact]
+    public async Task PlikJpkWymagaKoduUrzeduSkarbowego()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+        await UstawKodUrzeduAsync(klient);
+
+        using HttpResponseMessage plik = await klient.GetAsync(
+            new Uri("/Rejestry/Jpk?handler=Plik&okres=2026-07", UriKind.Relative));
+
+        plik.EnsureSuccessStatusCode();
+        Assert.Equal("application/xml", plik.Content.Headers.ContentType?.MediaType);
+
+        string xml = await plik.Content.ReadAsStringAsync();
+
+        Assert.Contains("JPK_V7M", xml, StringComparison.Ordinal);
+        Assert.Contains("<tns:KodUrzedu>1471</tns:KodUrzedu>", xml, StringComparison.Ordinal);
+        Assert.Contains("<tns:CelZlozenia>1</tns:CelZlozenia>", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task KorektaMaInnyCelZlozeniaWPliku()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+        await UstawKodUrzeduAsync(klient);
+
+        using HttpResponseMessage plik = await klient.GetAsync(new Uri(
+            "/Rejestry/Jpk?handler=Plik&okres=2026-07&korekta=true", UriKind.Relative));
+
+        plik.EnsureSuccessStatusCode();
+
+        Assert.Contains("<tns:CelZlozenia>2</tns:CelZlozenia>",
+            await plik.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------------ pomocnicze
+
+    /// <summary>Uzupełnia kod urzędu, bez którego nie powstanie plik JPK.</summary>
+    private static async Task UstawKodUrzeduAsync(HttpClient klient)
+    {
+        Dictionary<string, string> pola = DaneFirmy();
+        pola["KodUrzeduSkarbowego"] = "1471";
+
+        using HttpResponseMessage zapis =
+            await AplikacjaTestowa.WyslijFormularzAsync(klient, "/Ustawienia", pola);
+
+        Assert.Equal(HttpStatusCode.Redirect, zapis.StatusCode);
+    }
+
+    private static async Task WprowadzZakupAsync(HttpClient klient, string numer,
+                                                 DateOnly dzien, string netto)
+    {
+        decimal kwota = decimal.Parse(netto, CultureInfo.InvariantCulture);
+
+        using HttpResponseMessage odpowiedz = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Zakupy/Nowa", new Dictionary<string, string>
+            {
+                ["Numer"] = numer,
+                ["DataWystawienia"] = Data(dzien),
+                ["DataWplywu"] = Data(dzien),
+                ["SprzedawcaNazwa"] = "Dostawca sp. z o.o.",
+                ["Rodzaj"] = "TowaryIUslugi",
+                ["Odliczany"] = "true",
+                ["Kwoty[0].KodStawki"] = "23",
+                ["Kwoty[0].Netto"] = netto,
+                ["Kwoty[0].Vat"] = (kwota * 0.23m).ToString("0.00",
+                    CultureInfo.InvariantCulture)
+            });
+
+        Assert.Equal(HttpStatusCode.Redirect, odpowiedz.StatusCode);
+    }
+
+    private static async Task WystawFaktureAsync(HttpClient klient, string idKontrahenta,
+                                                 DateOnly dzien, string cena)
+    {
+        using HttpResponseMessage odpowiedz = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Faktury/Nowa", new Dictionary<string, string>
+            {
+                ["KontrahentId"] = idKontrahenta,
+                ["DataWystawienia"] = Data(dzien),
+                ["DataSprzedazy"] = Data(dzien),
+                ["Pozycje[0].Nazwa"] = "Usługa",
+                ["Pozycje[0].Jednostka"] = "szt.",
+                ["Pozycje[0].Ilosc"] = "1",
+                ["Pozycje[0].CenaNetto"] = cena,
+                ["Pozycje[0].KodStawki"] = "23"
+            });
+
+        Assert.Equal(HttpStatusCode.Redirect, odpowiedz.StatusCode);
+    }
 
     private static string Data(DateOnly data) =>
         data.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

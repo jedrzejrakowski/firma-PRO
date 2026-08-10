@@ -41,6 +41,8 @@ public sealed class UstawieniaModel(
     [BindProperty] public string StopkaFaktury { get; set; } = string.Empty;
     [BindProperty] public int DomyslnyTerminPlatnosciDni { get; set; } = 14;
     [BindProperty] public SrodowiskoKsef Srodowisko { get; set; } = SrodowiskoKsef.Test;
+    [BindProperty] public TypOkresu TypOkresuVat { get; set; } = TypOkresu.Miesieczny;
+    [BindProperty] public string KodUrzeduSkarbowego { get; set; } = string.Empty;
 
     /// <summary>Nowy token KSeF - puste pole zostawia dotychczasowy.</summary>
     [BindProperty] public string TokenKsef { get; set; } = string.Empty;
@@ -107,6 +109,12 @@ public sealed class UstawieniaModel(
             Bledy.Add("Termin płatności musi mieścić się w przedziale 0-365 dni.");
         }
 
+        string kodUrzedu = (KodUrzeduSkarbowego ?? string.Empty).Trim();
+        if (kodUrzedu.Length > 0 && (kodUrzedu.Length != 4 || !kodUrzedu.All(char.IsDigit)))
+        {
+            Bledy.Add("Kod urzędu skarbowego składa się z czterech cyfr.");
+        }
+
         if (Bledy.Count > 0)
         {
             // Przy błędzie zostawiamy to, co wpisał użytkownik, ale stan
@@ -128,6 +136,8 @@ public sealed class UstawieniaModel(
         firma.StopkaFaktury = Puste(StopkaFaktury);
         firma.DomyslnyTerminPlatnosciDni = DomyslnyTerminPlatnosciDni;
         firma.Srodowisko = Srodowisko;
+        firma.TypOkresuVat = TypOkresuVat;
+        firma.KodUrzeduSkarbowego = Puste(KodUrzeduSkarbowego);
 
         if (UsunToken)
         {
@@ -164,6 +174,8 @@ public sealed class UstawieniaModel(
         StopkaFaktury = firma.StopkaFaktury ?? string.Empty;
         DomyslnyTerminPlatnosciDni = firma.DomyslnyTerminPlatnosciDni;
         Srodowisko = firma.Srodowisko;
+        TypOkresuVat = firma.TypOkresuVat;
+        KodUrzeduSkarbowego = firma.KodUrzeduSkarbowego ?? string.Empty;
 
         OdczytajStanTokena(firma);
     }

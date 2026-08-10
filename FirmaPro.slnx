@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/FirmaPro.Dane/FirmaPro.Dane.csproj" />
     <Project Path="src/FirmaPro.Domena/FirmaPro.Domena.csproj" />
+    <Project Path="src/FirmaPro.Jpk/FirmaPro.Jpk.csproj" />
     <Project Path="src/FirmaPro.Ksef/FirmaPro.Ksef.csproj" />
     <Project Path="src/FirmaPro.Web/FirmaPro.Web.csproj" />
     <Project Path="src/FirmaPro.Wydruk/FirmaPro.Wydruk.csproj" />

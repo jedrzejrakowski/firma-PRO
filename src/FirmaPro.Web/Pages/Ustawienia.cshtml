@@ -99,6 +99,37 @@
                    value="@Model.StopkaFaktury" maxlength="3500" />
         </div>
 
+        <h2 class="naglowek-sekcji">Rozliczenie VAT</h2>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="typOkresu">Okres rozliczeniowy</label>
+                <select id="typOkresu" name="TypOkresuVat">
+                    <option value="@TypOkresu.Miesieczny"
+                            selected="@(Model.TypOkresuVat == TypOkresu.Miesieczny)">
+                        Miesięczny
+                    </option>
+                    <option value="@TypOkresu.Kwartalny"
+                            selected="@(Model.TypOkresuVat == TypOkresu.Kwartalny)">
+                        Kwartalny (mały podatnik)
+                    </option>
+                </select>
+            </div>
+
+            <div class="pole">
+                <label for="kodUrzedu">Kod urzędu skarbowego</label>
+                <input type="text" id="kodUrzedu" name="KodUrzeduSkarbowego"
+                       value="@Model.KodUrzeduSkarbowego" maxlength="4"
+                       placeholder="np. 1471" />
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Kod urzędu trafia do pliku JPK_V7. Wykaz publikuje Ministerstwo
+            Finansów — w tym samym mieście urząd dla osób fizycznych ma inny kod
+            niż dla spółek, więc nie da się go wywnioskować z adresu.
+        </p>
+
         <h2 class="naglowek-sekcji">Dostęp do KSeF</h2>
 
         <div class="pole">

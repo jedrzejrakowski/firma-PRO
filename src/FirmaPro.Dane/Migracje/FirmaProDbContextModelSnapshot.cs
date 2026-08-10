@@ -336,6 +336,10 @@ namespace FirmaPro.Dane.Migracje
                         .HasMaxLength(2)
                         .HasColumnType("character varying(2)");
 
+                    b.Property<string>("KodUrzeduSkarbowego")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
                     b.Property<string>("MiejsceWystawienia")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -662,6 +666,49 @@ namespace FirmaPro.Dane.Migracje
                     b.ToTable("uzytkownicy", (string)null);
                 });
 
+            modelBuilder.Entity("FirmaPro.Dane.Encje.ZamkniecieOkresuVat", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("DataZamkniecia")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FirmaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("NadwyzkaDoPrzeniesienia")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Numer")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("PodatekDoWplaty")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Rok")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Typ")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("UtworzonoUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ZmienionoUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FirmaId", "Typ", "Rok", "Numer")
+                        .IsUnique();
+
+                    b.ToTable("zamkniecia_okresow_vat", (string)null);
+                });
+
             modelBuilder.Entity("FirmaPro.Dane.Encje.CzlonkostwoWFirmie", b =>
                 {
                     b.HasOne("FirmaPro.Dane.Encje.Firma", "Firma")
@@ -738,6 +785,17 @@ namespace FirmaPro.Dane.Migracje
                         .IsRequired();
 
                     b.Navigation("Faktura");
+                });
+
+            modelBuilder.Entity("FirmaPro.Dane.Encje.ZamkniecieOkresuVat", b =>
+                {
+                    b.HasOne("FirmaPro.Dane.Encje.Firma", "Firma")
+                        .WithMany()
+                        .HasForeignKey("FirmaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Firma");
                 });
 
             modelBuilder.Entity("FirmaPro.Dane.Encje.FakturaSprzedazy", b =>

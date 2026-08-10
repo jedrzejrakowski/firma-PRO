@@ -28,6 +28,19 @@ public static class Kwoty
         Math.Round(kwota, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>
+    /// Zaokrągla kwotę do pełnych złotych.
+    /// </summary>
+    /// <remarks>
+    /// Tak podaje się kwoty w części deklaracyjnej JPK_V7: końcówki poniżej
+    /// 50 groszy pomija się, a od 50 groszy podwyższa do pełnych złotych
+    /// (art. 63 § 1 Ordynacji podatkowej). Część ewidencyjna tego samego
+    /// pliku zostaje w groszach - to nie pomyłka, tylko dwie różne reguły
+    /// w jednym dokumencie.
+    /// </remarks>
+    public static long ZaokraglijDoZlotych(decimal kwota) =>
+        (long)Math.Round(kwota, 0, MidpointRounding.AwayFromZero);
+
+    /// <summary>
     /// Formatuje kwotę tak, jak wymaga tego schemat FA(3): zawsze dwa
     /// miejsca po przecinku, kropka jako separator, bez separatora tysięcy.
     /// </summary>
