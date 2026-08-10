@@ -30,6 +30,7 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Logowanie i konta użytkowników | gotowe |
 | Kartoteka kontrahentów | gotowe |
 | Wystawianie faktur i podgląd dokumentu | gotowe |
+| Faktury korygujące | gotowe |
 | Ustawienia firmy wraz z tokenem KSeF | gotowe |
 | Wizualizacja PDF z kodem QR | gotowe |
 | Faktury zakupu | gotowe |
@@ -226,6 +227,41 @@ Krój pisma (Liberation Sans, licencja SIL OFL) jest osadzony w bibliotece —
 patrz `src/FirmaPro.Wydruk/Czcionki/LICENCJA.md`. Gdyby brać go z systemu,
 ten sam dokument wyglądałby inaczej na serwerze i na komputerze księgowej,
 a przy braku czcionki wydruk sypałby się dopiero u klienta.
+
+## Faktury korygujące
+
+Faktura przyjęta przez KSeF jest niezmienna, więc korekta to jedyny sposób
+poprawienia błędu. Korektę wystawia się z poziomu faktury pierwotnej -
+formularz startuje od jej pozycji, a użytkownik poprawia to, co się zmieniło.
+
+**Dokument niesie obie wersje pozycji**: sprzed zmiany (znacznik `StanPrzed`
+ze schematu) i po niej. Do rejestru VAT oraz do pliku wysyłanego do KSeF trafia
+**różnica** między nimi. Gdyby korekta wykazywała nowy stan, rejestr policzyłby
+tę samą sprzedaż drugi raz, a podatek należny wyszedłby niemal podwójny.
+
+Wydruk pokazuje obie tabele obok siebie oraz dane faktury korygowanej
+i przyczynę korekty - tego wymaga art. 106j, a odbiorca i tak chce wiedzieć,
+co właściwie się zmieniło.
+
+### Okres, w którym korekta ma skutek
+
+Wybór przy wystawianiu decyduje o tym, do którego miesiąca trafi korekta:
+
+- **na bieżąco** (rabat, zwrot towaru) - okres wystawienia korekty,
+- **wstecz** (błąd istniejący od początku) - okres faktury pierwotnej,
+  co zwykle oznacza korektę złożonej już deklaracji.
+
+Program zapisuje ten wybór jako datę ujęcia w rejestrze, więc korekta wstecz
+naprawdę wraca do właściwego miesiąca - a nie tylko do pola w pliku XML.
+
+Korekta przechodzi **walidację prawdziwym schematem FA(3)** we wszystkich
+wariantach: faktury z numerem KSeF i sprzed KSeF, korekty zbiorczej do kilku
+faktur naraz oraz każdego z trzech typów skutku.
+
+Czego jeszcze nie ma: **korekty do korekty** (program mówi o tym wprost,
+zamiast wystawić dokument, którego nikt nie sprawdził) i osobnej serii
+numeracji dla korekt - na razie idą tą samą serią co faktury, co jest zgodne
+z przepisami, ale różni się od przyzwyczajeń części księgowych.
 
 ## Rejestr VAT
 

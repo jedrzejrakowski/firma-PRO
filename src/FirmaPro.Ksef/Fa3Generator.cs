@@ -246,6 +246,7 @@ public static class Fa3Generator
         DodajPodsumowanie(fa, faktura);
         fa.Add(Adnotacje(faktura));
         fa.Add(new XElement(Ns + "RodzajFaktury", KodyRodzajow[faktura.Rodzaj]));
+        DodajDaneKorekty(fa, faktura);
         DodajWiersze(fa, faktura);
         DodajPlatnosc(fa, faktura);
 
@@ -309,30 +310,93 @@ public static class Fa3Generator
                 new XElement(Ns + "P_PMarzyN", "1")));
     }
 
+    /// <summary>
+    /// Sekcja danych korekty - obowiązkowa przy fakturze korygującej.
+    /// </summary>
+    /// <remarks>
+    /// Schemat wymaga wskazania faktury korygowanej wraz z informacją, czy ma
+    /// ona numer KSeF. Wybór jest rozłączny: albo numer KSeF, albo znacznik
+    /// faktury wystawionej poza systemem - pominięcie obu unieważnia dokument.
+    /// </remarks>
+    private static void DodajDaneKorekty(XElement fa, Faktura faktura)
+    {
+        if (!faktura.CzyKorekta)
+        {
+            return;
+        }
+
+        DodajGdyJest(fa, "PrzyczynaKorekty", faktura.PrzyczynaKorekty);
+
+        if (faktura.TypKorekty is TypKorektyVat typ)
+        {
+            fa.Add(new XElement(Ns + "TypKorekty",
+                ((int)typ).ToString(CultureInfo.InvariantCulture)));
+        }
+
+        foreach (DaneFakturyKorygowanej korygowana in faktura.Korygowane)
+        {
+            var dane = new XElement(Ns + "DaneFaKorygowanej",
+                new XElement(Ns + "DataWystFaKorygowanej",
+                    korygowana.DataWystawienia.ToString("yyyy-MM-dd",
+                        CultureInfo.InvariantCulture)),
+                new XElement(Ns + "NrFaKorygowanej", korygowana.Numer));
+
+            if (string.IsNullOrWhiteSpace(korygowana.NumerKsef))
+            {
+                dane.Add(new XElement(Ns + "NrKSeFN", "1"));
+            }
+            else
+            {
+                dane.Add(new XElement(Ns + "NrKSeF", "1"));
+                dane.Add(new XElement(Ns + "NrKSeFFaKorygowanej", korygowana.NumerKsef));
+            }
+
+            fa.Add(dane);
+        }
+    }
+
     private static void DodajWiersze(XElement fa, Faktura faktura)
     {
         int numerWiersza = 1;
+
+        // Przy korekcie najpierw idą pozycje sprzed zmiany, oznaczone
+        // znacznikiem StanPrzed, a dopiero po nich stan po korekcie.
+        // Numeracja jest wspólna i ciągła dla obu grup.
+        foreach (PozycjaFaktury pozycja in faktura.PozycjePrzedKorekta)
+        {
+            fa.Add(Wiersz(pozycja, numerWiersza++, stanPrzed: true));
+        }
+
         foreach (PozycjaFaktury pozycja in faktura.Pozycje)
         {
-            var wiersz = new XElement(Ns + "FaWiersz",
-                new XElement(Ns + "NrWierszaFa", numerWiersza.ToString(CultureInfo.InvariantCulture)));
-
-            DodajGdyJest(wiersz, "P_7", pozycja.Nazwa);
-            DodajGdyJest(wiersz, "Indeks", pozycja.Indeks);
-            DodajGdyJest(wiersz, "PKWiU", pozycja.Pkwiu);
-            DodajGdyJest(wiersz, "CN", pozycja.Cn);
-            DodajGdyJest(wiersz, "P_8A", pozycja.Jednostka);
-
-            wiersz.Add(new XElement(Ns + "P_8B", Kwoty.LiczbaNaXml(pozycja.Ilosc, 6)));
-            wiersz.Add(new XElement(Ns + "P_9A", Kwoty.LiczbaNaXml(pozycja.CenaNetto, 8)));
-            wiersz.Add(new XElement(Ns + "P_11", Kwoty.NaXml(pozycja.WartoscNetto)));
-            wiersz.Add(new XElement(Ns + "P_12", pozycja.Stawka.Kod));
-
-            DodajGdyJest(wiersz, "GTU", pozycja.Gtu);
-
-            fa.Add(wiersz);
-            numerWiersza++;
+            fa.Add(Wiersz(pozycja, numerWiersza++, stanPrzed: false));
         }
+    }
+
+    private static XElement Wiersz(PozycjaFaktury pozycja, int numerWiersza, bool stanPrzed)
+    {
+        var wiersz = new XElement(Ns + "FaWiersz",
+            new XElement(Ns + "NrWierszaFa", numerWiersza.ToString(CultureInfo.InvariantCulture)));
+
+        DodajGdyJest(wiersz, "P_7", pozycja.Nazwa);
+        DodajGdyJest(wiersz, "Indeks", pozycja.Indeks);
+        DodajGdyJest(wiersz, "PKWiU", pozycja.Pkwiu);
+        DodajGdyJest(wiersz, "CN", pozycja.Cn);
+        DodajGdyJest(wiersz, "P_8A", pozycja.Jednostka);
+
+        wiersz.Add(new XElement(Ns + "P_8B", Kwoty.LiczbaNaXml(pozycja.Ilosc, 6)));
+        wiersz.Add(new XElement(Ns + "P_9A", Kwoty.LiczbaNaXml(pozycja.CenaNetto, 8)));
+        wiersz.Add(new XElement(Ns + "P_11", Kwoty.NaXml(pozycja.WartoscNetto)));
+        wiersz.Add(new XElement(Ns + "P_12", pozycja.Stawka.Kod));
+
+        DodajGdyJest(wiersz, "GTU", pozycja.Gtu);
+
+        if (stanPrzed)
+        {
+            wiersz.Add(new XElement(Ns + "StanPrzed", "1"));
+        }
+
+        return wiersz;
     }
 
     private static void DodajPlatnosc(XElement fa, Faktura faktura)

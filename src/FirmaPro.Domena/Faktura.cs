@@ -126,6 +126,44 @@ public sealed record PozycjaPodsumowania(StawkaVat Stawka, decimal Netto, decima
     public decimal Brutto => Netto + Vat;
 }
 
+/// <summary>
+/// Typ skutku korekty w ewidencji VAT (pole TypKorekty).
+/// </summary>
+/// <remarks>
+/// Decyduje o okresie, w którym korekta wchodzi do rejestru - a więc o tym,
+/// czy trzeba poprawiać deklarację wstecz, czy wystarczy bieżąca.
+/// </remarks>
+public enum TypKorektyVat
+{
+    /// <summary>
+    /// Skutek w dacie ujęcia faktury pierwotnej - typowo przy błędzie
+    /// na fakturze, który istniał od początku.
+    /// </summary>
+    WDaciePierwotnej = 1,
+
+    /// <summary>
+    /// Skutek w dacie wystawienia korekty - typowo przy rabacie albo zwrocie
+    /// towaru, czyli zdarzeniu, które nastąpiło później.
+    /// </summary>
+    WDacieKorekty = 2,
+
+    /// <summary>Skutek w innej dacie, także gdy pozycje mają różne daty.</summary>
+    WInnejDacie = 3
+}
+
+/// <summary>Dane faktury, której dotyczy korekta.</summary>
+/// <param name="Numer">Numer faktury korygowanej.</param>
+/// <param name="DataWystawienia">Data wystawienia faktury korygowanej.</param>
+/// <param name="NumerKsef">
+/// Numer KSeF faktury korygowanej albo <c>null</c>, gdy została wystawiona
+/// poza systemem. Schemat wymaga wskazania jednego albo drugiego - nie da się
+/// pominąć obu.
+/// </param>
+public sealed record DaneFakturyKorygowanej(
+    string Numer,
+    DateOnly DataWystawienia,
+    string? NumerKsef);
+
 /// <summary>Kompletna faktura.</summary>
 public sealed class Faktura
 {
@@ -167,6 +205,34 @@ public sealed class Faktura
     /// <summary>Numer nadany przez KSeF po przyjęciu dokumentu.</summary>
     public string? NumerKsef { get; set; }
 
+    // --- korekta ---------------------------------------------------------
+
+    /// <summary>Przyczyna korekty - wypełniana tylko na fakturze korygującej.</summary>
+    public string? PrzyczynaKorekty { get; set; }
+
+    /// <summary>Typ skutku korekty w ewidencji VAT.</summary>
+    public TypKorektyVat? TypKorekty { get; set; }
+
+    /// <summary>Faktury, których dotyczy korekta.</summary>
+    public List<DaneFakturyKorygowanej> Korygowane { get; set; } = [];
+
+    /// <summary>
+    /// Pozycje w stanie sprzed korekty.
+    /// </summary>
+    /// <remarks>
+    /// Schemat dopuszcza wykazanie danych przed korektą i po korekcie jako
+    /// osobnych wierszy (znacznik StanPrzed). Ta forma jest czytelna także
+    /// na wydruku - odbiorca widzi, co się zmieniło, zamiast samej różnicy.
+    /// W <see cref="Pozycje"/> siedzi stan po korekcie.
+    /// </remarks>
+    public List<PozycjaFaktury> PozycjePrzedKorekta { get; set; } = [];
+
+    /// <summary>Czy dokument jest fakturą korygującą.</summary>
+    public bool CzyKorekta =>
+        Rodzaj is RodzajFaktury.Korygujaca
+               or RodzajFaktury.KorektaZaliczkowej
+               or RodzajFaktury.KorektaRozliczeniowej;
+
     /// <summary>
     /// Wylicza sumy faktury w rozbiciu na pola wymagane przez FA(3).
     /// </summary>
@@ -183,6 +249,16 @@ public sealed class Faktura
         {
             nettoWgStawki.TryGetValue(pozycja.Stawka, out decimal dotychczas);
             nettoWgStawki[pozycja.Stawka] = dotychczas + pozycja.WartoscNetto;
+        }
+
+        // Faktura korygująca wykazuje różnicę, a nie nowy stan. Odejmujemy
+        // więc stan sprzed korekty - dzięki temu do rejestru VAT i deklaracji
+        // trafia dokładnie to, o ile zmienia się podatek, a nie cała wartość
+        // transakcji policzona po raz drugi.
+        foreach (PozycjaFaktury pozycja in PozycjePrzedKorekta)
+        {
+            nettoWgStawki.TryGetValue(pozycja.Stawka, out decimal dotychczas);
+            nettoWgStawki[pozycja.Stawka] = dotychczas - pozycja.WartoscNetto;
         }
 
         var podsumowanie = new PodsumowanieFaktury();

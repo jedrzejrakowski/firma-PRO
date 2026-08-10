@@ -76,6 +76,9 @@ namespace FirmaPro.Dane.Migracje
                     b.Property<DateOnly?>("DataZaplaty")
                         .HasColumnType("date");
 
+                    b.Property<Guid?>("FakturaKorygowanaId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("FirmaId")
                         .HasColumnType("uuid");
 
@@ -85,6 +88,17 @@ namespace FirmaPro.Dane.Migracje
 
                     b.Property<Guid>("KontrahentId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("KorygowanaDataWystawienia")
+                        .HasColumnType("date");
+
+                    b.Property<string>("KorygowanaNumer")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("KorygowanaNumerKsef")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("MiejsceWystawienia")
                         .HasMaxLength(256)
@@ -145,6 +159,10 @@ namespace FirmaPro.Dane.Migracje
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("PrzyczynaKorekty")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("RachunekBankowy")
                         .HasMaxLength(34)
                         .HasColumnType("character varying(34)");
@@ -182,6 +200,10 @@ namespace FirmaPro.Dane.Migracje
                     b.Property<DateOnly?>("TerminPlatnosci")
                         .HasColumnType("date");
 
+                    b.Property<string>("TypKorekty")
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
                     b.Property<DateTimeOffset>("UtworzonoUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -201,6 +223,8 @@ namespace FirmaPro.Dane.Migracje
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FakturaKorygowanaId");
 
                     b.HasIndex("KontrahentId");
 
@@ -566,6 +590,9 @@ namespace FirmaPro.Dane.Migracje
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<bool>("StanPrzed")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset>("UtworzonoUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -730,6 +757,11 @@ namespace FirmaPro.Dane.Migracje
 
             modelBuilder.Entity("FirmaPro.Dane.Encje.FakturaSprzedazy", b =>
                 {
+                    b.HasOne("FirmaPro.Dane.Encje.FakturaSprzedazy", "FakturaKorygowana")
+                        .WithMany()
+                        .HasForeignKey("FakturaKorygowanaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("FirmaPro.Dane.Encje.Firma", "Firma")
                         .WithMany()
                         .HasForeignKey("FirmaId")
@@ -741,6 +773,8 @@ namespace FirmaPro.Dane.Migracje
                         .HasForeignKey("KontrahentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("FakturaKorygowana");
 
                     b.Navigation("Firma");
 

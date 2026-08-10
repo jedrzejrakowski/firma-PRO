@@ -214,6 +214,17 @@ public class FirmaProDbContext : DbContext
             e.Property(f => f.NumerKsef).HasMaxLength(64);
             e.Property(f => f.UwagiKsef).HasMaxLength(2000);
             e.Property(f => f.SkrotXml).HasMaxLength(64);
+            e.Property(f => f.KorygowanaNumer).HasMaxLength(256);
+            e.Property(f => f.KorygowanaNumerKsef).HasMaxLength(64);
+            e.Property(f => f.PrzyczynaKorekty).HasMaxLength(256);
+            e.Property(f => f.TypKorekty).HasConversion<string>().HasMaxLength(24);
+
+            // Faktury korygowanej nie wolno usunąć - korekta bez dokumentu
+            // pierwotnego jest niekompletna.
+            e.HasOne(f => f.FakturaKorygowana)
+                .WithMany()
+                .HasForeignKey(f => f.FakturaKorygowanaId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // Kwoty jako numeric(18,2) - typ dziesiętny bazy, bez ryzyka
             // błędów zapisu binarnego.

@@ -87,6 +87,131 @@ public sealed class UslugaFaktur(
         return new WynikWystawienia(encja, walidacja);
     }
 
+    /// <summary>
+    /// Wystawia korektę do wskazanej faktury.
+    /// </summary>
+    /// <remarks>
+    /// Faktura przyjęta przez KSeF jest niezmienna, więc korekta to jedyny
+    /// sposób poprawienia błędu. Dokument niesie obie wersje pozycji - sprzed
+    /// zmiany i po niej - a do rejestru VAT trafia różnica między nimi.
+    /// </remarks>
+    /// <param name="korygowanaId">Faktura, której dotyczy korekta.</param>
+    /// <param name="typKorekty">
+    /// Okres, w którym korekta ma skutek: w dacie faktury pierwotnej
+    /// (błąd istniejący od początku) albo w dacie korekty (rabat, zwrot).
+    /// </param>
+    public async Task<WynikWystawienia> WystawKorekteAsync(
+        Guid korygowanaId,
+        DateOnly dataWystawienia,
+        string przyczynaKorekty,
+        TypKorektyVat typKorekty,
+        IReadOnlyList<(string Nazwa, string Jednostka, decimal Ilosc,
+                       decimal CenaNetto, string KodStawki, string? Gtu)> pozycjePoKorekcie,
+        CancellationToken anulowanie = default)
+    {
+        ArgumentNullException.ThrowIfNull(pozycjePoKorekcie);
+
+        Firma firma = await baza.Firmy
+            .SingleAsync(f => f.Id == baza.AktualnaFirmaId, anulowanie);
+
+        FakturaSprzedazy? korygowana = await baza.FakturySprzedazy
+            .Include(f => f.Pozycje)
+            .FirstOrDefaultAsync(f => f.Id == korygowanaId, anulowanie);
+
+        if (korygowana is null)
+        {
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "Faktura", "nie znaleziono faktury do skorygowania"));
+        }
+
+        if (korygowana.CzyKorekta)
+        {
+            // Korekta korekty jest dopuszczalna, ale wymaga wskazania
+            // faktury pierwotnej i osobnego przemyślenia kwot - na razie
+            // wolimy powiedzieć wprost, że tego nie obsługujemy, niż
+            // wystawić dokument, którego nikt nie sprawdził.
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "Faktura", "korygowanie faktury korygującej nie jest jeszcze obsługiwane"));
+        }
+
+        if (string.IsNullOrWhiteSpace(przyczynaKorekty))
+        {
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "PrzyczynaKorekty", "przyczyna korekty jest wymagana"));
+        }
+
+        Faktura model = ZbudujModel(firma, KontrahentZFaktury(korygowana),
+            dataWystawienia, dataWystawienia, null, korygowana.FormaPlatnosci,
+            korygowana.PodstawaZwolnienia, pozycjePoKorekcie);
+
+        model.Rodzaj = RodzajFaktury.Korygujaca;
+        model.PrzyczynaKorekty = przyczynaKorekty.Trim();
+        model.TypKorekty = typKorekty;
+        model.Korygowane =
+        [
+            new DaneFakturyKorygowanej(korygowana.Numer, korygowana.DataWystawienia,
+                korygowana.NumerKsef)
+        ];
+
+        model.PozycjePrzedKorekta = korygowana.Pozycje
+            .Where(p => !p.StanPrzed)
+            .OrderBy(p => p.NrWiersza)
+            .Select(p => new PozycjaFaktury
+            {
+                Nazwa = p.Nazwa,
+                Jednostka = p.Jednostka,
+                Ilosc = p.Ilosc,
+                CenaNetto = p.CenaNetto,
+                Stawka = StawkaVat.ZKodu(p.KodStawki),
+                Gtu = p.Gtu
+            }).ToList();
+
+        model.Numer = "FK/ROBOCZA";
+        WynikWalidacji walidacja = Walidator.SprawdzFakture(model);
+        if (walidacja.SaBledy)
+        {
+            return new WynikWystawienia(null, walidacja);
+        }
+
+        model.Numer = await numeracja.NastepnyNumerAsync(dataWystawienia, anulowanie);
+
+        FakturaSprzedazy encja = NaEncje(model, KontrahentZFaktury(korygowana));
+        encja.KontrahentId = korygowana.KontrahentId;
+        encja.FakturaKorygowanaId = korygowana.Id;
+        encja.KorygowanaNumer = korygowana.Numer;
+        encja.KorygowanaDataWystawienia = korygowana.DataWystawienia;
+        encja.KorygowanaNumerKsef = korygowana.NumerKsef;
+        encja.PrzyczynaKorekty = model.PrzyczynaKorekty;
+        encja.TypKorekty = typKorekty;
+
+        // Okres rejestru zależy od typu skutku korekty: błąd istniejący od
+        // początku wraca do okresu faktury pierwotnej, rabat wchodzi na
+        // bieżąco (art. 29a ust. 13 i 17).
+        encja.DataUjeciaVat = typKorekty == TypKorektyVat.WDaciePierwotnej
+            ? korygowana.DataUjeciaVat
+            : dataWystawienia;
+
+        baza.FakturySprzedazy.Add(encja);
+        await baza.SaveChangesAsync(anulowanie);
+
+        Dziennik.WystawionoFakture(dziennik, encja.Numer, encja.RazemBrutto);
+
+        return new WynikWystawienia(encja, walidacja);
+    }
+
+    /// <summary>Odtwarza dane nabywcy zapisane na fakturze korygowanej.</summary>
+    private static Kontrahent KontrahentZFaktury(FakturaSprzedazy faktura) => new()
+    {
+        Id = faktura.KontrahentId,
+        Nazwa = faktura.NabywcaNazwa,
+        Nip = faktura.NabywcaNip,
+        KodKraju = faktura.NabywcaKodKraju,
+        AdresLinia1 = faktura.NabywcaAdresLinia1,
+        AdresLinia2 = faktura.NabywcaAdresLinia2,
+        KodUe = faktura.NabywcaKodUe,
+        NrVatUe = faktura.NabywcaNrVatUe
+    };
+
     /// <summary>Wysyła zapisaną fakturę do KSeF i zapisuje wynik.</summary>
     public async Task<WynikWysylki> WyslijAsync(Guid fakturaId,
                                                 CancellationToken anulowanie = default)
@@ -312,6 +437,23 @@ public sealed class UslugaFaktur(
         };
 
         int numerWiersza = 1;
+        foreach (PozycjaFaktury pozycja in model.PozycjePrzedKorekta)
+        {
+            encja.Pozycje.Add(new PozycjaFakturySprzedazy
+            {
+                NrWiersza = numerWiersza++,
+                StanPrzed = true,
+                Nazwa = pozycja.Nazwa,
+                Jednostka = pozycja.Jednostka,
+                Ilosc = pozycja.Ilosc,
+                CenaNetto = pozycja.CenaNetto,
+                KodStawki = pozycja.Stawka.Kod,
+                Gtu = pozycja.Gtu,
+                WartoscNetto = pozycja.WartoscNetto,
+                KwotaVat = pozycja.KwotaVat
+            });
+        }
+
         foreach (PozycjaFaktury pozycja in model.Pozycje)
         {
             encja.Pozycje.Add(new PozycjaFakturySprzedazy
@@ -368,7 +510,29 @@ public sealed class UslugaFaktur(
         Stopka = encja.Stopka,
         PodstawaZwolnienia = encja.PodstawaZwolnienia,
         NumerKsef = encja.NumerKsef,
+        PrzyczynaKorekty = encja.PrzyczynaKorekty,
+        TypKorekty = encja.TypKorekty,
+        Korygowane = encja.KorygowanaNumer is null || encja.KorygowanaDataWystawienia is null
+            ? []
+            : [new DaneFakturyKorygowanej(encja.KorygowanaNumer,
+                encja.KorygowanaDataWystawienia.Value, encja.KorygowanaNumerKsef)],
+        PozycjePrzedKorekta = encja.Pozycje
+            .Where(p => p.StanPrzed)
+            .OrderBy(p => p.NrWiersza)
+            .Select(p => new PozycjaFaktury
+            {
+                Nazwa = p.Nazwa,
+                Jednostka = p.Jednostka,
+                Ilosc = p.Ilosc,
+                CenaNetto = p.CenaNetto,
+                Stawka = StawkaVat.ZKodu(p.KodStawki),
+                Gtu = p.Gtu,
+                Pkwiu = p.Pkwiu,
+                Cn = p.Cn,
+                Indeks = p.Indeks
+            }).ToList(),
         Pozycje = encja.Pozycje
+            .Where(p => !p.StanPrzed)
             .OrderBy(p => p.NrWiersza)
             .Select(p => new PozycjaFaktury
             {

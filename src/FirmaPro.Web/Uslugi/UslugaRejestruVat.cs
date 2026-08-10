@@ -62,15 +62,22 @@ public sealed class UslugaRejestruVat(FirmaProDbContext baza)
     /// </remarks>
     private static WpisSprzedazy NaWpis(FakturaSprzedazy faktura)
     {
+        // Faktura korygująca niesie pozycje w dwóch wersjach: sprzed zmiany
+        // i po niej. Do rejestru wchodzi różnica, bo tylko o tyle zmienia się
+        // podatek - wykazanie nowego stanu policzyłoby sprzedaż drugi raz.
         List<KwotyWStawce> wedlugStawek = faktura.Pozycje
             .GroupBy(p => p.KodStawki, StringComparer.Ordinal)
             .Select(grupa =>
             {
                 StawkaVat stawka = StawkaVat.ZKodu(grupa.Key);
-                decimal netto = Kwoty.Zaokraglij(grupa.Sum(p => p.WartoscNetto));
+
+                decimal netto = Kwoty.Zaokraglij(
+                    grupa.Where(p => !p.StanPrzed).Sum(p => p.WartoscNetto)
+                    - grupa.Where(p => p.StanPrzed).Sum(p => p.WartoscNetto));
 
                 return new KwotyWStawce(stawka, netto, stawka.PodatekOd(netto));
             })
+            .Where(k => k.Netto != 0 || k.Vat != 0)
             .OrderBy(k => k.Stawka.Kolejnosc)
             .ToList();
 

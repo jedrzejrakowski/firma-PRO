@@ -58,6 +58,7 @@ public static class WydrukFaktury
 
             Naglowek();
             OstrzezenieOProjekcie();
+            DaneKorekty();
             Strony();
             TabelaPozycji();
             Ogon();
@@ -222,6 +223,62 @@ public static class WydrukFaktury
             _y += wysokosc + Styl.Mm(4);
         }
 
+        /// <summary>
+        /// Wskazanie faktury korygowanej i przyczyny korekty.
+        /// </summary>
+        /// <remarks>
+        /// Art. 106j ustawy o VAT wymaga, żeby korekta wskazywała dane faktury,
+        /// której dotyczy. Bez tego odbiorca nie ma jak powiązać dokumentu
+        /// z pierwotną transakcją, a wydruk nie spełnia wymogów faktury
+        /// korygującej.
+        /// </remarks>
+        private void DaneKorekty()
+        {
+            if (!faktura.CzyKorekta || faktura.Korygowane.Count == 0)
+            {
+                return;
+            }
+
+            var wiersze = new List<(string Etykieta, string Wartosc)>();
+
+            foreach (DaneFakturyKorygowanej korygowana in faktura.Korygowane)
+            {
+                wiersze.Add(("Faktura korygowana",
+                    $"{korygowana.Numer} z {Styl.Data(korygowana.DataWystawienia)}"));
+
+                if (!string.IsNullOrWhiteSpace(korygowana.NumerKsef))
+                {
+                    wiersze.Add(("Numer KSeF", korygowana.NumerKsef!));
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(faktura.PrzyczynaKorekty))
+            {
+                wiersze.Add(("Przyczyna korekty", faktura.PrzyczynaKorekty!));
+            }
+
+            double wysokosc = Styl.Mm(4) + (wiersze.Count * Styl.Mm(4.4));
+            ZapewnijMiejsce(wysokosc + Styl.Mm(4));
+
+            var ramka = new XRect(Styl.Lewa, _y, Styl.SzerokoscTresci, wysokosc);
+            _rysik.DrawRectangle(Styl.TloJasne, ramka);
+            _rysik.DrawRectangle(Styl.LiniaJasna, ramka);
+
+            double yWiersza = _y + Styl.Mm(3.6);
+            foreach ((string etykieta, string wartosc) in wiersze)
+            {
+                _rysik.DrawString(etykieta, Styl.Mala, Styl.TekstSzary,
+                    Styl.Lewa + Styl.Mm(3), yWiersza);
+
+                _rysik.DrawString(wartosc, Styl.Wyrozniona, Styl.Tekst,
+                    Styl.Lewa + Styl.Mm(34), yWiersza);
+
+                yWiersza += Styl.Mm(4.4);
+            }
+
+            _y += wysokosc + Styl.Mm(4);
+        }
+
         /// <summary>Rysuje obok siebie dane sprzedawcy i nabywcy.</summary>
         private void Strony()
         {
@@ -279,11 +336,37 @@ public static class WydrukFaktury
 
         private void TabelaPozycji()
         {
+            // Na korekcie pokazujemy obie wersje pozycji. Sama różnica
+            // w podsumowaniu nie mówi odbiorcy, co właściwie się zmieniło.
+            if (faktura.PozycjePrzedKorekta.Count > 0)
+            {
+                PodpisGrupy("Przed korektą");
+                RysujPozycje(faktura.PozycjePrzedKorekta);
+                PodpisGrupy("Po korekcie");
+            }
+
+            RysujPozycje(faktura.Pozycje);
+        }
+
+        /// <summary>Podpis nad grupą pozycji faktury korygującej.</summary>
+        private void PodpisGrupy(string tekst)
+        {
+            ZapewnijMiejsce(Styl.Mm(10));
+
+            _y += Styl.Mm(3);
+            _rysik.DrawString(tekst.ToUpperInvariant(), Styl.MalaWyrozniona,
+                Styl.TekstSzary, Styl.Lewa, _y + Styl.Mm(3));
+
+            _y += Styl.Mm(4.5);
+        }
+
+        private void RysujPozycje(IReadOnlyList<PozycjaFaktury> pozycje)
+        {
             ZapewnijMiejsce(Styl.Mm(22));
             NaglowekTabeli();
 
             int lp = 1;
-            foreach (PozycjaFaktury pozycja in faktura.Pozycje)
+            foreach (PozycjaFaktury pozycja in pozycje)
             {
                 List<string> linieNazwy = ZawinTekst(
                     OpisPozycji(pozycja), Styl.Tabela, Styl.Mm(Kolumny[1]) - Styl.Mm(3));

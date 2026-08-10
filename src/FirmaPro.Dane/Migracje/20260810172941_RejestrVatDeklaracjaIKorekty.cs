@@ -6,11 +6,18 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FirmaPro.Dane.Migracje
 {
     /// <inheritdoc />
-    public partial class RejestrVatIDeklaracjaJpk : Migration
+    public partial class RejestrVatDeklaracjaIKorekty : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<bool>(
+                name: "StanPrzed",
+                table: "pozycje_faktur_sprzedazy",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false);
+
             migrationBuilder.AddColumn<string>(
                 name: "KodUrzeduSkarbowego",
                 table: "firmy",
@@ -32,6 +39,46 @@ namespace FirmaPro.Dane.Migracje
                 type: "date",
                 nullable: false,
                 defaultValue: new DateOnly(1, 1, 1));
+
+            migrationBuilder.AddColumn<Guid>(
+                name: "FakturaKorygowanaId",
+                table: "faktury_sprzedazy",
+                type: "uuid",
+                nullable: true);
+
+            migrationBuilder.AddColumn<DateOnly>(
+                name: "KorygowanaDataWystawienia",
+                table: "faktury_sprzedazy",
+                type: "date",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "KorygowanaNumer",
+                table: "faktury_sprzedazy",
+                type: "character varying(256)",
+                maxLength: 256,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "KorygowanaNumerKsef",
+                table: "faktury_sprzedazy",
+                type: "character varying(64)",
+                maxLength: 64,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "PrzyczynaKorekty",
+                table: "faktury_sprzedazy",
+                type: "character varying(256)",
+                maxLength: 256,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "TypKorekty",
+                table: "faktury_sprzedazy",
+                type: "character varying(24)",
+                maxLength: 24,
+                nullable: true);
 
             migrationBuilder.CreateTable(
                 name: "faktury_zakupu",
@@ -126,6 +173,11 @@ namespace FirmaPro.Dane.Migracje
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_faktury_sprzedazy_FakturaKorygowanaId",
+                table: "faktury_sprzedazy",
+                column: "FakturaKorygowanaId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_faktury_sprzedazy_FirmaId_DataUjeciaVat",
                 table: "faktury_sprzedazy",
                 columns: new[] { "FirmaId", "DataUjeciaVat" });
@@ -158,11 +210,23 @@ namespace FirmaPro.Dane.Migracje
                 table: "zamkniecia_okresow_vat",
                 columns: new[] { "FirmaId", "Typ", "Rok", "Numer" },
                 unique: true);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_faktury_sprzedazy_faktury_sprzedazy_FakturaKorygowanaId",
+                table: "faktury_sprzedazy",
+                column: "FakturaKorygowanaId",
+                principalTable: "faktury_sprzedazy",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_faktury_sprzedazy_faktury_sprzedazy_FakturaKorygowanaId",
+                table: "faktury_sprzedazy");
+
             migrationBuilder.DropTable(
                 name: "kwoty_vat_zakupu");
 
@@ -173,8 +237,16 @@ namespace FirmaPro.Dane.Migracje
                 name: "faktury_zakupu");
 
             migrationBuilder.DropIndex(
+                name: "IX_faktury_sprzedazy_FakturaKorygowanaId",
+                table: "faktury_sprzedazy");
+
+            migrationBuilder.DropIndex(
                 name: "IX_faktury_sprzedazy_FirmaId_DataUjeciaVat",
                 table: "faktury_sprzedazy");
+
+            migrationBuilder.DropColumn(
+                name: "StanPrzed",
+                table: "pozycje_faktur_sprzedazy");
 
             migrationBuilder.DropColumn(
                 name: "KodUrzeduSkarbowego",
@@ -186,6 +258,30 @@ namespace FirmaPro.Dane.Migracje
 
             migrationBuilder.DropColumn(
                 name: "DataUjeciaVat",
+                table: "faktury_sprzedazy");
+
+            migrationBuilder.DropColumn(
+                name: "FakturaKorygowanaId",
+                table: "faktury_sprzedazy");
+
+            migrationBuilder.DropColumn(
+                name: "KorygowanaDataWystawienia",
+                table: "faktury_sprzedazy");
+
+            migrationBuilder.DropColumn(
+                name: "KorygowanaNumer",
+                table: "faktury_sprzedazy");
+
+            migrationBuilder.DropColumn(
+                name: "KorygowanaNumerKsef",
+                table: "faktury_sprzedazy");
+
+            migrationBuilder.DropColumn(
+                name: "PrzyczynaKorekty",
+                table: "faktury_sprzedazy");
+
+            migrationBuilder.DropColumn(
+                name: "TypKorekty",
                 table: "faktury_sprzedazy");
         }
     }

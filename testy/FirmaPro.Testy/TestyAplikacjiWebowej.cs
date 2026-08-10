@@ -554,6 +554,138 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
             await plik.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Korekta wchodzi do rejestru jako różnica, a nie jako nowa sprzedaż.
+    /// </summary>
+    /// <remarks>
+    /// To najgroźniejsza pomyłka w całym module: gdyby korekta trafiała do
+    /// rejestru pełną kwotą, podatek należny wyszedłby niemal podwójny.
+    /// </remarks>
+    [Fact]
+    public async Task KorektaWchodziDoRejestruJakoRoznica()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        string idKontrahenta = await PierwszyKontrahentAsync(klient);
+        var dzien = new DateOnly(2026, 2, 10);
+
+        // faktura pierwotna: 1 000 zł netto, 230 zł podatku
+        string adresFaktury;
+        using (HttpResponseMessage wystawienie = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Faktury/Nowa", new Dictionary<string, string>
+            {
+                ["KontrahentId"] = idKontrahenta,
+                ["DataWystawienia"] = Data(dzien),
+                ["DataSprzedazy"] = Data(dzien),
+                ["Pozycje[0].Nazwa"] = "Usługa do korekty",
+                ["Pozycje[0].Jednostka"] = "szt.",
+                ["Pozycje[0].Ilosc"] = "1",
+                ["Pozycje[0].CenaNetto"] = "1000",
+                ["Pozycje[0].KodStawki"] = "23"
+            }))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, wystawienie.StatusCode);
+            adresFaktury = Sciezka(wystawienie);
+        }
+
+        string idFaktury = adresFaktury["/Faktury/Szczegoly/".Length..];
+
+        // korekta: cena spada do 800 zł, więc różnica to minus 200 zł netto
+        using (HttpResponseMessage korekta = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Faktury/Korekta", new Dictionary<string, string>
+            {
+                ["KorygowanaId"] = idFaktury,
+                ["DataWystawienia"] = Data(dzien.AddDays(10)),
+                ["PrzyczynaKorekty"] = "Udzielony rabat",
+                ["TypKorekty"] = "WDacieKorekty",
+                ["Pozycje[0].Nazwa"] = "Usługa do korekty",
+                ["Pozycje[0].Jednostka"] = "szt.",
+                ["Pozycje[0].Ilosc"] = "1",
+                ["Pozycje[0].CenaNetto"] = "800",
+                ["Pozycje[0].KodStawki"] = "23"
+            },
+            adresFormularza: $"/Faktury/Korekta?id={idFaktury}"))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, korekta.StatusCode);
+        }
+
+        using HttpResponseMessage rejestr = await klient.GetAsync(
+            new Uri("/Rejestry/Vat?okres=2026-02", UriKind.Relative));
+
+        string html = await AplikacjaTestowa.TrescAsync(rejestr);
+
+        // 230 z faktury minus 46 z korekty daje 184 zł podatku należnego
+        Assert.Equal("184.00", KwotaKafelka(html, "Podatek należny"));
+        Assert.Contains("-200.00", html, StringComparison.Ordinal);
+    }
+
+    /// <summary>Korekta wstecz trafia do okresu faktury pierwotnej.</summary>
+    [Fact]
+    public async Task KorektaWsteczTrafiaDoOkresuFakturyPierwotnej()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        string idKontrahenta = await PierwszyKontrahentAsync(klient);
+
+        // Miesiące dobrane tak, żeby nie pokrywały się z innymi testami -
+        // wszystkie pracują na jednej firmie demonstracyjnej.
+        var dzien = new DateOnly(2025, 11, 15);
+
+        string adresFaktury;
+        using (HttpResponseMessage wystawienie = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Faktury/Nowa", new Dictionary<string, string>
+            {
+                ["KontrahentId"] = idKontrahenta,
+                ["DataWystawienia"] = Data(dzien),
+                ["DataSprzedazy"] = Data(dzien),
+                ["Pozycje[0].Nazwa"] = "Usługa z błędną ceną",
+                ["Pozycje[0].Jednostka"] = "szt.",
+                ["Pozycje[0].Ilosc"] = "1",
+                ["Pozycje[0].CenaNetto"] = "500",
+                ["Pozycje[0].KodStawki"] = "23"
+            }))
+        {
+            adresFaktury = Sciezka(wystawienie);
+        }
+
+        string idFaktury = adresFaktury["/Faktury/Szczegoly/".Length..];
+
+        // korekta wystawiona w grudniu, ale ze skutkiem w listopadzie
+        using (HttpResponseMessage korekta = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Faktury/Korekta", new Dictionary<string, string>
+            {
+                ["KorygowanaId"] = idFaktury,
+                ["DataWystawienia"] = Data(new DateOnly(2025, 12, 5)),
+                ["PrzyczynaKorekty"] = "Błędna cena na fakturze",
+                ["TypKorekty"] = "WDaciePierwotnej",
+                ["Pozycje[0].Nazwa"] = "Usługa z błędną ceną",
+                ["Pozycje[0].Jednostka"] = "szt.",
+                ["Pozycje[0].Ilosc"] = "1",
+                ["Pozycje[0].CenaNetto"] = "400",
+                ["Pozycje[0].KodStawki"] = "23"
+            },
+            adresFormularza: $"/Faktury/Korekta?id={idFaktury}"))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, korekta.StatusCode);
+        }
+
+        // listopad: 500 minus 100 daje 400 netto, czyli 92 zł podatku
+        using (HttpResponseMessage listopad = await klient.GetAsync(
+            new Uri("/Rejestry/Vat?okres=2025-11", UriKind.Relative)))
+        {
+            Assert.Equal("92.00",
+                KwotaKafelka(await AplikacjaTestowa.TrescAsync(listopad), "Podatek należny"));
+        }
+
+        // grudzień - miesiąc wystawienia korekty - zostaje bez śladu
+        using (HttpResponseMessage grudzien = await klient.GetAsync(
+            new Uri("/Rejestry/Vat?okres=2025-12", UriKind.Relative)))
+        {
+            Assert.Equal("0.00",
+                KwotaKafelka(await AplikacjaTestowa.TrescAsync(grudzien), "Podatek należny"));
+        }
+    }
+
     // ------------------------------------------------------------ pomocnicze
 
     /// <summary>Uzupełnia kod urzędu, bez którego nie powstanie plik JPK.</summary>

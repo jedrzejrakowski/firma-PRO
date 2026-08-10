@@ -265,6 +265,34 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
     /// <summary>Skrót SHA-256 wysłanego pliku - potrzebny do kodu QR.</summary>
     public string? SkrotXml { get; set; }
 
+    // --- korekta ---------------------------------------------------------
+
+    /// <summary>Faktura, którą ten dokument koryguje.</summary>
+    public Guid? FakturaKorygowanaId { get; set; }
+    public FakturaSprzedazy? FakturaKorygowana { get; set; }
+
+    /// <summary>
+    /// Dane faktury korygowanej przepisane w chwili wystawienia korekty.
+    /// </summary>
+    /// <remarks>
+    /// Tak samo jak dane nabywcy: dokument ma pozostać kompletny sam z siebie,
+    /// nawet gdyby faktura pierwotna została kiedyś usunięta z bazy.
+    /// </remarks>
+    public string? KorygowanaNumer { get; set; }
+    public DateOnly? KorygowanaDataWystawienia { get; set; }
+    public string? KorygowanaNumerKsef { get; set; }
+
+    public string? PrzyczynaKorekty { get; set; }
+
+    /// <summary>Typ skutku korekty w ewidencji VAT.</summary>
+    public TypKorektyVat? TypKorekty { get; set; }
+
+    /// <summary>Czy dokument jest fakturą korygującą.</summary>
+    public bool CzyKorekta =>
+        Rodzaj is RodzajFaktury.Korygujaca
+               or RodzajFaktury.KorektaZaliczkowej
+               or RodzajFaktury.KorektaRozliczeniowej;
+
     public ICollection<PozycjaFakturySprzedazy> Pozycje { get; set; } = [];
 
     /// <summary>
@@ -304,6 +332,16 @@ public sealed class PozycjaFakturySprzedazy : EncjaBazowa, INalezyDoFirmy
     /// <summary>Wartości wyliczone i zapisane w chwili wystawienia.</summary>
     public decimal WartoscNetto { get; set; }
     public decimal KwotaVat { get; set; }
+
+    /// <summary>
+    /// Czy wiersz opisuje stan sprzed korekty.
+    /// </summary>
+    /// <remarks>
+    /// Na fakturze korygującej pozycje wykazywane są dwukrotnie: raz w stanie
+    /// sprzed zmiany, raz po niej. Do rejestru VAT wchodzi różnica między
+    /// jednymi a drugimi.
+    /// </remarks>
+    public bool StanPrzed { get; set; }
 }
 
 /// <summary>

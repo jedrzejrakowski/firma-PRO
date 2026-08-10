@@ -1,0 +1,213 @@
+@page
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.Faktury.KorektaModel
+@{
+    ViewData["Tytul"] = "Faktura korygująca";
+}
+
+<h1>Faktura korygująca</h1>
+<p class="podtytul">
+    do faktury <strong>@Model.Korygowana.Numer</strong>
+    z @Model.Korygowana.DataWystawienia.ToString("yyyy-MM-dd")
+    @if (!string.IsNullOrWhiteSpace(Model.Korygowana.NumerKsef))
+    {
+        <span class="numer-ksef">· KSeF @Model.Korygowana.NumerKsef</span>
+    }
+</p>
+
+@if (Model.Bledy.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie można wystawić korekty:</strong>
+        <ul class="bledy">
+            @foreach (string blad in Model.Bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+    </div>
+}
+
+<form method="post">
+    <input type="hidden" name="KorygowanaId" value="@Model.Korygowana.Id" />
+
+    <div class="karta">
+        <div class="siatka">
+            <div class="pole">
+                <label for="dataWystawienia">Data wystawienia korekty</label>
+                <input type="date" id="dataWystawienia" name="DataWystawienia"
+                       value="@Model.DataWystawienia.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div class="pole">
+                <label for="typKorekty">Okres, w którym korekta ma skutek</label>
+                <select id="typKorekty" name="TypKorekty">
+                    <option value="@TypKorektyVat.WDacieKorekty"
+                            selected="@(Model.TypKorekty == TypKorektyVat.WDacieKorekty)">
+                        Na bieżąco — rabat, zwrot towaru
+                    </option>
+                    <option value="@TypKorektyVat.WDaciePierwotnej"
+                            selected="@(Model.TypKorekty == TypKorektyVat.WDaciePierwotnej)">
+                        Wstecz — błąd na fakturze pierwotnej
+                    </option>
+                    <option value="@TypKorektyVat.WInnejDacie"
+                            selected="@(Model.TypKorekty == TypKorektyVat.WInnejDacie)">
+                        Inna data
+                    </option>
+                </select>
+            </div>
+        </div>
+
+        <div class="pole">
+            <label for="przyczyna">Przyczyna korekty</label>
+            <input type="text" id="przyczyna" name="PrzyczynaKorekty"
+                   value="@Model.PrzyczynaKorekty" required maxlength="256"
+                   placeholder="np. udzielony rabat, zwrot towaru, błędna cena" />
+        </div>
+
+        <p class="wskazowka">
+            Wybór okresu decyduje o tym, do którego miesiąca trafi korekta
+            w rejestrze VAT. Błąd istniejący od początku wraca do okresu faktury
+            pierwotnej; rabat albo zwrot rozlicza się na bieżąco.
+        </p>
+    </div>
+
+    <div class="karta">
+        <h2 class="naglowek-sekcji">Stan przed korektą</h2>
+
+        <table class="pozycje">
+            <thead>
+                <tr>
+                    <th>Nazwa</th>
+                    <th>J.m.</th>
+                    <th class="liczba">Ilość</th>
+                    <th class="liczba">Cena netto</th>
+                    <th>Stawka</th>
+                    <th class="liczba">Wartość netto</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var pozycja in Model.Korygowana.Pozycje
+                          .Where(p => !p.StanPrzed).OrderBy(p => p.NrWiersza))
+                {
+                    <tr>
+                        <td>@pozycja.Nazwa</td>
+                        <td>@pozycja.Jednostka</td>
+                        <td class="liczba">@pozycja.Ilosc.ToString("0.######")</td>
+                        <td class="liczba">@pozycja.CenaNetto.ToString("N2")</td>
+                        <td>@SzczegolyModel.OpisStawki(pozycja.KodStawki)</td>
+                        <td class="liczba">@pozycja.WartoscNetto.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <p class="wskazowka">
+            Te wartości zostaną zapisane na korekcie jako stan sprzed zmiany —
+            nie trzeba ich nigdzie przepisywać.
+        </p>
+    </div>
+
+    <div class="karta">
+        <h2 class="naglowek-sekcji">Stan po korekcie</h2>
+
+        <table class="pozycje">
+            <thead>
+                <tr>
+                    <th>Nazwa towaru lub usługi</th>
+                    <th>J.m.</th>
+                    <th class="liczba">Ilość</th>
+                    <th class="liczba">Cena netto</th>
+                    <th>Stawka VAT</th>
+                    <th>GTU</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="pozycje">
+                @for (int i = 0; i < Model.Pozycje.Count; i++)
+                {
+                    <tr>
+                        <td><input type="text" name="Pozycje[@i].Nazwa"
+                                   value="@Model.Pozycje[i].Nazwa" maxlength="512" /></td>
+                        <td><input type="text" name="Pozycje[@i].Jednostka"
+                                   value="@Model.Pozycje[i].Jednostka" maxlength="64" /></td>
+                        <td><input type="number" step="0.000001" class="liczba"
+                                   name="Pozycje[@i].Ilosc" value="@Model.Pozycje[i].Ilosc" /></td>
+                        <td><input type="number" step="0.01" class="liczba"
+                                   name="Pozycje[@i].CenaNetto"
+                                   value="@Model.Pozycje[i].CenaNetto" /></td>
+                        <td>
+                            <select name="Pozycje[@i].KodStawki">
+                                @foreach (StawkaVat stawka in StawkaVat.Wszystkie)
+                                {
+                                    <option value="@stawka.Kod"
+                                            selected="@(stawka.Kod == Model.Pozycje[i].KodStawki)">
+                                        @stawka.Opis
+                                    </option>
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <select name="Pozycje[@i].Gtu">
+                                <option value="">—</option>
+                                @foreach (string gtu in FirmaPro.Web.Pages.Faktury.KorektaModel.KodyGtu)
+                                {
+                                    <option value="@gtu" selected="@(gtu == Model.Pozycje[i].Gtu)">
+                                        @gtu
+                                    </option>
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <button type="button" class="usun-wiersz" title="Usuń">&times;</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <button type="button" id="dodajWiersz" class="przycisk-drugi">Dodaj pozycję</button>
+
+        <p class="wskazowka">
+            Popraw to, co się zmieniło. Usunięcie wiersza oznacza, że pozycja
+            znika z transakcji — korekta wykaże ją wtedy na minus. Do rejestru
+            VAT trafi wyłącznie różnica między obiema wersjami.
+        </p>
+    </div>
+
+    <div class="paskiem">
+        <button type="submit">Wystaw korektę</button>
+        <a class="przycisk przycisk-drugi" asp-page="Szczegoly"
+           asp-route-id="@Model.Korygowana.Id">Anuluj</a>
+    </div>
+</form>
+
+@section Skrypty {
+<script>
+    (function () {
+        const cialo = document.getElementById('pozycje');
+
+        function przenumeruj() {
+            cialo.querySelectorAll('tr').forEach((wiersz, indeks) => {
+                wiersz.querySelectorAll('[name]').forEach(pole => {
+                    pole.name = pole.name.replace(/Pozycje\[\d+\]/, `Pozycje[${indeks}]`);
+                });
+            });
+        }
+
+        document.getElementById('dodajWiersz').addEventListener('click', () => {
+            const nowy = cialo.querySelector('tr').cloneNode(true);
+            nowy.querySelectorAll('input').forEach(pole => { pole.value = ''; });
+            nowy.querySelector('input[name$=".Jednostka"]').value = 'szt.';
+            cialo.appendChild(nowy);
+            przenumeruj();
+        });
+
+        cialo.addEventListener('click', zdarzenie => {
+            if (!zdarzenie.target.classList.contains('usun-wiersz')) return;
+            zdarzenie.target.closest('tr').remove();
+            przenumeruj();
+        });
+    })();
+</script>
+}
