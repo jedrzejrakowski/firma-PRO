@@ -1,0 +1,7 @@
+# Migracje pisze EF Core, nie człowiek. Uwagi analizatora o stylu dotyczą
+# tu wygenerowanego kodu, którego i tak nie wolno poprawiać ręcznie -
+# następne wywołanie generatora wróciłoby do swojego kształtu.
+
+[*.cs]
+# Tablice stałych w wywołaniach CreateIndex - tak generuje EF Core.
+dotnet_diagnostic.CA1861.severity = none

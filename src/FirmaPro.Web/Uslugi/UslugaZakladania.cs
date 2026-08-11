@@ -22,6 +22,65 @@ public sealed class UslugaZakladania(
     public const string DemoEmail = "demo@firmapro.pl";
     public const string DemoHaslo = "demo1234";
 
+    /// <summary>
+    /// Zakłada pierwsze konto właściciela na podstawie ustawień wdrożenia.
+    /// </summary>
+    /// <remarks>
+    /// Świeża instalacja bez danych demonstracyjnych nie ma żadnego konta,
+    /// więc nie dałoby się do niej wejść. To jedyne miejsce, w którym konto
+    /// powstaje bez udziału zalogowanego użytkownika - dlatego działa tylko
+    /// wtedy, gdy w bazie nie ma jeszcze nikogo.
+    /// </remarks>
+    /// <returns>Czy konto zostało założone.</returns>
+    public async Task<bool> ZalozPierwszeKontoAsync(PierwszeKonto konto,
+                                                    CancellationToken anulowanie = default)
+    {
+        ArgumentNullException.ThrowIfNull(konto);
+
+        if (await baza.Uzytkownicy.AnyAsync(anulowanie))
+        {
+            return false;
+        }
+
+        if (!Walidator.NipPoprawny(konto.Nip))
+        {
+            throw new InvalidOperationException(
+                $"Numer NIP „{konto.Nip}” pierwszej firmy ma błędną sumę kontrolną " +
+                "(Aplikacja:PierwszeKonto:Nip).");
+        }
+
+        var firma = new Firma
+        {
+            Nazwa = konto.Firma,
+            Nip = konto.Nip,
+            Srodowisko = SrodowiskoKsef.Test
+        };
+
+        var uzytkownik = new Uzytkownik
+        {
+            Email = konto.Email,
+            ImieINazwisko = konto.Email,
+            HaszHasla = haszowanie.HashPassword(new object(), konto.Haslo)
+        };
+
+        baza.Firmy.Add(firma);
+        baza.Uzytkownicy.Add(uzytkownik);
+        baza.Czlonkostwa.Add(new CzlonkostwoWFirmie
+        {
+            Firma = firma,
+            Uzytkownik = uzytkownik,
+            Rola = RolaWFirmie.Wlasciciel
+        });
+
+        await baza.SaveChangesAsync(anulowanie);
+
+        // Adres wystarczy do odnalezienia konta w dzienniku; hasło nie trafia
+        // tam nigdy, nawet przy pierwszym uruchomieniu.
+        Dziennik.ZalozonoPierwszeKonto(dziennik, konto.Email);
+
+        return true;
+    }
+
     public async Task ZalozDaneDemonstracyjneAsync(CancellationToken anulowanie = default)
     {
         if (await baza.Uzytkownicy.AnyAsync(anulowanie))

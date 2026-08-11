@@ -18,7 +18,13 @@
          nie ma miejsca na "to tylko ostrzeżenie". -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <!-- Poziom analizy przypięty do wersji, a nie do "najnowszej". Przy
+         "latest" nowszy pakiet SDK włącza nowe reguły, a ponieważ ostrzeżenia
+         są u nas błędami, ten sam kod przestaje się budować na innej maszynie
+         albo za pół roku. Podniesienie poziomu ma być decyzją, nie
+         niespodzianką. Sam obraz SDK zostaje przy znaczniku 10.0, żeby brać
+         poprawki bezpieczeństwa. -->
+    <AnalysisLevel>10.0-recommended</AnalysisLevel>
 
     <!-- Komunikaty kompilatora po polsku zostawiamy wyłączone - łatwiej
          szukać rozwiązań błędów po ich angielskiej treści. -->

@@ -38,6 +38,8 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Rejestr VAT sprzedaży i zakupów | gotowe |
 | Deklaracja i plik JPK_V7M | gotowe, **układ pliku niesprawdzony schematem** |
 | Wysyłka JPK do urzędu | poza zakresem — plik składa się aplikacją MF |
+| Wdrożenie (kontenery, HTTPS, pierwsze konto) | gotowe |
+| Kopie zapasowe ze sprawdzanym odtwarzaniem | gotowe |
 
 ## Uruchomienie
 
@@ -53,11 +55,15 @@ export FIRMAPRO_DB="Host=localhost;Port=5432;Database=firmapro;Username=postgres
 dotnet run --project src/FirmaPro.Web
 ```
 
-Program sam zakłada bazę i wykonuje migracje. Przy pierwszym uruchomieniu
-tworzy też firmę demonstracyjną z kontem `demo@firmapro.pl` i hasłem
-`demo1234`, żeby dało się od razu wejść i zobaczyć działający system.
-**Przed udostępnieniem programu komukolwiek trzeba założyć własne konto
-i usunąć demonstracyjne.**
+Program sam zakłada bazę i wykonuje migracje. Przy pracy nad programem
+(`ASPNETCORE_ENVIRONMENT=Development`) tworzy też firmę demonstracyjną
+z kontem `demo@firmapro.pl` i hasłem `demo1234`, żeby dało się od razu wejść
+i zobaczyć działający system.
+
+Konto demonstracyjne ma hasło wypisane w kodzie źródłowym, więc **poza trybem
+deweloperskim nie powstaje w ogóle** - na serwerze byłoby otwartymi drzwiami
+do ksiąg firmy. Do uruchomienia na serwerze służy [wdrożenie](#wdrożenie),
+które zakłada zamiast niego konto właściciela z hasłem podanym w ustawieniach.
 
 ### Testy
 
@@ -402,7 +408,116 @@ brak sprawdzenia nie ma wyglądać jak sprawdzenie.
 5. **Wizualizacja PDF** — wydruk faktury z kodem QR ✔
 6. **Rejestr VAT** — sprzedaż, zakupy i rozliczenie okresu ✔
 7. **JPK_V7** — deklaracja i plik do złożenia ✔ (do potwierdzenia schematem)
-8. Dalej: magazyn, KPiR, CRM
+8. **Wdrożenie** — kontenery, HTTPS, kopie zapasowe ✔
+9. Dalej: zakładanie kont przez stronę, wysyłka faktur pocztą, magazyn, KPiR
+
+## Wdrożenie
+
+Na serwerze program uruchamia się jako cztery kontenery: baza danych,
+program, pośrednik podający HTTPS i usługa kopii zapasowych. Wszystko stoi
+w katalogu `wdrozenie/`:
+
+```bash
+cd wdrozenie
+cp .env.przyklad .env      # uzupełnij hasła, adres i dane pierwszego konta
+chmod 600 .env
+docker compose up -d
+```
+
+Certyfikat HTTPS pobiera pośrednik (Caddy) z Let's Encrypt i odnawia go sam;
+dla nazwy `localhost` wystawia certyfikat lokalny. Port programu **nie jest
+wystawiony na zewnątrz** - z sieci widać wyłącznie pośrednika. Ma to
+znaczenie: program ufa nagłówkom `X-Forwarded-*`, bo dochodzą do niego tylko
+od pośrednika. Wystawienie portu 8080 wprost do internetu pozwoliłoby
+podszyć się pod szyfrowane połączenie.
+
+Stan programu pokazuje adres `/zdrowie` - odpowiada `sprawny`, gdy program
+ma połączenie z bazą. To pod ten adres warto podpiąć zewnętrzny nadzór.
+
+### Trzy rzeczy, które łatwo przeoczyć
+
+**Klucze ochrony muszą przeżyć wymianę kontenera.** Tym samym kluczem
+zaszyfrowany jest token KSeF. Gdyby klucze powstawały od nowa przy każdym
+starcie, po pierwszej aktualizacji obrazu token przestałby się odczytywać,
+a program zgłosiłby zwyczajny „brak tokena" - nikt nie skojarzyłby przyczyny
+ze skutkiem. Dlatego katalog kluczy leży na woluminie, a poza trybem
+deweloperskim program **nie wstanie**, dopóki nie zostanie wskazany
+(`Aplikacja__KatalogKluczy`).
+
+Same klucze leżą na woluminie niezaszyfrowane - chroni je wyłącznie system
+plików serwera. Kto ma dostęp do woluminu, ma dostęp do tokena KSeF. Warto
+więc trzymać dysk zaszyfrowany i pilnować, kto ma konto na serwerze.
+
+**Pierwsze konto bierze się z ustawień wdrożenia**, nie z formularza:
+`KONTO_EMAIL`, `KONTO_HASLO`, `FIRMA_NAZWA` i `FIRMA_NIP` w pliku `.env`.
+Konto powstaje wyłącznie wtedy, gdy w bazie nie ma jeszcze żadnego
+użytkownika - kolejne uruchomienia nic już nie zmieniają, więc zmiana hasła
+w programie nie zostanie cofnięta przy restarcie. Hasło krótsze niż 12 znaków
+zatrzymuje start programu.
+
+**Plik `.env` nie trafia do repozytorium.** Są w nim hasła do bazy i do konta
+właściciela. W repozytorium leży tylko `.env.przyklad`.
+
+### Kopie zapasowe
+
+Utrata bazy to jedyna awaria w tym programie, której nie da się cofnąć -
+w środku są księgi podatkowe, a nie dane, które da się odtworzyć z pamięci.
+Usługa `kopie` robi więc zrzut bazy co dobę (domyślnie; zmienia to
+`KOPIE_CO_ILE_GODZIN`) i trzyma 14 pokoleń.
+
+Najważniejsze jest jednak to, co dzieje się po zrzucie: **każda kopia jest
+od razu odtwarzana do bazy pomocniczej i sprawdzana.** Kopia, której nigdy
+nie odtworzono, nie jest kopią zapasową, tylko plikiem w nadziei. Sprawdzane
+jest, czy:
+
+- `pg_restore` odtwarza plik bez błędu - to wyłapuje zrzut ucięty w połowie
+  przez brak miejsca albo zerwane połączenie,
+- odtworzona baza ma **ten sam zestaw tabel** co pracująca - inaczej kopia
+  wgra się na nowy serwer, ale program jej nie zrozumie,
+- tabele `firmy` i `uzytkownicy` **nie są puste** - to wyłapuje najgroźniejszy
+  przypadek, w którym kopiowana jest nie ta baza, co trzeba: plik jest, waży
+  swoje, a w środku nic.
+
+Kopia, która nie przeszła sprawdzenia, dostaje przyrostek `.NIESPRAWDZONA`,
+nie liczy się jako pokolenie i nigdy nie zostanie skasowana przy sprzątaniu.
+Przebieg każdej rundy zapisywany jest w `dziennik.txt` na woluminie kopii.
+
+Kopia doraźna, na przykład przed aktualizacją:
+
+```bash
+docker compose run --rm kopie bash /skrypty/kopia.sh raz
+```
+
+Sprawdzenie konkretnego pliku bez ruszania bazy:
+
+```bash
+docker compose run --rm kopie bash /skrypty/kopia.sh sprawdz firmapro-20260811-0300.dump
+```
+
+### Odtworzenie bazy z kopii
+
+```bash
+docker compose stop program
+docker compose run --rm kopie bash /skrypty/odtworz.sh          # lista kopii
+docker compose run --rm kopie bash /skrypty/odtworz.sh firmapro-20260811-0300.dump
+docker compose start program
+```
+
+Skrypt pyta o potwierdzenie nazwą bazy i **zanim cokolwiek skasuje, zapisuje
+obecny stan** do pliku `przed-odtworzeniem-*.dump`. Gdyby odtwarzana kopia
+okazała się nie tą, o którą chodziło, jest dokąd wrócić.
+
+### Aktualizacja programu
+
+```bash
+git pull
+cd wdrozenie
+docker compose run --rm kopie bash /skrypty/kopia.sh raz   # najpierw kopia
+docker compose up -d --build
+```
+
+Migracje bazy wykonują się przy starcie programu. Kopia przed aktualizacją
+jest tu istotna: migracji nie da się cofnąć jednym poleceniem.
 
 ## Uwaga o testach
 
@@ -451,6 +566,21 @@ wyznaczanie okresu odliczenia i ochrona przed dwukrotnym wpisaniem faktury.
 Nie sprawdzono natomiast, czy **prawdziwe** metadane z KSeF mają dokładnie
 te nazwy pól, których spodziewa się klient; wynikają one ze specyfikacji
 OpenAPI, nie z odpowiedzi żywego serwera.
+
+Z wdrożenia sprawdzone jest to, co dało się sprawdzić w środowisku budowy:
+obraz programu buduje się i startuje w trybie produkcyjnym, zakłada pierwsze
+konto z ustawień, nie zakłada danych demonstracyjnych, a zapisany token KSeF
+**przeżywa podmianę kontenera** (sprawdzone przez wymianę kontenera przy tym
+samym woluminie kluczy). Kopie zapasowe sprawdzone są na działającej bazie:
+udana runda, wykrycie kopii uciętej w połowie, wykrycie kopii pustej oraz
+odtworzenie bazy nadpisanej „przez pomyłkę".
+
+Nie udało się natomiast uruchomić **całego zestawu z docker-compose naraz** -
+w środowisku budowy zablokowane jest pobieranie obrazów `postgres` i `caddy`
+z Docker Hub. Sam plik `docker-compose.yml` przechodzi sprawdzenie składni
+(`docker compose config`), ale pierwsze `docker compose up` u siebie warto
+potraktować jako pierwsze prawdziwe uruchomienie - i od razu zajrzeć do
+`dziennik.txt` na woluminie kopii, czy pierwsza kopia się odtworzyła.
 
 Kod QR na wydruku został odczytany z gotowego pliku PDF czytnikiem kodów
 i porównany ze skrótem SHA-256 wysłanego dokumentu — link prowadzi dokładnie

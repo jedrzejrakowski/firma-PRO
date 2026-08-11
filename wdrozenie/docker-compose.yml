@@ -1,0 +1,104 @@
+# Uruchomienie programu Firma PRO na serwerze.
+#
+#   cd wdrozenie
+#   cp .env.przyklad .env      # i uzupełnij hasła oraz adres
+#   docker compose up -d
+#
+# Cztery części: baza danych, program, pośrednik podający HTTPS i usługa
+# kopii zapasowych. Program nie ma wystawionego portu - z zewnątrz dostępny
+# jest wyłącznie przez pośrednika, po szyfrowanym połączeniu.
+
+name: firmapro
+
+services:
+
+  baza:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: firmapro
+      POSTGRES_USER: firmapro
+      POSTGRES_PASSWORD: ${HASLO_BAZY:?ustaw HASLO_BAZY w pliku .env}
+      # Polskie sortowanie i porównywanie tekstu - inaczej "Ó" trafiłoby
+      # na koniec listy kontrahentów.
+      LANG: pl_PL.utf8
+      POSTGRES_INITDB_ARGS: "--locale=pl_PL.utf8 --encoding=UTF8"
+    volumes:
+      - baza:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U firmapro -d firmapro"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    # Baza też nie wystawia portu na zewnątrz. Do zajrzenia do niej służy
+    # "docker compose exec baza psql -U firmapro", a nie otwarty port 5432.
+
+  program:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: firmapro:biezacy
+    restart: unless-stopped
+    depends_on:
+      baza:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Baza: "Host=baza;Port=5432;Database=firmapro;Username=firmapro;Password=${HASLO_BAZY}"
+
+      # Klucze ochrony leżą na woluminie. Bez tego po każdej wymianie obrazu
+      # zapisany token KSeF przestałby się odczytywać.
+      Aplikacja__KatalogKluczy: /dane/klucze
+
+      # Pierwsze konto właściciela zakładane jest tylko wtedy, gdy w bazie
+      # nie ma jeszcze żadnego użytkownika.
+      Aplikacja__PierwszeKonto__Email: ${KONTO_EMAIL:?ustaw KONTO_EMAIL w pliku .env}
+      Aplikacja__PierwszeKonto__Haslo: ${KONTO_HASLO:?ustaw KONTO_HASLO w pliku .env}
+      Aplikacja__PierwszeKonto__Firma: ${FIRMA_NAZWA:?ustaw FIRMA_NAZWA w pliku .env}
+      Aplikacja__PierwszeKonto__Nip: ${FIRMA_NIP:?ustaw FIRMA_NIP w pliku .env}
+
+      # Konto demonstracyjne ma hasło wypisane w kodzie źródłowym - na
+      # serwerze nie powstaje. Program i tak by go nie założył, ale niech
+      # widać to wprost w ustawieniach wdrożenia.
+      Aplikacja__DaneDemonstracyjne: "false"
+    volumes:
+      - klucze:/dane/klucze
+
+  posrednik:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - program
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ADRES: ${ADRES:?ustaw ADRES w pliku .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - posrednik-dane:/data
+      - posrednik-konfig:/config
+
+  kopie:
+    image: postgres:16
+    restart: unless-stopped
+    depends_on:
+      baza:
+        condition: service_healthy
+    environment:
+      PGHOST: baza
+      PGUSER: firmapro
+      PGDATABASE: firmapro
+      PGPASSWORD: ${HASLO_BAZY}
+      CO_ILE_GODZIN: ${KOPIE_CO_ILE_GODZIN:-24}
+      ILE_POKOLEN: ${KOPIE_ILE_POKOLEN:-14}
+    volumes:
+      - ./kopie:/skrypty:ro
+      - kopie:/kopie
+    entrypoint: ["/bin/bash", "/skrypty/kopia.sh"]
+
+volumes:
+  baza:
+  klucze:
+  kopie:
+  posrednik-dane:
+  posrednik-konfig:

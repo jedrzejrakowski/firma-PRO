@@ -28,4 +28,18 @@ internal static partial class Dziennik
         Level = LogLevel.Information,
         Message = "Założono dane demonstracyjne. Logowanie: {email}")]
     internal static partial void ZalozonoDaneDemonstracyjne(ILogger dziennik, string email);
+
+    [LoggerMessage(
+        EventId = 1003,
+        Level = LogLevel.Information,
+        Message = "Założono pierwsze konto właściciela: {email}")]
+    internal static partial void ZalozonoPierwszeKonto(ILogger dziennik, string email);
+
+    [LoggerMessage(
+        EventId = 1004,
+        Level = LogLevel.Warning,
+        Message = "Dane demonstracyjne włączone poza trybem deweloperskim. " +
+                  "Konto {email} ma hasło jawnie wpisane w kodzie programu - " +
+                  "usuń je, zanim wpuścisz kogokolwiek do tej instalacji.")]
+    internal static partial void DaneDemonstracyjnePozaDeweloperskim(ILogger dziennik, string email);
 }

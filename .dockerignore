@@ -1,0 +1,20 @@
+# Do obrazu trafia wyłącznie kod źródłowy - wyniki budowania powstają
+# wewnątrz kontenera, żeby nie zależały od tego, co akurat leży na dysku
+# osoby budującej.
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+
+.git/
+.github/
+testy/
+wdrozenie/
+schematy/
+
+# Sekrety nie mogą znaleźć się w obrazie - obraz bywa publikowany.
+**/appsettings.Development.json
+**/*.pfx
+**/*.p12
+**/.env

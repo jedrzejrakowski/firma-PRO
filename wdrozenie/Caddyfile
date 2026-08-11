@@ -1,0 +1,30 @@
+# Pośrednik podający program w internecie.
+#
+# Certyfikat HTTPS Caddy załatwia sam: dla prawdziwej nazwy domeny bierze go
+# z Let's Encrypt i odnawia bez pytania, a dla nazwy "localhost" wystawia
+# certyfikat lokalny. Nie ma tu więc nic do ustawiania przy pierwszym
+# uruchomieniu poza samą nazwą.
+
+{$ADRES} {
+	encode gzip
+
+	# Program stoi w sieci kontenerów i nie jest widoczny z zewnątrz.
+	# Nagłówki X-Forwarded-* Caddy dokłada sam - dzięki nim program wie,
+	# że rozmowa z przeglądarką idzie po HTTPS.
+	reverse_proxy program:8080
+
+	# Nagłówki, których program sam nie ustawia, a które ograniczają skutki
+	# ewentualnej luki w kodzie strony.
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		-Server
+	}
+
+	log {
+		output file /data/dostep.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
