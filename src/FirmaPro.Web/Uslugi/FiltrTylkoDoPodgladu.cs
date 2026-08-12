@@ -28,7 +28,14 @@ public sealed class FiltrTylkoDoPodgladu : IAsyncPageFilter
         "/Wyloguj",
         "/PrzelaczFirme",
         "/Rejestracja",
-        "/Zaproszenie"
+        "/Zaproszenie",
+        "/ZapomnianeHaslo",
+        "/NoweHaslo",
+
+        // Własne konto i hasło to sprawa użytkownika, a nie danych firmy -
+        // rola podglądu w jednej firmie nie może odbierać prawa do zmiany
+        // własnego hasła.
+        "/Konto"
     ];
 
     public Task OnPageHandlerSelectionAsync(PageHandlerSelectedContext context) =>

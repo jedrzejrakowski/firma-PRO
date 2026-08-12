@@ -36,6 +36,20 @@ internal static partial class Dziennik
     internal static partial void ZalozonoPierwszeKonto(ILogger dziennik, string email);
 
     [LoggerMessage(
+        EventId = 1005,
+        Level = LogLevel.Information,
+        Message = "Wysłano wiadomość do {adres}: {temat}")]
+    internal static partial void WyslanoWiadomosc(ILogger dziennik, string adres, string temat);
+
+    [LoggerMessage(
+        EventId = 1006,
+        Level = LogLevel.Warning,
+        Message = "Poczta nie jest skonfigurowana - wiadomość do {adres} " +
+                  "(„{temat}\") nie została wysłana. Treść: {tresc}")]
+    internal static partial void PocztaNieskonfigurowana(
+        ILogger dziennik, string adres, string temat, string tresc);
+
+    [LoggerMessage(
         EventId = 1004,
         Level = LogLevel.Warning,
         Message = "Dane demonstracyjne włączone poza trybem deweloperskim. " +

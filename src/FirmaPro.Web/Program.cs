@@ -3,6 +3,7 @@ using FirmaPro.Dane;
 using FirmaPro.Dane.Encje;
 using FirmaPro.Ksef;
 using FirmaPro.Web.Uslugi;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -53,6 +54,33 @@ budowniczy.Services
         opcje.Cookie.SecurePolicy = trybDeweloperski
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
+
+        // Przy każdym żądaniu sprawdzamy, czy stempel z ciasteczka zgadza się
+        // z zapisanym przy koncie. Zmiana hasła zmienia stempel, więc kończy
+        // wszystkie wcześniejsze sesje - także tę, którą ktoś przejął.
+        opcje.Events.OnValidatePrincipal = async kontekst =>
+        {
+            if (Tozsamosc.UzytkownikId(kontekst.Principal!) is not Guid kto
+                || Tozsamosc.StempelZCiasteczka(kontekst.Principal!) is not Guid zCiasteczka)
+            {
+                return;
+            }
+
+            var baza = kontekst.HttpContext.RequestServices
+                .GetRequiredService<FirmaProDbContext>();
+
+            Guid? zBazy = await baza.Uzytkownicy
+                .Where(u => u.Id == kto && u.Aktywny)
+                .Select(u => (Guid?)u.StempelBezpieczenstwa)
+                .FirstOrDefaultAsync(kontekst.HttpContext.RequestAborted);
+
+            if (zBazy != zCiasteczka)
+            {
+                kontekst.RejectPrincipal();
+                await kontekst.HttpContext.SignOutAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
     });
 
 // Nazwa zasady odpowiada roli - ekrany właściciela wskazują ją przy
@@ -103,6 +131,18 @@ budowniczy.Services.AddScoped<UslugaNumeracji>();
 budowniczy.Services.AddScoped<UslugaFaktur>();
 budowniczy.Services.AddScoped<UslugaZakladania>();
 budowniczy.Services.AddScoped<UslugaKont>();
+
+// Poczta bywa nieskonfigurowana - program wtedy działa, tylko odnośniki
+// (zaproszenia, zmiana hasła) trzeba przekazywać samemu.
+if (UstawieniaPoczty.ZUstawien(budowniczy.Configuration) is UstawieniaPoczty poczta)
+{
+    budowniczy.Services.AddSingleton(poczta);
+    budowniczy.Services.AddSingleton<INadawcaPoczty, NadawcaSmtp>();
+}
+else
+{
+    budowniczy.Services.AddSingleton<INadawcaPoczty, NadawcaDoDziennika>();
+}
 budowniczy.Services.AddScoped<UslugaZakupow>();
 budowniczy.Services.AddScoped<UslugaImportuZakupow>();
 budowniczy.Services.AddScoped<UslugaRejestruVat>();
@@ -125,6 +165,8 @@ budowniczy.Services.AddRazorPages(opcje =>
     opcje.Conventions.AllowAnonymousToPage("/Index");
     opcje.Conventions.AllowAnonymousToPage("/Rejestracja");
     opcje.Conventions.AllowAnonymousToPage("/Zaproszenie");
+    opcje.Conventions.AllowAnonymousToPage("/ZapomnianeHaslo");
+    opcje.Conventions.AllowAnonymousToPage("/NoweHaslo");
 
     // Ustawienia firmy i rozdawanie dostępu to sprawy właściciela.
     // Zasada pilnowana jest tutaj, a nie w kodzie stron - inaczej łatwo

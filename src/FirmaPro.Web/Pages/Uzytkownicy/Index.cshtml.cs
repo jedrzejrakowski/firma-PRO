@@ -14,7 +14,7 @@ namespace FirmaPro.Web.Pages.Uzytkownicy;
 /// rejestracji stron w <c>Program.cs</c>, więc nie da się jej ominąć
 /// wpisaniem adresu.
 /// </remarks>
-public sealed class IndexModel(UslugaKont uslugaKont) : PageModel
+public sealed class IndexModel(UslugaKont uslugaKont, INadawcaPoczty poczta) : PageModel
 {
     [BindProperty] public string Email { get; set; } = string.Empty;
     [BindProperty] public RolaWFirmie Rola { get; set; } = RolaWFirmie.Ksiegowy;
@@ -26,6 +26,12 @@ public sealed class IndexModel(UslugaKont uslugaKont) : PageModel
 
     /// <summary>Odnośnik wystawiony w tym żądaniu - pokazywany tylko raz.</summary>
     public string? NowyOdnosnik { get; private set; }
+
+    /// <summary>Do czego służy pokazany odnośnik.</summary>
+    public string? OpisOdnosnika { get; private set; }
+
+    /// <summary>Czy program wysłał wiadomość, czy odnośnik trzeba przekazać samemu.</summary>
+    public bool PocztaDziala => poczta.Dziala;
 
     public Guid? MojeCzlonkostwo { get; private set; }
 
@@ -52,9 +58,25 @@ public sealed class IndexModel(UslugaKont uslugaKont) : PageModel
             return Page();
         }
 
-        // Program nie wysyła poczty, więc odnośnik pokazujemy tutaj -
-        // właściciel przekazuje go, jak mu wygodnie.
         NowyOdnosnik = OdnosnikZaproszenia(wynik.Dane!.Kod);
+        OpisOdnosnika = "Zaproszenie do firmy";
+
+        // Odnośnik pokazujemy zawsze - także wtedy, gdy poszedł pocztą.
+        // Wiadomość może utknąć w filtrze antyspamowym, a właściciel ma mieć
+        // wtedy czym się posłużyć.
+        if (poczta.Dziala)
+        {
+            await poczta.WyslijAsync(wynik.Dane.Email, "Zaproszenie do firmy w programie Firma PRO",
+                $"""
+                 Zapraszamy Cię do pracy w firmie w programie Firma PRO.
+
+                 Aby dołączyć, otwórz ten odnośnik:
+                 {NowyOdnosnik}
+
+                 Odnośnik działa raz i traci ważność po {UslugaKont.DniWaznosciZaproszenia} dniach.
+                 """,
+                anulowanie);
+        }
 
         // Formularz czyścimy, żeby kolejne zaproszenie nie poszło przez
         // przeoczenie pod ten sam adres.
@@ -97,6 +119,36 @@ public sealed class IndexModel(UslugaKont uslugaKont) : PageModel
         }
 
         return RedirectToPage();
+    }
+
+    /// <summary>
+    /// Wystawia współpracownikowi odnośnik do ustawienia nowego hasła.
+    /// </summary>
+    /// <remarks>
+    /// Potrzebne, gdy poczta nie jest skonfigurowana albo wiadomość nie
+    /// dotarła - inaczej osoba, która zapomniała hasła, zostawałaby bez
+    /// żadnej drogi powrotu. Właściciel nie poznaje przy tym cudzego hasła:
+    /// ustawia je sam zainteresowany.
+    /// </remarks>
+    public async Task<IActionResult> OnPostResetHaslaAsync(Guid id, CancellationToken anulowanie)
+    {
+        IReadOnlyList<CzlonkostwoWFirmie> czlonkowie = await uslugaKont.CzlonkowieAsync(anulowanie);
+        CzlonkostwoWFirmie? czlonek = czlonkowie.FirstOrDefault(c => c.Id == id);
+
+        if (czlonek?.Uzytkownik is null)
+        {
+            TempData["Ostrzezenie"] = "Nie znaleziono takiej osoby w tej firmie.";
+            return RedirectToPage();
+        }
+
+        ResetHasla reset = await uslugaKont.WystawResetAsync(czlonek.UzytkownikId, anulowanie);
+
+        NowyOdnosnik = $"{Request.Scheme}://{Request.Host}" +
+                       Url.Page("/NoweHaslo", new { kod = reset.Kod });
+        OpisOdnosnika = $"Zmiana hasła: {czlonek.Uzytkownik.Email}";
+
+        await WczytajAsync(anulowanie);
+        return Page();
     }
 
     public async Task<IActionResult> OnPostOdwolajAsync(Guid id, CancellationToken anulowanie)

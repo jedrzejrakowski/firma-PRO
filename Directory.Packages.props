@@ -23,6 +23,7 @@
   <ItemGroup Label="Wydruk PDF">
     <PackageVersion Include="PDFsharp" Version="6.2.4" />
     <PackageVersion Include="QRCoder" Version="1.8.0" />
+    <PackageVersion Include="MailKit" Version="4.17.0" />
   </ItemGroup>
 
   <ItemGroup Label="Komunikacja HTTP">

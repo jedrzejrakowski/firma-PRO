@@ -291,4 +291,120 @@ public sealed class TestyKont : IAsyncLifetime
         Assert.True((await usluga.OdbierzDostepAsync(czlonkostwoId)).Udalo);
         Assert.Single(await usluga.CzlonkowieAsync());
     }
+
+    // ------------------------------------------------------------ własne konto
+
+    [Fact]
+    public async Task ZmianaHaslaWymagaObecnegoHasla()
+    {
+        (Guid firmaId, Guid wlascicielId) = await ZalozFirmeAsync();
+
+        await using FirmaProDbContext kontekst = _baza.UtworzKontekst(firmaId);
+        UslugaKont usluga = Usluga(kontekst);
+
+        WynikKonta<Uzytkownik> zleObecne = await usluga.ZmienHasloAsync(
+            wlascicielId, "nieprawidlowehaslo", "nowedlugiehaslo1", "nowedlugiehaslo1");
+
+        Assert.False(zleObecne.Udalo);
+        Assert.Contains(zleObecne.Walidacja.Problemy, p => p.Pole == "ObecneHaslo");
+
+        WynikKonta<Uzytkownik> krotkie = await usluga.ZmienHasloAsync(
+            wlascicielId, "bardzodlugiehaslo", "krotkie", "krotkie");
+
+        Assert.False(krotkie.Udalo);
+        Assert.Contains(krotkie.Walidacja.Problemy, p => p.Pole == "Haslo");
+    }
+
+    /// <summary>
+    /// Zmiana hasła zmienia stempel bezpieczeństwa.
+    /// </summary>
+    /// <remarks>
+    /// Stempel siedzi w ciasteczku logowania i jest sprawdzany przy każdym
+    /// żądaniu. Gdyby się nie zmieniał, ciasteczko wykradzione przed zmianą
+    /// hasła działałoby dalej - a zmiana hasła robiona jest zwykle właśnie
+    /// dlatego, że coś wyciekło.
+    /// </remarks>
+    [Fact]
+    public async Task ZmianaHaslaUniewazniaWczesniejszeSesje()
+    {
+        (Guid firmaId, Guid wlascicielId) = await ZalozFirmeAsync();
+
+        await using FirmaProDbContext kontekst = _baza.UtworzKontekst(firmaId);
+        UslugaKont usluga = Usluga(kontekst);
+
+        Guid przed = (await kontekst.Uzytkownicy.SingleAsync(u => u.Id == wlascicielId))
+            .StempelBezpieczenstwa;
+
+        Assert.True((await usluga.ZmienHasloAsync(
+            wlascicielId, "bardzodlugiehaslo", "zupelnienowehaslo", "zupelnienowehaslo")).Udalo);
+
+        Guid po = (await kontekst.Uzytkownicy.SingleAsync(u => u.Id == wlascicielId))
+            .StempelBezpieczenstwa;
+
+        Assert.NotEqual(przed, po);
+    }
+
+    // ------------------------------------------------------------ reset hasła
+
+    [Fact]
+    public async Task OdnosnikDoZmianyHaslaDzialaRazIWygasa()
+    {
+        (Guid firmaId, Guid wlascicielId) = await ZalozFirmeAsync();
+
+        await using FirmaProDbContext kontekst = _baza.UtworzKontekst(firmaId);
+        UslugaKont usluga = Usluga(kontekst);
+
+        string kod = (await usluga.WystawResetAsync(wlascicielId)).Kod;
+
+        Assert.True((await usluga.UstawNoweHasloAsync(
+            kod, "calkiemnowehaslo", "calkiemnowehaslo")).Udalo);
+
+        // Drugie użycie tego samego odnośnika już nie przechodzi.
+        Assert.False((await usluga.UstawNoweHasloAsync(
+            kod, "jeszczeinnehaslo", "jeszczeinnehaslo")).Udalo);
+
+        // Nowy odnośnik przestaje działać po upływie terminu.
+        string drugi = (await usluga.WystawResetAsync(wlascicielId)).Kod;
+        _czas.Przesun(TimeSpan.FromHours(UslugaKont.GodzinWaznosciResetu) + TimeSpan.FromMinutes(1));
+
+        Assert.Null(await usluga.ZnajdzResetAsync(drugi));
+        Assert.False((await usluga.UstawNoweHasloAsync(drugi, "jeszczeinne1234", "jeszczeinne1234")).Udalo);
+    }
+
+    [Fact]
+    public async Task NowyOdnosnikUniewazniaPoprzedni()
+    {
+        (Guid firmaId, Guid wlascicielId) = await ZalozFirmeAsync();
+
+        await using FirmaProDbContext kontekst = _baza.UtworzKontekst(firmaId);
+        UslugaKont usluga = Usluga(kontekst);
+
+        string pierwszy = (await usluga.WystawResetAsync(wlascicielId)).Kod;
+        string drugi = (await usluga.WystawResetAsync(wlascicielId)).Kod;
+
+        // W obiegu ma być najwyżej jeden odnośnik: stary, wykradziony, nie
+        // może czekać na swoją okazję.
+        Assert.Null(await usluga.ZnajdzResetAsync(pierwszy));
+        Assert.NotNull(await usluga.ZnajdzResetAsync(drugi));
+    }
+
+    [Fact]
+    public async Task PoZmianieHaslaLogujeSieNowym()
+    {
+        (Guid firmaId, Guid wlascicielId) = await ZalozFirmeAsync();
+
+        await using FirmaProDbContext kontekst = _baza.UtworzKontekst(firmaId);
+        UslugaKont usluga = Usluga(kontekst);
+
+        string kod = (await usluga.WystawResetAsync(wlascicielId)).Kod;
+        await usluga.UstawNoweHasloAsync(kod, "calkiemnowehaslo", "calkiemnowehaslo");
+
+        Uzytkownik uzytkownik = await kontekst.Uzytkownicy.SingleAsync(u => u.Id == wlascicielId);
+        var haszowanie = new PasswordHasher<object>();
+
+        Assert.Equal(PasswordVerificationResult.Success,
+            haszowanie.VerifyHashedPassword(new object(), uzytkownik.HaszHasla, "calkiemnowehaslo"));
+        Assert.Equal(PasswordVerificationResult.Failed,
+            haszowanie.VerifyHashedPassword(new object(), uzytkownik.HaszHasla, "bardzodlugiehaslo"));
+    }
 }

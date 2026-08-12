@@ -1,0 +1,52 @@
+@page
+@model FirmaPro.Web.Pages.ZapomnianeHasloModel
+@{
+    ViewData["Tytul"] = "Nie pamiętam hasła";
+    Layout = "_Layout";
+}
+
+<div class="karta karta-waska">
+    <h1>Nie pamiętam hasła</h1>
+
+    @if (!Model.PocztaDziala)
+    {
+        <p class="podtytul">
+            W tej instalacji nie skonfigurowano poczty, więc program nie wyśle
+            odnośnika. O zmianę hasła poproś właściciela firmy — może wystawić
+            Ci odnośnik na ekranie „Dostęp”.
+        </p>
+
+        <div class="paskiem">
+            <a class="przycisk przycisk-drugi" asp-page="/Logowanie">Wróć do logowania</a>
+        </div>
+    }
+    else if (Model.Wyslano)
+    {
+        <p class="podtytul">
+            Jeśli konto o tym adresie istnieje, wysłaliśmy na nie wiadomość
+            z odnośnikiem do ustawienia nowego hasła. Odnośnik działa raz
+            i traci ważność po @UslugaKont.GodzinWaznosciResetu godzinach.
+        </p>
+
+        <div class="paskiem">
+            <a class="przycisk przycisk-drugi" asp-page="/Logowanie">Wróć do logowania</a>
+        </div>
+    }
+    else
+    {
+        <p class="podtytul">Wyślemy odnośnik, którym ustawisz nowe hasło.</p>
+
+        <form method="post">
+            <div class="pole">
+                <label for="email">Adres e-mail</label>
+                <input type="email" id="email" name="Email" value="@Model.Email"
+                       required autofocus autocomplete="username" />
+            </div>
+
+            <div class="paskiem">
+                <button type="submit">Wyślij odnośnik</button>
+                <a class="przycisk przycisk-drugi" asp-page="/Logowanie">Wróć</a>
+            </div>
+        </form>
+    }
+</div>

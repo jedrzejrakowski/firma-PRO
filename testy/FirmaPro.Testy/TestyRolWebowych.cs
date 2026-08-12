@@ -234,6 +234,156 @@ public sealed partial class TestyRolWebowych(AplikacjaTestowa aplikacja)
         }
     }
 
+
+    /// <summary>
+    /// Zmiana hasła zamyka sesje otwarte wcześniej.
+    /// </summary>
+    /// <remarks>
+    /// Sprawdzane na dwóch niezależnych przeglądarkach tego samego konta:
+    /// pierwsza zmienia hasło, druga - z ciasteczkiem sprzed zmiany - ma
+    /// zostać wypchnięta do logowania. To jedyny sposób, żeby zmiana hasła
+    /// naprawdę odcinała kogoś, kto przejął sesję.
+    /// </remarks>
+    [Fact]
+    public async Task ZmianaHaslaWypychaPozostaleSesje()
+    {
+        using HttpClient pierwsza = await ZalozFirmeAsync("sesje");
+
+        // Druga przeglądarka, to samo konto.
+        using HttpClient druga = aplikacja.UtworzKlienta();
+        using (HttpResponseMessage logowanie = await AplikacjaTestowa.WyslijFormularzAsync(
+                   druga, "/Logowanie", new Dictionary<string, string>
+                   {
+                       ["Email"] = "wlasciciel-sesje@example.pl",
+                       ["Haslo"] = Haslo
+                   }))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, logowanie.StatusCode);
+        }
+
+        using (HttpResponseMessage przed = await druga.GetAsync(new Uri("/Faktury", UriKind.Relative)))
+        {
+            Assert.Equal(HttpStatusCode.OK, przed.StatusCode);
+        }
+
+        using (HttpResponseMessage zmiana = await AplikacjaTestowa.WyslijFormularzAsync(
+                   pierwsza, "/Konto?handler=Haslo", new Dictionary<string, string>
+                   {
+                       ["ObecneHaslo"] = Haslo,
+                       ["NoweHaslo"] = "zupelnienowehaslo",
+                       ["PowtorzHaslo"] = "zupelnienowehaslo"
+                   },
+                   adresFormularza: "/Konto"))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, zmiana.StatusCode);
+            Assert.Equal("/Logowanie", zmiana.Headers.Location?.OriginalString);
+        }
+
+        // Druga przeglądarka nadal ma ciasteczko sprzed zmiany hasła.
+        using HttpResponseMessage po = await druga.GetAsync(new Uri("/Faktury", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.Redirect, po.StatusCode);
+        Assert.Contains("/Logowanie", po.Headers.Location!.OriginalString, StringComparison.Ordinal);
+    }
+
+    /// <summary>Rola podglądu nie odbiera prawa do własnego hasła.</summary>
+    [Fact]
+    public async Task PodgladZmieniaWlasneHaslo()
+    {
+        using HttpClient wlasciciel = await ZalozFirmeAsync("haslo");
+        using HttpClient podglad = await DolaczAsync(
+            aplikacja, wlasciciel, "podglad-haslo@example.pl", "Podglad");
+
+        using HttpResponseMessage zmiana = await AplikacjaTestowa.WyslijFormularzAsync(
+            podglad, "/Konto?handler=Haslo", new Dictionary<string, string>
+            {
+                ["ObecneHaslo"] = Haslo,
+                ["NoweHaslo"] = "innedlugiehaslo1",
+                ["PowtorzHaslo"] = "innedlugiehaslo1"
+            },
+            adresFormularza: "/Konto");
+
+        Assert.Equal(HttpStatusCode.Redirect, zmiana.StatusCode);
+        Assert.Equal("/Logowanie", zmiana.Headers.Location?.OriginalString);
+
+        // Nowe hasło naprawdę działa.
+        using HttpClient ponownie = aplikacja.UtworzKlienta();
+        using HttpResponseMessage logowanie = await AplikacjaTestowa.WyslijFormularzAsync(
+            ponownie, "/Logowanie", new Dictionary<string, string>
+            {
+                ["Email"] = "podglad-haslo@example.pl",
+                ["Haslo"] = "innedlugiehaslo1"
+            });
+
+        Assert.Equal(HttpStatusCode.Redirect, logowanie.StatusCode);
+        Assert.Equal("/Faktury", logowanie.Headers.Location?.OriginalString);
+    }
+
+    /// <summary>
+    /// Właściciel wystawia współpracownikowi odnośnik do zmiany hasła.
+    /// </summary>
+    /// <remarks>
+    /// Bez tego osoba, która zapomniała hasła, zostawałaby bez drogi powrotu
+    /// w instalacji bez skonfigurowanej poczty.
+    /// </remarks>
+    [Fact]
+    public async Task WlascicielWystawiaOdnosnikDoZmianyHasla()
+    {
+        using HttpClient wlasciciel = await ZalozFirmeAsync("reset");
+        using HttpClient ksiegowy = await DolaczAsync(
+            aplikacja, wlasciciel, "ksiegowa-reset@example.pl", "Ksiegowy");
+
+        using HttpResponseMessage lista =
+            await wlasciciel.GetAsync(new Uri("/Uzytkownicy", UriKind.Relative));
+
+        string html = await AplikacjaTestowa.TrescAsync(lista);
+        Match wiersz = WzorzecCzlonkostwa().Match(html);
+        Assert.True(wiersz.Success, "Nie znaleziono wiersza księgowej na liście osób.");
+
+        using HttpResponseMessage odnosnik = await AplikacjaTestowa.WyslijFormularzAsync(
+            wlasciciel, $"/Uzytkownicy?handler=ResetHasla&id={wiersz.Groups[1].Value}",
+            new Dictionary<string, string>(), adresFormularza: "/Uzytkownicy");
+
+        odnosnik.EnsureSuccessStatusCode();
+
+        Match adres = WzorzecNowegoHasla().Match(await AplikacjaTestowa.TrescAsync(odnosnik));
+        Assert.True(adres.Success, "Strona nie pokazała odnośnika do zmiany hasła.");
+
+        HttpClient anonim = aplikacja.UtworzKlienta();
+        using HttpResponseMessage ustawienie = await AplikacjaTestowa.WyslijFormularzAsync(
+            anonim, adres.Groups[1].Value,
+            new Dictionary<string, string>
+            {
+                ["Kod"] = adres.Groups[1].Value.Split("kod=")[^1],
+                ["Haslo"] = "ustawionenowe123",
+                ["PowtorzHaslo"] = "ustawionenowe123"
+            },
+            adresFormularza: adres.Groups[1].Value);
+
+        Assert.Equal(HttpStatusCode.Redirect, ustawienie.StatusCode);
+        Assert.Equal("/Logowanie", ustawienie.Headers.Location?.OriginalString);
+
+        using HttpResponseMessage logowanie = await AplikacjaTestowa.WyslijFormularzAsync(
+            anonim, "/Logowanie", new Dictionary<string, string>
+            {
+                ["Email"] = "ksiegowa-reset@example.pl",
+                ["Haslo"] = "ustawionenowe123"
+            });
+
+        Assert.Equal(HttpStatusCode.Redirect, logowanie.StatusCode);
+        anonim.Dispose();
+        ksiegowy.Dispose();
+    }
+
+    // Identyfikator członkostwa księgowej - wyjęty z wiersza, w którym stoi
+    // jej adres, żeby test nie zależał od kolejności osób na liście.
+    [GeneratedRegex(@"ksiegowa-reset@example\.pl \?'\)"" action=""/Uzytkownicy\?id=([0-9a-fA-F-]+)")]
+    private static partial Regex WzorzecCzlonkostwa();
+
+    // Odnośnik do ustawienia nowego hasła.
+    [GeneratedRegex(@"(/NoweHaslo\?kod=[A-Za-z0-9_-]+)")]
+    private static partial Regex WzorzecNowegoHasla();
+
     // Odnośnik zaproszenia wypisany na stronie właściciela.
     [GeneratedRegex(@"(/Zaproszenie\?kod=[A-Za-z0-9_-]+)")]
     private static partial Regex WzorzecOdnosnika();

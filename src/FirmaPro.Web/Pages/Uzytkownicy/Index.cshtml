@@ -25,11 +25,24 @@
 @if (Model.NowyOdnosnik is not null)
 {
     <div class="powiadomienie powodzenie">
-        <strong>Zaproszenie wystawione.</strong>
+        <strong>@Model.OpisOdnosnika</strong>
         <p>
-            Przekaż ten odnośnik zaproszonej osobie. Działa raz i traci ważność
-            po @UslugaKont.DniWaznosciZaproszenia dniach. Jest wart tyle, co hasło —
-            nie wysyłaj go tam, gdzie może przeczytać go ktoś obcy.
+            @if (Model.PocztaDziala)
+            {
+                <text>
+                    Wiadomość z odnośnikiem poszła pocztą. Gdyby nie dotarła —
+                    poczta bywa zatrzymywana przez filtry — przekaż go sam.
+                </text>
+            }
+            else
+            {
+                <text>
+                    Przekaż ten odnośnik zainteresowanej osobie. Program nie wysyła
+                    poczty, bo nie została skonfigurowana.
+                </text>
+            }
+            Odnośnik działa raz i jest wart tyle, co hasło — nie zostawiaj go tam,
+            gdzie przeczyta go ktoś obcy.
         </p>
         <p><code class="odnosnik-zaproszenia">@Model.NowyOdnosnik</code></p>
     </div>
@@ -78,7 +91,13 @@
                         <noscript><button type="submit">Zmień</button></noscript>
                     </form>
                 </td>
-                <td>
+                <td class="dzialania-wiersza">
+                    <form method="post" asp-page-handler="ResetHasla" asp-route-id="@czlonek.Id">
+                        <button type="submit" class="przycisk przycisk-drugi przycisk-maly"
+                                title="Wystaw odnośnik do ustawienia nowego hasła">
+                            Zmiana hasła
+                        </button>
+                    </form>
                     <form method="post" asp-page-handler="Odbierz" asp-route-id="@czlonek.Id"
                           onsubmit="return confirm('Odebrać dostęp: @czlonek.Uzytkownik?.Email ?')">
                         <button type="submit" class="usun-wiersz" title="Odbierz dostęp">&times;</button>
@@ -149,8 +168,17 @@
         </div>
 
         <p class="wskazowka">
-            Program nie wysyła poczty. Po zapisaniu dostaniesz jednorazowy odnośnik,
-            który przekażesz zaproszonej osobie sam.
+            @if (Model.PocztaDziala)
+            {
+                <text>Zaproszenie pójdzie pocztą; odnośnik zobaczysz też tutaj.</text>
+            }
+            else
+            {
+                <text>
+                    Poczta nie jest skonfigurowana, więc po zapisaniu dostaniesz
+                    jednorazowy odnośnik i przekażesz go sam.
+                </text>
+            }
         </p>
 
         <div class="paskiem">

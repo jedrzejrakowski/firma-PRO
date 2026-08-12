@@ -78,6 +78,7 @@ public class FirmaProDbContext : DbContext
     public DbSet<Uzytkownik> Uzytkownicy => Set<Uzytkownik>();
     public DbSet<CzlonkostwoWFirmie> Czlonkostwa => Set<CzlonkostwoWFirmie>();
     public DbSet<Zaproszenie> Zaproszenia => Set<Zaproszenie>();
+    public DbSet<ResetHasla> ResetyHasla => Set<ResetHasla>();
     public DbSet<Kontrahent> Kontrahenci => Set<Kontrahent>();
     public DbSet<FakturaSprzedazy> FakturySprzedazy => Set<FakturaSprzedazy>();
     public DbSet<PozycjaFakturySprzedazy> PozycjeFaktur => Set<PozycjaFakturySprzedazy>();
@@ -140,6 +141,20 @@ public class FirmaProDbContext : DbContext
             e.Property(u => u.HaszHasla).HasMaxLength(512).IsRequired();
             e.Property(u => u.ImieINazwisko).HasMaxLength(256);
             e.HasIndex(u => u.Email).IsUnique();
+        });
+
+        budowniczy.Entity<ResetHasla>(e =>
+        {
+            e.ToTable("resety_hasla");
+            e.HasKey(r => r.Id);
+            e.Property(r => r.Kod).HasMaxLength(64).IsRequired();
+
+            e.HasOne(r => r.Uzytkownik)
+                .WithMany()
+                .HasForeignKey(r => r.UzytkownikId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(r => r.Kod).IsUnique();
         });
 
         budowniczy.Entity<CzlonkostwoWFirmie>(e =>

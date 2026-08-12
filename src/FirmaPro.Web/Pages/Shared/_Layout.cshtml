@@ -65,6 +65,8 @@
                             @nazwaFirmy
                         </span>
                     }
+                    <a class="konto-odnosnik" asp-page="/Konto"
+                       title="Moje konto i hasło">@User.Identity?.Name</a>
                     <form method="post" asp-page="/Wyloguj">
                         <button type="submit" class="odnosnik-przycisk">Wyloguj</button>
                     </form>

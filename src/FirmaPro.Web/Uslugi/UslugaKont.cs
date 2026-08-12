@@ -24,9 +24,9 @@ public sealed record WynikKonta<T>(T? Dane, WynikWalidacji Walidacja) where T : 
 /// i zamkniętą w innym.
 /// </para>
 /// <para>
-/// Program nie wysyła poczty, więc zaproszenie ma postać jednorazowego
-/// odnośnika. Właściciel przekazuje go, jak mu wygodnie; odnośnik jest wart
-/// tyle co hasło, dlatego traci ważność i działa tylko raz.
+/// Zaproszenia i zmiany hasła załatwiane są jednorazowym odnośnikiem. Idzie
+/// on pocztą, gdy jest skonfigurowana; bez niej właściciel przekazuje go sam.
+/// Odnośnik jest wart tyle co hasło, dlatego traci ważność i działa raz.
 /// </para>
 /// </remarks>
 public sealed class UslugaKont(
@@ -379,7 +379,209 @@ public sealed class UslugaKont(
         return new WynikKonta<CzlonkostwoWFirmie>(czlonkostwo, walidacja);
     }
 
+    // ------------------------------------------------------------ własne konto
+
+    /// <summary>Zmienia hasło po sprawdzeniu obecnego.</summary>
+    public async Task<WynikKonta<Uzytkownik>> ZmienHasloAsync(
+        Guid uzytkownikId, string obecne, string nowe, string powtorzenie,
+        CancellationToken anulowanie = default)
+    {
+        var walidacja = new WynikWalidacji();
+
+        Uzytkownik? uzytkownik = await baza.Uzytkownicy
+            .FirstOrDefaultAsync(u => u.Id == uzytkownikId, anulowanie);
+
+        if (uzytkownik is null)
+        {
+            walidacja.Blad("Konto", "nie znaleziono konta");
+            return new WynikKonta<Uzytkownik>(null, walidacja);
+        }
+
+        // Znajomość obecnego hasła jest tu jedynym dowodem, że przy klawiaturze
+        // siedzi właściciel konta, a nie ktoś, kto zastał otwartą przeglądarkę.
+        if (haszowanie.VerifyHashedPassword(new object(), uzytkownik.HaszHasla, obecne ?? string.Empty)
+            == PasswordVerificationResult.Failed)
+        {
+            walidacja.Blad("ObecneHaslo", "obecne hasło jest nieprawidłowe");
+            return new WynikKonta<Uzytkownik>(null, walidacja);
+        }
+
+        SprawdzHaslo(walidacja, nowe, powtorzenie);
+
+        if (walidacja.SaBledy)
+        {
+            return new WynikKonta<Uzytkownik>(null, walidacja);
+        }
+
+        UstawHaslo(uzytkownik, nowe);
+        await baza.SaveChangesAsync(anulowanie);
+
+        return new WynikKonta<Uzytkownik>(uzytkownik, walidacja);
+    }
+
+    /// <summary>Zmienia imię i nazwisko pokazywane w programie.</summary>
+    public async Task<Uzytkownik?> ZmienDaneAsync(
+        Guid uzytkownikId, string? imieINazwisko, CancellationToken anulowanie = default)
+    {
+        Uzytkownik? uzytkownik = await baza.Uzytkownicy
+            .FirstOrDefaultAsync(u => u.Id == uzytkownikId, anulowanie);
+
+        if (uzytkownik is null)
+        {
+            return null;
+        }
+
+        uzytkownik.ImieINazwisko = string.IsNullOrWhiteSpace(imieINazwisko)
+            ? uzytkownik.Email
+            : imieINazwisko.Trim();
+
+        await baza.SaveChangesAsync(anulowanie);
+
+        return uzytkownik;
+    }
+
+    /// <summary>Wypisuje użytkownika z bieżącej firmy.</summary>
+    public async Task<WynikKonta<CzlonkostwoWFirmie>> OpuscFirmeAsync(
+        Guid uzytkownikId, CancellationToken anulowanie = default)
+    {
+        var walidacja = new WynikWalidacji();
+
+        CzlonkostwoWFirmie? czlonkostwo = await baza.Czlonkostwa
+            .FirstOrDefaultAsync(
+                c => c.UzytkownikId == uzytkownikId && c.FirmaId == baza.AktualnaFirmaId,
+                anulowanie);
+
+        if (czlonkostwo is null)
+        {
+            walidacja.Blad("Firma", "nie pracujesz w tej firmie");
+            return new WynikKonta<CzlonkostwoWFirmie>(null, walidacja);
+        }
+
+        return await OdbierzDostepAsync(czlonkostwo.Id, anulowanie);
+    }
+
+    // ------------------------------------------------------------ reset hasła
+
+    /// <summary>Ile godzin żyje odnośnik do ustawienia nowego hasła.</summary>
+    public const int GodzinWaznosciResetu = 2;
+
+    public Task<Uzytkownik?> ZnajdzPoAdresieAsync(string email,
+                                                  CancellationToken anulowanie = default) =>
+        ZnajdzUzytkownikaAsync((email ?? string.Empty).Trim(), anulowanie);
+
+    /// <summary>
+    /// Wystawia jednorazowy odnośnik do ustawienia nowego hasła.
+    /// </summary>
+    /// <remarks>
+    /// Wcześniejsze niewykorzystane odnośniki przestają działać - w obiegu ma
+    /// być najwyżej jeden, żeby stary wykradziony odnośnik nie czekał na
+    /// swoją okazję.
+    /// </remarks>
+    public async Task<ResetHasla> WystawResetAsync(Guid uzytkownikId,
+                                                   CancellationToken anulowanie = default)
+    {
+        foreach (ResetHasla stary in await baza.ResetyHasla
+                     .Where(r => r.UzytkownikId == uzytkownikId && r.WykorzystanoUtc == null)
+                     .ToListAsync(anulowanie))
+        {
+            baza.ResetyHasla.Remove(stary);
+        }
+
+        var reset = new ResetHasla
+        {
+            UzytkownikId = uzytkownikId,
+            Kod = NowyKod(),
+            WaznoscDoUtc = czas.GetUtcNow().AddHours(GodzinWaznosciResetu)
+        };
+
+        baza.ResetyHasla.Add(reset);
+        await baza.SaveChangesAsync(anulowanie);
+
+        return reset;
+    }
+
+    public async Task<ResetHasla?> ZnajdzResetAsync(string kod,
+                                                    CancellationToken anulowanie = default)
+    {
+        if (string.IsNullOrWhiteSpace(kod))
+        {
+            return null;
+        }
+
+        ResetHasla? reset = await baza.ResetyHasla
+            .AsNoTracking()
+            .Include(r => r.Uzytkownik)
+            .FirstOrDefaultAsync(r => r.Kod == kod, anulowanie);
+
+        if (reset is null || reset.WykorzystanoUtc is not null)
+        {
+            return null;
+        }
+
+        return reset.WaznoscDoUtc < czas.GetUtcNow() ? null : reset;
+    }
+
+    /// <summary>Ustawia nowe hasło na podstawie odnośnika.</summary>
+    public async Task<WynikKonta<Uzytkownik>> UstawNoweHasloAsync(
+        string kod, string haslo, string powtorzenie, CancellationToken anulowanie = default)
+    {
+        var walidacja = new WynikWalidacji();
+
+        ResetHasla? reset = await ZnajdzResetAsync(kod, anulowanie);
+        if (reset is null)
+        {
+            walidacja.Blad("Kod", "odnośnik jest nieważny albo został już wykorzystany");
+            return new WynikKonta<Uzytkownik>(null, walidacja);
+        }
+
+        SprawdzHaslo(walidacja, haslo, powtorzenie);
+        if (walidacja.SaBledy)
+        {
+            return new WynikKonta<Uzytkownik>(null, walidacja);
+        }
+
+        Uzytkownik? uzytkownik = await baza.Uzytkownicy
+            .FirstOrDefaultAsync(u => u.Id == reset.UzytkownikId, anulowanie);
+
+        if (uzytkownik is null)
+        {
+            walidacja.Blad("Kod", "konto powiązane z odnośnikiem już nie istnieje");
+            return new WynikKonta<Uzytkownik>(null, walidacja);
+        }
+
+        // Odnośnik zużywamy warunkowo, tak samo jak zaproszenie: sprawdzenie
+        // i zapis w dwóch krokach pozwoliłyby użyć go dwa razy naraz.
+        int zuzyte = await baza.ResetyHasla
+            .Where(r => r.Id == reset.Id && r.WykorzystanoUtc == null)
+            .ExecuteUpdateAsync(r => r.SetProperty(p => p.WykorzystanoUtc, czas.GetUtcNow()),
+                                anulowanie);
+
+        if (zuzyte != 1)
+        {
+            walidacja.Blad("Kod", "odnośnik został właśnie wykorzystany");
+            return new WynikKonta<Uzytkownik>(null, walidacja);
+        }
+
+        UstawHaslo(uzytkownik, haslo);
+        await baza.SaveChangesAsync(anulowanie);
+
+        return new WynikKonta<Uzytkownik>(uzytkownik, walidacja);
+    }
+
     // ------------------------------------------------------------ pomocnicze
+
+    /// <summary>
+    /// Zapisuje nowe hasło i unieważnia wcześniejsze sesje.
+    /// </summary>
+    /// <remarks>
+    /// Zmiana hasła bez zmiany stempla zostawiałaby otwarte drzwi: ciasteczko
+    /// wykradzione wcześniej działałoby dalej, mimo że hasło już nie.
+    /// </remarks>
+    private void UstawHaslo(Uzytkownik uzytkownik, string haslo)
+    {
+        uzytkownik.HaszHasla = haszowanie.HashPassword(new object(), haslo);
+        uzytkownik.StempelBezpieczenstwa = Guid.NewGuid();
+    }
 
     private Uzytkownik NowyUzytkownik(string email, string haslo) => new()
     {

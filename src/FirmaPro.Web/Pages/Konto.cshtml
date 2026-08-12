@@ -1,0 +1,120 @@
+@page
+@using FirmaPro.Dane.Encje
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.KontoModel
+@{
+    ViewData["Tytul"] = "Moje konto";
+}
+
+<h1>Moje konto</h1>
+<p class="podtytul">@Model.Email</p>
+
+@if (Model.Walidacja.SaBledy)
+{
+    <div class="powiadomienie niepowodzenie">
+        <ul class="bledy">
+            @foreach (Problem problem in Model.Walidacja.Problemy
+                          .Where(p => p.Poziom == PoziomProblemu.Blad))
+            {
+                <li>@problem.Komunikat</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="karta">
+    <form method="post" asp-page-handler="Dane">
+        <div class="naglowek-sekcji">Dane</div>
+
+        <div class="pole">
+            <label for="imie">Imię i nazwisko</label>
+            <input type="text" id="imie" name="ImieINazwisko"
+                   value="@Model.ImieINazwisko" maxlength="256" />
+        </div>
+
+        <p class="wskazowka">
+            Adresu e-mail nie da się tu zmienić — jest jednocześnie loginem
+            i wiąże konto z zaproszeniami do firm.
+        </p>
+
+        <div class="paskiem">
+            <button type="submit">Zapisz dane</button>
+        </div>
+    </form>
+</div>
+
+<div class="karta">
+    <form method="post" asp-page-handler="Haslo">
+        <div class="naglowek-sekcji">Zmiana hasła</div>
+
+        <div class="pole">
+            <label for="obecne">Obecne hasło</label>
+            <input type="password" id="obecne" name="ObecneHaslo" required
+                   autocomplete="current-password" />
+        </div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="nowe">Nowe hasło</label>
+                <input type="password" id="nowe" name="NoweHaslo" required
+                       autocomplete="new-password" minlength="@Model.MinimalnaDlugoscHasla" />
+            </div>
+
+            <div class="pole">
+                <label for="powtorz">Powtórz nowe hasło</label>
+                <input type="password" id="powtorz" name="PowtorzHaslo" required
+                       autocomplete="new-password" minlength="@Model.MinimalnaDlugoscHasla" />
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Co najmniej @Model.MinimalnaDlugoscHasla znaków. Zmiana hasła zamyka
+            wszystkie sesje — także tę, więc zaraz potem trzeba zalogować się
+            ponownie.
+        </p>
+
+        <div class="paskiem">
+            <button type="submit">Zmień hasło</button>
+        </div>
+    </form>
+</div>
+
+<h2>Firmy, w których pracujesz</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Firma</th>
+            <th>Rola</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (CzlonkostwoWFirmie czlonkostwo in Model.MojeFirmy)
+        {
+            <tr>
+                <td><strong>@czlonkostwo.Firma?.Nazwa</strong></td>
+                <td>@FirmaPro.Web.Pages.KontoModel.OpisRoli(czlonkostwo.Rola)</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (Model.MojeFirmy.Count > 1)
+{
+    <div class="karta" style="margin-top:20px">
+        <form method="post" asp-page-handler="Opusc"
+              onsubmit="return confirm('Opuścić bieżącą firmę? Stracisz do niej dostęp.')">
+            <div class="naglowek-sekcji">Opuszczenie bieżącej firmy</div>
+
+            <p class="wskazowka">
+                Stracisz dostęp do jej dokumentów. Ponowne wejście będzie wymagało
+                nowego zaproszenia od właściciela. Ostatni właściciel firmy nie
+                może jej opuścić — firma bez właściciela byłaby nie do naprawienia.
+            </p>
+
+            <div class="paskiem">
+                <button type="submit" class="przycisk-drugi">Opuść firmę</button>
+            </div>
+        </form>
+    </div>
+}

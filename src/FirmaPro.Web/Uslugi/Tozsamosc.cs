@@ -20,6 +20,16 @@ public static class Tozsamosc
     /// <summary>Nazwa oświadczenia z nazwą firmy - do pokazania w pasku.</summary>
     public const string NazwaFirmy = "nazwaFirmy";
 
+    /// <summary>
+    /// Nazwa oświadczenia ze stemplem bezpieczeństwa konta.
+    /// </summary>
+    /// <remarks>
+    /// Stempel zmienia się przy każdej zmianie hasła i jest sprawdzany przy
+    /// każdym żądaniu. Dzięki temu zmiana hasła kończy wszystkie wcześniejsze
+    /// sesje - także tę, którą ktoś przejął.
+    /// </remarks>
+    public const string Stempel = "stempel";
+
     public static ClaimsPrincipal Zbuduj(Uzytkownik uzytkownik, CzlonkostwoWFirmie czlonkostwo)
     {
         ArgumentNullException.ThrowIfNull(uzytkownik);
@@ -32,6 +42,7 @@ public static class Tozsamosc
             new(ClaimTypes.Email, uzytkownik.Email),
             new(KontekstFirmyZZadania.NazwaOswiadczenia, czlonkostwo.FirmaId.ToString()),
             new(NazwaFirmy, czlonkostwo.Firma?.Nazwa ?? string.Empty),
+            new(Stempel, uzytkownik.StempelBezpieczenstwa.ToString()),
             new(ClaimTypes.Role, czlonkostwo.Rola.ToString())
         };
 
@@ -47,6 +58,16 @@ public static class Tozsamosc
         return kontekst.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
             Zbuduj(uzytkownik, czlonkostwo));
+    }
+
+    /// <summary>Stempel bezpieczeństwa zapisany w ciasteczku.</summary>
+    public static Guid? StempelZCiasteczka(ClaimsPrincipal uzytkownik)
+    {
+        ArgumentNullException.ThrowIfNull(uzytkownik);
+
+        return Guid.TryParse(uzytkownik.FindFirstValue(Stempel), out Guid stempel)
+            ? stempel
+            : null;
     }
 
     /// <summary>Identyfikator zalogowanego użytkownika.</summary>

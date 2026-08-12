@@ -29,6 +29,8 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Link weryfikacyjny kodu QR (KOD I) | gotowe |
 | Logowanie i konta użytkowników | gotowe |
 | Zakładanie firm, zapraszanie współpracowników, role | gotowe |
+| Własne konto, zmiana i odzyskiwanie hasła | gotowe |
+| Wysyłka poczty (zaproszenia, zmiana hasła) | gotowe, **niesprawdzona na żywym serwerze poczty** |
 | Kartoteka kontrahentów | gotowe |
 | Wystawianie faktur i podgląd dokumentu | gotowe |
 | Faktury korygujące | gotowe |
@@ -411,7 +413,8 @@ brak sprawdzenia nie ma wyglądać jak sprawdzenie.
 7. **JPK_V7** — deklaracja i plik do złożenia ✔ (do potwierdzenia schematem)
 8. **Wdrożenie** — kontenery, HTTPS, kopie zapasowe ✔
 9. **Konta i role** — zakładanie firm, zapraszanie, uprawnienia ✔
-10. Dalej: wysyłka faktur pocztą, faktury zaliczkowe, magazyn, KPiR
+10. **Hasła i poczta** — własne konto, odzyskiwanie hasła ✔
+11. Dalej: wysyłka faktur pocztą, faktury zaliczkowe, magazyn, KPiR
 
 ## Konta, firmy i role
 
@@ -459,6 +462,41 @@ wygodnie. Odnośnik jest wart tyle, co hasło, dlatego:
 Zaproszenie na adres, który ma już konto, wymaga **hasła do tego konta**.
 Bez tego wystawienie zaproszenia na cudzy adres byłoby sposobem na przejęcie
 konta razem ze wszystkimi firmami, do których należy.
+
+### Hasła i własne konto
+
+Każdy zalogowany ma ekran **Moje konto**: zmiana hasła, imię i nazwisko oraz
+lista firm, w których pracuje. Rola tego nie ogranicza — mówi, co wolno robić
+w firmie, a nie czy wolno zmienić własne hasło.
+
+**Zmiana hasła zamyka wszystkie sesje**, także tę, z której ją zrobiono.
+Przy koncie trzymany jest stempel bezpieczeństwa: zmienia się przy każdej
+zmianie hasła, siedzi w ciasteczku logowania i jest sprawdzany przy każdym
+żądaniu. Bez tego zmiana hasła nie dawałaby nic komuś, komu wykradziono
+ciasteczko — a hasło zmienia się zwykle właśnie dlatego, że coś wyciekło.
+
+Zapomniane hasło da się odzyskać na dwa sposoby:
+
+- **pocztą** — ekran „Nie pamiętam hasła" wysyła jednorazowy odnośnik ważny
+  dwie godziny. Odpowiedź jest zawsze taka sama,
+  niezależnie od tego, czy konto istnieje: inaczej ekran stałby się sposobem
+  na sprawdzanie, kto ma tu konto;
+- **przez właściciela firmy** — na ekranie „Dostęp" wystawia współpracownikowi
+  odnośnik do ustawienia nowego hasła. Nie poznaje przy tym cudzego hasła:
+  ustawia je sam zainteresowany. To jedyna droga w instalacji bez poczty,
+  więc ekran „Nie pamiętam hasła" mówi wtedy wprost, żeby się o nią zwrócić.
+
+### Poczta
+
+Poczta jest **opcjonalna**. Bez niej program działa w całości, tylko
+zaproszenia i odnośniki do zmiany hasła przekazuje się samemu — właściciel
+widzi je na ekranie „Dostęp". Ustawia się ją w `.env` wdrożenia
+(`POCZTA_SERWER` i dalsze).
+
+Ekrany pytają, czy poczta działa, zanim obiecają wysyłkę: komunikat
+„wysłaliśmy wiadomość", po którym nic nie przychodzi, jest gorszy niż
+uczciwe „poczta nie jest skonfigurowana". Odnośnik pokazywany jest zawsze,
+także gdy wiadomość poszła — bo bywa zatrzymywana przez filtry.
 
 ### Zakładanie firm przez stronę
 
@@ -639,6 +677,13 @@ konto z ustawień, nie zakłada danych demonstracyjnych, a zapisany token KSeF
 samym woluminie kluczy). Kopie zapasowe sprawdzone są na działającej bazie:
 udana runda, wykrycie kopii uciętej w połowie, wykrycie kopii pustej oraz
 odtworzenie bazy nadpisanej „przez pomyłkę".
+
+Nie sprawdzono **wysyłki poczty przeciwko prawdziwemu serwerowi SMTP** -
+w środowisku budowy nie ma do czego się połączyć. Sprawdzone jest to, co
+wokół niej: ekrany zależne od poczty same się wyłączają, gdy nie jest
+skonfigurowana, a odzyskanie hasła działa również bez niej, odnośnikiem od
+właściciela. Pierwsze wysłanie zaproszenia u siebie warto potraktować jako
+sprawdzenie ustawień serwera poczty.
 
 Nie udało się natomiast uruchomić **całego zestawu z docker-compose naraz** -
 w środowisku budowy zablokowane jest pobieranie obrazów `postgres` i `caddy`

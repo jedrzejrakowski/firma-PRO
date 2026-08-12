@@ -101,7 +101,38 @@ public sealed class Uzytkownik : EncjaBazowa
     public string? ImieINazwisko { get; set; }
     public bool Aktywny { get; set; } = true;
 
+    /// <summary>
+    /// Zmienia się przy każdej zmianie hasła.
+    /// </summary>
+    /// <remarks>
+    /// Wartość trafia do ciasteczka logowania i jest sprawdzana przy każdym
+    /// żądaniu. Dzięki temu zmiana hasła wyrzuca wszystkie wcześniejsze
+    /// sesje - bez tego ktoś, kto przejął cudze ciasteczko, pracowałby dalej
+    /// mimo zmienionego hasła.
+    /// </remarks>
+    public Guid StempelBezpieczenstwa { get; set; } = Guid.NewGuid();
+
     public ICollection<CzlonkostwoWFirmie> Czlonkostwa { get; set; } = [];
+}
+
+/// <summary>
+/// Jednorazowy odnośnik do ustawienia nowego hasła.
+/// </summary>
+/// <remarks>
+/// Nie należy do żadnej firmy - hasło jest sprawą konta, a jedno konto może
+/// pracować w wielu firmach.
+/// </remarks>
+public sealed class ResetHasla : EncjaBazowa
+{
+    public Guid UzytkownikId { get; set; }
+    public Uzytkownik? Uzytkownik { get; set; }
+
+    /// <summary>Losowy ciąg z odnośnika - jedyny dowód uprawnienia.</summary>
+    public string Kod { get; set; } = string.Empty;
+
+    public DateTimeOffset WaznoscDoUtc { get; set; }
+
+    public DateTimeOffset? WykorzystanoUtc { get; set; }
 }
 
 /// <summary>Rola użytkownika w firmie.</summary>
@@ -134,9 +165,9 @@ public sealed class CzlonkostwoWFirmie : EncjaBazowa
 /// Zaproszenie współpracownika do firmy.
 /// </summary>
 /// <remarks>
-/// Program nie wysyła poczty, więc zaproszenie ma postać jednorazowego
-/// odnośnika: właściciel przekazuje go tak, jak mu wygodnie. Odnośnik jest
-/// wart tyle, co hasło, dlatego traci ważność i działa tylko raz.
+/// Zaproszenie ma postać jednorazowego odnośnika: idzie pocztą, gdy jest
+/// skonfigurowana, a poza tym właściciel przekazuje go, jak mu wygodnie.
+/// Odnośnik jest wart tyle, co hasło, dlatego traci ważność i działa raz.
 /// </remarks>
 public sealed class Zaproszenie : EncjaBazowa, INalezyDoFirmy
 {

@@ -63,6 +63,15 @@ services:
 
       # Zakładanie kont przez stronę - dla instalacji jednej firmy zamknięte.
       Aplikacja__RejestracjaOtwarta: ${REJESTRACJA_OTWARTA:-false}
+
+      # Poczta wychodząca. Pusty serwer oznacza brak poczty - program działa
+      # wtedy dalej, tylko odnośniki trzeba przekazywać samemu.
+      Poczta__Serwer: ${POCZTA_SERWER:-}
+      Poczta__Port: ${POCZTA_PORT:-587}
+      Poczta__Uzytkownik: ${POCZTA_UZYTKOWNIK:-}
+      Poczta__Haslo: ${POCZTA_HASLO:-}
+      Poczta__AdresNadawcy: ${POCZTA_NADAWCA:-}
+      Poczta__NazwaNadawcy: ${POCZTA_NAZWA_NADAWCY:-Firma PRO}
     volumes:
       - klucze:/dane/klucze
 

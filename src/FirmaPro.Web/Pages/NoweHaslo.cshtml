@@ -1,0 +1,59 @@
+@page
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.NoweHasloModel
+@{
+    ViewData["Tytul"] = "Nowe hasło";
+    Layout = "_Layout";
+}
+
+<div class="karta karta-waska">
+    @if (!Model.OdnosnikWazny)
+    {
+        <h1>Odnośnik nieważny</h1>
+        <p class="podtytul">
+            Ten odnośnik nie działa. Działa raz i traci ważność po
+            @UslugaKont.GodzinWaznosciResetu godzinach — poproś o nowy.
+        </p>
+
+        <div class="paskiem">
+            <a class="przycisk przycisk-drugi" asp-page="/ZapomnianeHaslo">Poproś o nowy</a>
+        </div>
+    }
+    else
+    {
+        <h1>Nowe hasło</h1>
+        <p class="podtytul">Po ustawieniu hasła pozostałe sesje zostaną zamknięte.</p>
+
+        @if (Model.Walidacja.SaBledy)
+        {
+            <div class="powiadomienie niepowodzenie">
+                <ul class="bledy">
+                    @foreach (Problem problem in Model.Walidacja.Problemy
+                                  .Where(p => p.Poziom == PoziomProblemu.Blad))
+                    {
+                        <li>@problem.Komunikat</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <form method="post">
+            <input type="hidden" name="Kod" value="@Model.Kod" />
+
+            <div class="pole">
+                <label for="haslo">Nowe hasło</label>
+                <input type="password" id="haslo" name="Haslo" required autofocus
+                       autocomplete="new-password" minlength="@Model.MinimalnaDlugoscHasla" />
+                <p class="wskazowka">Co najmniej @Model.MinimalnaDlugoscHasla znaków.</p>
+            </div>
+
+            <div class="pole">
+                <label for="powtorz">Powtórz hasło</label>
+                <input type="password" id="powtorz" name="PowtorzHaslo" required
+                       autocomplete="new-password" minlength="@Model.MinimalnaDlugoscHasla" />
+            </div>
+
+            <button type="submit">Ustaw hasło</button>
+        </form>
+    }
+</div>
