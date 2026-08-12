@@ -1,0 +1,88 @@
+@page
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.ZaproszenieModel
+@{
+    ViewData["Tytul"] = "Zaproszenie do firmy";
+    Layout = "_Layout";
+}
+
+<div class="karta karta-waska">
+    @if (Model.Zapraszane is null)
+    {
+        <h1>Zaproszenie nieważne</h1>
+        <p class="podtytul">
+            Ten odnośnik nie działa. Zaproszenie traci ważność po
+            @UslugaKont.DniWaznosciZaproszenia dniach i można go użyć tylko raz —
+            poproś o nowe osobę, która Cię zapraszała.
+        </p>
+
+        <div class="paskiem">
+            <a class="przycisk przycisk-drugi" asp-page="/Logowanie">Przejdź do logowania</a>
+        </div>
+    }
+    else
+    {
+        <h1>Dołącz do firmy</h1>
+        <p class="podtytul">
+            <strong>@Model.Zapraszane.Firma?.Nazwa</strong> zaprasza Cię jako
+            @Model.OpisRoli.
+        </p>
+
+        @if (Model.Walidacja.SaBledy)
+        {
+            <div class="powiadomienie niepowodzenie">
+                <ul class="bledy">
+                    @foreach (Problem problem in Model.Walidacja.Problemy
+                                  .Where(p => p.Poziom == PoziomProblemu.Blad))
+                    {
+                        <li>@problem.Komunikat</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <form method="post">
+            <input type="hidden" name="Kod" value="@Model.Kod" />
+
+            <div class="pole">
+                <label for="email">Adres e-mail</label>
+                @* Adres pochodzi z zaproszenia i nie da się go tu zmienić -
+                   inaczej zaproszenie dla jednej osoby otwierałoby drzwi
+                   komukolwiek innemu. *@
+                <input type="email" id="email" value="@Model.Zapraszane.Email" disabled />
+            </div>
+
+            @if (Model.KontoIstnieje)
+            {
+                <div class="pole">
+                    <label for="haslo">Hasło do Twojego konta</label>
+                    <input type="password" id="haslo" name="Haslo" required autofocus
+                           autocomplete="current-password" />
+                    <p class="wskazowka">
+                        Masz już konto o tym adresie. Podaj jego hasło, żeby dopisać
+                        do niego kolejną firmę.
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="pole">
+                    <label for="imie">Imię i nazwisko</label>
+                    <input type="text" id="imie" name="ImieINazwisko" autofocus
+                           value="@Model.ImieINazwisko" maxlength="256" />
+                </div>
+
+                <div class="pole">
+                    <label for="haslo">Hasło</label>
+                    <input type="password" id="haslo" name="Haslo" required
+                           autocomplete="new-password" minlength="@Model.MinimalnaDlugoscHasla" />
+                    <p class="wskazowka">
+                        Co najmniej @Model.MinimalnaDlugoscHasla znaków.
+                    </p>
+                </div>
+            }
+
+            <button type="submit">Dołącz do firmy</button>
+        </form>
+    }
+</div>

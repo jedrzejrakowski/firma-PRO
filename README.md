@@ -28,6 +28,7 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Komunikacja z KSeF (wysyłka, UPO, faktury zakupowe) | gotowe |
 | Link weryfikacyjny kodu QR (KOD I) | gotowe |
 | Logowanie i konta użytkowników | gotowe |
+| Zakładanie firm, zapraszanie współpracowników, role | gotowe |
 | Kartoteka kontrahentów | gotowe |
 | Wystawianie faktur i podgląd dokumentu | gotowe |
 | Faktury korygujące | gotowe |
@@ -409,7 +410,65 @@ brak sprawdzenia nie ma wyglądać jak sprawdzenie.
 6. **Rejestr VAT** — sprzedaż, zakupy i rozliczenie okresu ✔
 7. **JPK_V7** — deklaracja i plik do złożenia ✔ (do potwierdzenia schematem)
 8. **Wdrożenie** — kontenery, HTTPS, kopie zapasowe ✔
-9. Dalej: zakładanie kont przez stronę, wysyłka faktur pocztą, magazyn, KPiR
+9. **Konta i role** — zakładanie firm, zapraszanie, uprawnienia ✔
+10. Dalej: wysyłka faktur pocztą, faktury zaliczkowe, magazyn, KPiR
+
+## Konta, firmy i role
+
+Jedno konto może pracować w wielu firmach - tak pracują biura rachunkowe.
+Firmę wybiera się w pasku u góry, a nie w adresie strony: identyfikator firmy
+siedzi w ciasteczku logowania, więc podmiana czegokolwiek w adresie nie
+otworzy cudzych ksiąg.
+
+### Trzy role
+
+| Rola | Co może |
+|---|---|
+| **Podgląd** | tylko odczyt - nie zapisze niczego, nawet znając adres formularza |
+| **Księgowy** | faktury, zakupy, kartoteki, rejestry i JPK |
+| **Właściciel** | wszystko, w tym ustawienia firmy (a więc i token KSeF) oraz rozdawanie dostępu |
+
+Rola pilnowana jest w dwóch miejscach, bo ukrycie przycisku zabezpieczeniem
+nie jest. Ekrany właściciela wskazane są przy rejestracji stron w
+`Program.cs` - nie da się do nich wejść wpisaniem adresu. Rolę podglądu
+pilnuje osobny filtr, który odrzuca **każde** żądanie zmieniające dane;
+reguła jest zamykająca, więc nowy ekran jest zablokowany od pierwszego dnia,
+a nie dopiero wtedy, gdy ktoś pomyśli o dopisaniu go do listy. Wyjątki są
+trzy i zmianą danych firmy nie są: zalogowanie, wylogowanie i przejście do
+innej firmy.
+
+Firma nie może zostać bez właściciela: ostatniemu nie da się ani odebrać
+dostępu, ani obniżyć roli. Firma, do której nikt nie ma pełnych praw, byłaby
+firmą nie do naprawienia od środka.
+
+### Zapraszanie współpracowników
+
+Program nie wysyła poczty, więc zaproszenie ma postać **jednorazowego
+odnośnika**: właściciel wystawia je na ekranie „Dostęp" i przekazuje, jak mu
+wygodnie. Odnośnik jest wart tyle, co hasło, dlatego:
+
+- zawiera 32 bajty losowości - nie da się go zgadnąć,
+- traci ważność po 7 dniach,
+- działa **raz**, a „zużycie" go to jedno polecenie z warunkiem, że nikt nie
+  był szybszy. Dwie osoby, które klikną ten sam odnośnik w tej samej chwili,
+  nie wejdą obie,
+- wystawienie nowego zaproszenia dla tego samego adresu unieważnia poprzednie
+  - inaczej po zmianie roli w obiegu byłyby dwa odnośniki dające różne
+  uprawnienia.
+
+Zaproszenie na adres, który ma już konto, wymaga **hasła do tego konta**.
+Bez tego wystawienie zaproszenia na cudzy adres byłoby sposobem na przejęcie
+konta razem ze wszystkimi firmami, do których należy.
+
+### Zakładanie firm przez stronę
+
+Ekran rejestracji jest **domyślnie wyłączony**. Instalacja postawiona dla
+jednej firmy nie powinna pozwalać obcym zakładać w niej kont - byłby to
+najprostszy sposób na zajrzenie do środka. Włącza go `REJESTRACJA_OTWARTA`
+w pliku `.env` wdrożenia, gdy program ma obsługiwać wiele firm.
+
+Przy pracy nad programem rejestracja jest otwarta, żeby dało się wyklikać
+całą drogę bez zaglądania do ustawień.
 
 ## Wdrożenie
 
@@ -537,9 +596,15 @@ inaczej w każdym silniku — testowanie ich na atrapie dawałoby złudne poczuc
 bezpieczeństwa akurat tam, gdzie pomyłka byłaby najdroższa.
 
 Aplikacja webowa sprawdzana jest **uruchomiona w całości**: testy logują się
-formularzem, wystawiają fakturę, pobierają jej XML, zapisują ustawienia
-i pobierają zakupy z KSeF przez wygenerowany formularz, przechodząc tę samą
-drogę co użytkownik. Pobieranie zakupów sprawdzane jest łącznie z tym, co
+formularzem, zakładają firmę, zapraszają współpracownika, wystawiają fakturę,
+pobierają jej XML, zapisują ustawienia i pobierają zakupy z KSeF przez
+wygenerowany formularz, przechodząc tę samą drogę co użytkownik.
+
+Uprawnienia sprawdzane są od strony napastnika, a nie widoku: testy nie
+patrzą, czy przycisk zniknął, tylko wysyłają żądania wprost pod adresy -
+tak jak zrobiłby ktoś, kto zna adres i chce go użyć mimo braku uprawnień.
+Sprawdzane jest też, że zablokowany zapis naprawdę się nie odbył, a nie
+tylko że przeglądarka dostała przekierowanie. Pobieranie zakupów sprawdzane jest łącznie z tym, co
 naprawdę wychodzi z przeglądarki - zaznaczone pole wyboru wysyła dwie
 wartości, a odznaczone samo „false" z ukrytego pola; właśnie w tej kolejności
 siedziała kiedyś usterka przepuszczająca zakup do odliczenia wbrew woli

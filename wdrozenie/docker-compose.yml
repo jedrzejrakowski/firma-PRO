@@ -60,6 +60,9 @@ services:
       # serwerze nie powstaje. Program i tak by go nie założył, ale niech
       # widać to wprost w ustawieniach wdrożenia.
       Aplikacja__DaneDemonstracyjne: "false"
+
+      # Zakładanie kont przez stronę - dla instalacji jednej firmy zamknięte.
+      Aplikacja__RejestracjaOtwarta: ${REJESTRACJA_OTWARTA:-false}
     volumes:
       - klucze:/dane/klucze
 

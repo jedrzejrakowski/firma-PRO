@@ -1,5 +1,6 @@
 using System.Globalization;
 using FirmaPro.Dane;
+using FirmaPro.Dane.Encje;
 using FirmaPro.Ksef;
 using FirmaPro.Web.Uslugi;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -40,7 +41,7 @@ budowniczy.Services
     {
         opcje.LoginPath = "/Logowanie";
         opcje.LogoutPath = "/Wyloguj";
-        opcje.AccessDeniedPath = "/Logowanie";
+        opcje.AccessDeniedPath = "/BrakUprawnien";
         opcje.ExpireTimeSpan = TimeSpan.FromHours(8);
         opcje.SlidingExpiration = true;
         opcje.Cookie.HttpOnly = true;
@@ -54,7 +55,11 @@ budowniczy.Services
             : CookieSecurePolicy.Always;
     });
 
-budowniczy.Services.AddAuthorization();
+// Nazwa zasady odpowiada roli - ekrany właściciela wskazują ją przy
+// rejestracji stron, niżej.
+budowniczy.Services.AddAuthorizationBuilder()
+    .AddPolicy(ZasadaWlasciciela, zasada =>
+        zasada.RequireRole(nameof(RolaWFirmie.Wlasciciel)));
 
 // --- ochrona danych ---------------------------------------------------------
 
@@ -97,6 +102,7 @@ budowniczy.Services.AddSingleton<IOchronaTokena, OchronaTokena>();
 budowniczy.Services.AddScoped<UslugaNumeracji>();
 budowniczy.Services.AddScoped<UslugaFaktur>();
 budowniczy.Services.AddScoped<UslugaZakladania>();
+budowniczy.Services.AddScoped<UslugaKont>();
 budowniczy.Services.AddScoped<UslugaZakupow>();
 budowniczy.Services.AddScoped<UslugaImportuZakupow>();
 budowniczy.Services.AddScoped<UslugaRejestruVat>();
@@ -117,7 +123,16 @@ budowniczy.Services.AddRazorPages(opcje =>
     opcje.Conventions.AuthorizeFolder("/");
     opcje.Conventions.AllowAnonymousToPage("/Logowanie");
     opcje.Conventions.AllowAnonymousToPage("/Index");
-});
+    opcje.Conventions.AllowAnonymousToPage("/Rejestracja");
+    opcje.Conventions.AllowAnonymousToPage("/Zaproszenie");
+
+    // Ustawienia firmy i rozdawanie dostępu to sprawy właściciela.
+    // Zasada pilnowana jest tutaj, a nie w kodzie stron - inaczej łatwo
+    // o ekran, przy którym ktoś zapomniał sprawdzić rolę.
+    opcje.Conventions.AuthorizePage("/Ustawienia", ZasadaWlasciciela);
+    opcje.Conventions.AuthorizeFolder("/Uzytkownicy", ZasadaWlasciciela);
+})
+.AddMvcOptions(opcje => opcje.Filters.Add<FiltrTylkoDoPodgladu>());
 
 WebApplication aplikacja = budowniczy.Build();
 
@@ -176,4 +191,8 @@ aplikacja.MapGet("/zdrowie", async (FirmaProDbContext baza, CancellationToken an
 await aplikacja.RunAsync();
 
 /// <summary>Punkt wejścia - udostępniony testom integracyjnym.</summary>
-public partial class Program;
+public partial class Program
+{
+    /// <summary>Nazwa zasady dostępu wymagającej roli właściciela.</summary>
+    public const string ZasadaWlasciciela = "Wlasciciel";
+}

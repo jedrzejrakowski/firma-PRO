@@ -27,7 +27,13 @@
                    required autocomplete="current-password" />
         </div>
 
-        <button type="submit">Zaloguj</button>
+        <div class="paskiem">
+            <button type="submit">Zaloguj</button>
+            @if (Model.RejestracjaOtwarta)
+            {
+                <a class="przycisk przycisk-drugi" asp-page="/Rejestracja">Załóż firmę</a>
+            }
+        </div>
     </form>
 
     @if (Model.PokazDaneDemonstracyjne)

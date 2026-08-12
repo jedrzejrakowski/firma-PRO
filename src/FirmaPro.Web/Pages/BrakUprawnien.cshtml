@@ -1,0 +1,17 @@
+@page
+@model FirmaPro.Web.Pages.BrakUprawnienModel
+@{
+    ViewData["Tytul"] = "Brak uprawnień";
+}
+
+<div class="karta karta-waska">
+    <h1>Brak uprawnień</h1>
+    <p class="podtytul">
+        Twoja rola w tej firmie nie pozwala na tę czynność. O zmianę uprawnień
+        poproś właściciela firmy.
+    </p>
+
+    <div class="paskiem">
+        <a class="przycisk" asp-page="/Faktury/Index">Wróć do faktur</a>
+    </div>
+</div>

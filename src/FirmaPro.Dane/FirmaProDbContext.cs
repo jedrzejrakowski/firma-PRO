@@ -77,6 +77,7 @@ public class FirmaProDbContext : DbContext
     public DbSet<Firma> Firmy => Set<Firma>();
     public DbSet<Uzytkownik> Uzytkownicy => Set<Uzytkownik>();
     public DbSet<CzlonkostwoWFirmie> Czlonkostwa => Set<CzlonkostwoWFirmie>();
+    public DbSet<Zaproszenie> Zaproszenia => Set<Zaproszenie>();
     public DbSet<Kontrahent> Kontrahenci => Set<Kontrahent>();
     public DbSet<FakturaSprzedazy> FakturySprzedazy => Set<FakturaSprzedazy>();
     public DbSet<PozycjaFakturySprzedazy> PozycjeFaktur => Set<PozycjaFakturySprzedazy>();
@@ -159,6 +160,25 @@ public class FirmaProDbContext : DbContext
 
             // Jeden użytkownik ma w danej firmie dokładnie jedną rolę.
             e.HasIndex(c => new { c.UzytkownikId, c.FirmaId }).IsUnique();
+        });
+
+        budowniczy.Entity<Zaproszenie>(e =>
+        {
+            e.ToTable("zaproszenia");
+            e.HasKey(z => z.Id);
+            e.Property(z => z.Email).HasMaxLength(256).IsRequired();
+            e.Property(z => z.Kod).HasMaxLength(64).IsRequired();
+            e.Property(z => z.Rola).HasConversion<string>().HasMaxLength(32);
+
+            e.HasOne(z => z.Firma)
+                .WithMany()
+                .HasForeignKey(z => z.FirmaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Kod jest jedynym dowodem uprawnienia, więc musi być niepowtarzalny
+            // w całej instalacji - nie tylko w obrębie firmy.
+            e.HasIndex(z => z.Kod).IsUnique();
+            e.HasIndex(z => new { z.FirmaId, z.Email });
         });
     }
 
@@ -388,6 +408,13 @@ public class FirmaProDbContext : DbContext
             .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<SeriaNumeracji>()
             .HasQueryFilter(s => s.FirmaId == AktualnaFirmaId);
+
+        // Zaproszenie odczytuje ktoś, kto do firmy jeszcze nie należy, więc
+        // przy sprawdzaniu kodu filtr trzeba świadomie pominąć
+        // (IgnoreQueryFilters). Sam filtr zostaje, żeby lista zaproszeń
+        // w firmie zachowywała się jak każda inna lista.
+        budowniczy.Entity<Zaproszenie>()
+            .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

@@ -1,7 +1,19 @@
 @using System.Security.Claims
+@using FirmaPro.Dane.Encje
+@using FirmaPro.Web.Uslugi
+@inject UslugaKont UslugaKont
 @{
-    string? nazwaFirmy = User.FindFirstValue("nazwaFirmy");
+    string? nazwaFirmy = User.FindFirstValue(Tozsamosc.NazwaFirmy);
     bool zalogowany = User.Identity?.IsAuthenticated == true;
+    bool wlasciciel = User.IsInRole(nameof(RolaWFirmie.Wlasciciel));
+
+    // Biuro rachunkowe pracuje jednym kontem w wielu firmach. Listę czytamy
+    // z bazy, a nie z ciasteczka - dopisanie do nowej firmy ma być widoczne
+    // od razu, bez ponownego logowania.
+    IReadOnlyList<CzlonkostwoWFirmie> mojeFirmy =
+        zalogowany && Tozsamosc.UzytkownikId(User) is Guid ktoZalogowany
+            ? await UslugaKont.FirmyUzytkownikaAsync(ktoZalogowany)
+            : [];
 }
 <!DOCTYPE html>
 <html lang="pl">
@@ -24,12 +36,35 @@
                     <a asp-page="/Kontrahenci/Index">Kontrahenci</a>
                     <a asp-page="/Rejestry/Vat">Rejestr VAT</a>
                     <a asp-page="/Rejestry/Jpk">JPK_V7</a>
-                    <a asp-page="/Ustawienia">Ustawienia</a>
+                    @if (wlasciciel)
+                    {
+                        <a asp-page="/Ustawienia">Ustawienia</a>
+                        <a asp-page="/Uzytkownicy/Index">Dostęp</a>
+                    }
                 </nav>
                 <div class="konto">
-                    <span class="firma" title="Firma, w której kontekście pracujesz">
-                        @nazwaFirmy
-                    </span>
+                    @if (mojeFirmy.Count > 1)
+                    {
+                        <form method="post" asp-page="/PrzelaczFirme" class="wybor-firmy">
+                            <select name="firmaId" onchange="this.form.submit()"
+                                    title="Firma, w której kontekście pracujesz">
+                                @foreach (CzlonkostwoWFirmie czlonkostwo in mojeFirmy)
+                                {
+                                    <option value="@czlonkostwo.FirmaId"
+                                            selected="@(czlonkostwo.Firma?.Nazwa == nazwaFirmy)">
+                                        @czlonkostwo.Firma?.Nazwa
+                                    </option>
+                                }
+                            </select>
+                            <noscript><button type="submit">Przejdź</button></noscript>
+                        </form>
+                    }
+                    else
+                    {
+                        <span class="firma" title="Firma, w której kontekście pracujesz">
+                            @nazwaFirmy
+                        </span>
+                    }
                     <form method="post" asp-page="/Wyloguj">
                         <button type="submit" class="odnosnik-przycisk">Wyloguj</button>
                     </form>

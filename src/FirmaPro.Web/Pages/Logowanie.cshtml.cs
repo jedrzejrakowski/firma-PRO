@@ -1,9 +1,6 @@
-using System.Security.Claims;
 using FirmaPro.Dane;
 using FirmaPro.Dane.Encje;
 using FirmaPro.Web.Uslugi;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -22,7 +19,8 @@ namespace FirmaPro.Web.Pages;
 public sealed class LogowanieModel(
     FirmaProDbContext baza,
     IPasswordHasher<object> haszowanie,
-    IWebHostEnvironment srodowisko) : PageModel
+    IWebHostEnvironment srodowisko,
+    IConfiguration ustawienia) : PageModel
 {
     [BindProperty]
     public string Email { get; set; } = string.Empty;
@@ -36,6 +34,10 @@ public sealed class LogowanieModel(
     /// Podpowiedź z danymi konta demonstracyjnego - tylko poza produkcją.
     /// </summary>
     public bool PokazDaneDemonstracyjne => !srodowisko.IsProduction();
+
+    /// <summary>Czy pokazywać odnośnik do zakładania firmy.</summary>
+    public bool RejestracjaOtwarta => UstawieniaStartu.CzyRejestracjaOtwarta(
+        ustawienia, srodowisko.IsDevelopment());
 
     public IActionResult OnGet()
     {
@@ -79,22 +81,7 @@ public sealed class LogowanieModel(
             return Page();
         }
 
-        var oswiadczenia = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, uzytkownik.Id.ToString()),
-            new(ClaimTypes.Name, uzytkownik.ImieINazwisko ?? uzytkownik.Email),
-            new(ClaimTypes.Email, uzytkownik.Email),
-            new(KontekstFirmyZZadania.NazwaOswiadczenia, czlonkostwo.FirmaId.ToString()),
-            new("nazwaFirmy", czlonkostwo.Firma.Nazwa),
-            new(ClaimTypes.Role, czlonkostwo.Rola.ToString())
-        };
-
-        var tozsamosc = new ClaimsIdentity(oswiadczenia,
-            CookieAuthenticationDefaults.AuthenticationScheme);
-
-        await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(tozsamosc));
+        await Tozsamosc.ZalogujAsync(HttpContext, uzytkownik, czlonkostwo);
 
         return RedirectToPage("/Faktury/Index");
     }

@@ -1,0 +1,160 @@
+@page
+@using FirmaPro.Dane.Encje
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.Uzytkownicy.IndexModel
+@{
+    ViewData["Tytul"] = "Dostęp do firmy";
+}
+
+<h1>Dostęp do firmy</h1>
+<p class="podtytul">Kto może pracować w tej firmie i z jakimi uprawnieniami.</p>
+
+@if (Model.Walidacja.SaBledy)
+{
+    <div class="powiadomienie niepowodzenie">
+        <ul class="bledy">
+            @foreach (Problem problem in Model.Walidacja.Problemy
+                          .Where(p => p.Poziom == PoziomProblemu.Blad))
+            {
+                <li>@problem.Komunikat</li>
+            }
+        </ul>
+    </div>
+}
+
+@if (Model.NowyOdnosnik is not null)
+{
+    <div class="powiadomienie powodzenie">
+        <strong>Zaproszenie wystawione.</strong>
+        <p>
+            Przekaż ten odnośnik zaproszonej osobie. Działa raz i traci ważność
+            po @UslugaKont.DniWaznosciZaproszenia dniach. Jest wart tyle, co hasło —
+            nie wysyłaj go tam, gdzie może przeczytać go ktoś obcy.
+        </p>
+        <p><code class="odnosnik-zaproszenia">@Model.NowyOdnosnik</code></p>
+    </div>
+}
+
+<table>
+    <thead>
+        <tr>
+            <th>Osoba</th>
+            <th>Rola</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (CzlonkostwoWFirmie czlonek in Model.Czlonkowie)
+        {
+            bool toJa = czlonek.Id == Model.MojeCzlonkostwo;
+
+            <tr>
+                <td>
+                    <strong>@czlonek.Uzytkownik?.Email</strong>
+                    @if (!string.IsNullOrWhiteSpace(czlonek.Uzytkownik?.ImieINazwisko)
+                         && czlonek.Uzytkownik.ImieINazwisko != czlonek.Uzytkownik.Email)
+                    {
+                        <span class="drobne">@czlonek.Uzytkownik.ImieINazwisko</span>
+                    }
+                    @if (toJa)
+                    {
+                        <span class="znacznik znacznik-robocza">to Ty</span>
+                    }
+                </td>
+                <td>
+                    <form method="post" asp-page-handler="ZmienRole" asp-route-id="@czlonek.Id"
+                          class="wiersz-roli">
+                        <select name="rola" onchange="this.form.submit()">
+                            @foreach (RolaWFirmie rola in new[]
+                            {
+                                RolaWFirmie.Podglad, RolaWFirmie.Ksiegowy, RolaWFirmie.Wlasciciel
+                            })
+                            {
+                                <option value="@rola" selected="@(czlonek.Rola == rola)">
+                                    @FirmaPro.Web.Pages.Uzytkownicy.IndexModel.OpisRoli(rola)
+                                </option>
+                            }
+                        </select>
+                        <noscript><button type="submit">Zmień</button></noscript>
+                    </form>
+                </td>
+                <td>
+                    <form method="post" asp-page-handler="Odbierz" asp-route-id="@czlonek.Id"
+                          onsubmit="return confirm('Odebrać dostęp: @czlonek.Uzytkownik?.Email ?')">
+                        <button type="submit" class="usun-wiersz" title="Odbierz dostęp">&times;</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (Model.Zaproszenia.Count > 0)
+{
+    <h2>Zaproszenia oczekujące</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Adres</th>
+                <th>Rola</th>
+                <th>Ważne do</th>
+                <th>Odnośnik</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (Zaproszenie zaproszenie in Model.Zaproszenia)
+            {
+                <tr>
+                    <td><strong>@zaproszenie.Email</strong></td>
+                    <td>@FirmaPro.Web.Pages.Uzytkownicy.IndexModel.OpisRoli(zaproszenie.Rola)</td>
+                    <td class="nowrap">@zaproszenie.WaznoscDoUtc.ToString("yyyy-MM-dd")</td>
+                    <td>
+                        <code class="odnosnik-zaproszenia">
+                            @Model.OdnosnikZaproszenia(zaproszenie.Kod)
+                        </code>
+                    </td>
+                    <td>
+                        <form method="post" asp-page-handler="Odwolaj" asp-route-id="@zaproszenie.Id"
+                              onsubmit="return confirm('Odwołać zaproszenie dla @zaproszenie.Email ?')">
+                            <button type="submit" class="usun-wiersz" title="Odwołaj">&times;</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2>Zaproś współpracownika</h2>
+
+<div class="karta">
+    <form method="post" asp-page-handler="Zaprosc">
+        <div class="siatka">
+            <div class="pole">
+                <label for="email">Adres e-mail</label>
+                <input type="email" id="email" name="Email" value="@Model.Email"
+                       required maxlength="256" />
+            </div>
+
+            <div class="pole">
+                <label for="rola">Rola</label>
+                <select id="rola" name="Rola">
+                    <option value="@RolaWFirmie.Ksiegowy">Księgowy — wystawia faktury i prowadzi kartoteki</option>
+                    <option value="@RolaWFirmie.Podglad">Podgląd — tylko odczyt</option>
+                    <option value="@RolaWFirmie.Wlasciciel">Właściciel — pełny dostęp, w tym ustawienia</option>
+                </select>
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Program nie wysyła poczty. Po zapisaniu dostaniesz jednorazowy odnośnik,
+            który przekażesz zaproszonej osobie sam.
+        </p>
+
+        <div class="paskiem">
+            <button type="submit">Wystaw zaproszenie</button>
+        </div>
+    </form>
+</div>

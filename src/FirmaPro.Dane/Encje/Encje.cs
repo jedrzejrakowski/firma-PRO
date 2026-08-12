@@ -130,6 +130,35 @@ public sealed class CzlonkostwoWFirmie : EncjaBazowa
     public RolaWFirmie Rola { get; set; } = RolaWFirmie.Ksiegowy;
 }
 
+/// <summary>
+/// Zaproszenie współpracownika do firmy.
+/// </summary>
+/// <remarks>
+/// Program nie wysyła poczty, więc zaproszenie ma postać jednorazowego
+/// odnośnika: właściciel przekazuje go tak, jak mu wygodnie. Odnośnik jest
+/// wart tyle, co hasło, dlatego traci ważność i działa tylko raz.
+/// </remarks>
+public sealed class Zaproszenie : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+    public Firma? Firma { get; set; }
+
+    /// <summary>Adres, dla którego zaproszenie zostało wystawione.</summary>
+    public string Email { get; set; } = string.Empty;
+
+    public RolaWFirmie Rola { get; set; } = RolaWFirmie.Ksiegowy;
+
+    /// <summary>Losowy ciąg z odnośnika - jedyny dowód uprawnienia.</summary>
+    public string Kod { get; set; } = string.Empty;
+
+    public DateTimeOffset WaznoscDoUtc { get; set; }
+
+    /// <summary>Kiedy zaproszenie zostało przyjęte; <c>null</c> - jeszcze nie.</summary>
+    public DateTimeOffset? PrzyjeteUtc { get; set; }
+
+    public Guid ZapraszajacyId { get; set; }
+}
+
 /// <summary>Kontrahent - nabywca na fakturze.</summary>
 public sealed class Kontrahent : EncjaBazowa, INalezyDoFirmy
 {

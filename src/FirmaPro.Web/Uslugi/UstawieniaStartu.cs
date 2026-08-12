@@ -37,6 +37,26 @@ public static class UstawieniaStartu
     }
 
     /// <summary>
+    /// Czy obcy mogą zakładać u siebie konta przez stronę.
+    /// </summary>
+    /// <remarks>
+    /// Instalacja postawiona dla jednej firmy nie powinna pozwalać nikomu
+    /// z zewnątrz zakładać w niej kont - byłby to najprostszy sposób na
+    /// zajrzenie do środka. Rejestracja jest więc domyślnie zamknięta i włącza
+    /// się ją wprost, gdy program ma obsługiwać wiele firm.
+    /// </remarks>
+    public static bool CzyRejestracjaOtwarta(IConfiguration ustawienia, bool czyDeweloperskie)
+    {
+        ArgumentNullException.ThrowIfNull(ustawienia);
+
+        string? wskazane = ustawienia["Aplikacja:RejestracjaOtwarta"];
+
+        return string.IsNullOrWhiteSpace(wskazane)
+            ? czyDeweloperskie
+            : bool.TryParse(wskazane, out bool wybor) && wybor;
+    }
+
+    /// <summary>
     /// Katalog, w którym leżą klucze ochrony danych.
     /// </summary>
     /// <remarks>

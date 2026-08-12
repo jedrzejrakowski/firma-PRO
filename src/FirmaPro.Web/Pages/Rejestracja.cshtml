@@ -1,0 +1,67 @@
+@page
+@using FirmaPro.Domena
+@model FirmaPro.Web.Pages.RejestracjaModel
+@{
+    ViewData["Tytul"] = "Załóż firmę";
+    Layout = "_Layout";
+}
+
+<div class="karta karta-waska">
+    <h1>Załóż firmę</h1>
+    <p class="podtytul">Konto zakładającego jest od razu kontem właściciela.</p>
+
+    @if (Model.Walidacja.SaBledy)
+    {
+        <div class="powiadomienie niepowodzenie">
+            <strong>Nie udało się założyć konta:</strong>
+            <ul class="bledy">
+                @foreach (Problem problem in Model.Walidacja.Problemy
+                              .Where(p => p.Poziom == PoziomProblemu.Blad))
+                {
+                    <li>@problem.Komunikat</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <form method="post">
+        <div class="pole">
+            <label for="nazwaFirmy">Nazwa firmy</label>
+            <input type="text" id="nazwaFirmy" name="NazwaFirmy" value="@Model.NazwaFirmy"
+                   required autofocus maxlength="256" />
+        </div>
+
+        <div class="pole">
+            <label for="nip">NIP</label>
+            <input type="text" id="nip" name="Nip" value="@Model.Nip"
+                   required inputmode="numeric" maxlength="20" />
+        </div>
+
+        <div class="pole">
+            <label for="email">Adres e-mail</label>
+            <input type="email" id="email" name="Email" value="@Model.Email"
+                   required autocomplete="username" maxlength="256" />
+        </div>
+
+        <div class="pole">
+            <label for="haslo">Hasło</label>
+            <input type="password" id="haslo" name="Haslo" required
+                   autocomplete="new-password" minlength="@Model.MinimalnaDlugoscHasla" />
+            <p class="wskazowka">
+                Co najmniej @Model.MinimalnaDlugoscHasla znaków. Tym hasłem chroniona
+                jest cała księgowość firmy — niech nie będzie takie samo jak gdzie indziej.
+            </p>
+        </div>
+
+        <div class="pole">
+            <label for="powtorz">Powtórz hasło</label>
+            <input type="password" id="powtorz" name="PowtorzHaslo" required
+                   autocomplete="new-password" minlength="@Model.MinimalnaDlugoscHasla" />
+        </div>
+
+        <div class="paskiem">
+            <button type="submit">Załóż firmę</button>
+            <a class="przycisk przycisk-drugi" asp-page="/Logowanie">Mam już konto</a>
+        </div>
+    </form>
+</div>
