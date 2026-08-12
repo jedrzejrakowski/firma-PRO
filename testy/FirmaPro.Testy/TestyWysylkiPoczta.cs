@@ -225,6 +225,53 @@ public sealed partial class TestyWysylkiPoczta(AplikacjaTestowa aplikacja)
         }
     }
 
+
+    /// <summary>
+    /// Niedostępny serwer poczty kończy się komunikatem, a nie stroną błędu.
+    /// </summary>
+    /// <remarks>
+    /// Poczta bywa wyłączona albo odrzuca hasło. Użytkownik ma się o tym
+    /// dowiedzieć i móc spróbować ponownie - a ślad wysyłki nie może zostać
+    /// zapisany, bo nic nie poszło.
+    /// </remarks>
+    [Fact]
+    public async Task AwariaSerweraPocztyNieWywracaStrony()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+        aplikacja.Poczta.Wyslane.Clear();
+        aplikacja.Poczta.Awaria = true;
+
+        try
+        {
+            string id = await WystawFaktureAsync(klient, "Usługa przy awarii poczty");
+
+            using HttpResponseMessage wysylka = await AplikacjaTestowa.WyslijFormularzAsync(
+                klient, $"/Faktury/Szczegoly/{id}?handler=Poczta",
+                new Dictionary<string, string>
+                {
+                    ["Adres"] = "ktos@klient.example",
+                    ["DolaczXml"] = "false"
+                },
+                adresFormularza: $"/Faktury/Szczegoly/{id}");
+
+            Assert.Equal(HttpStatusCode.OK, wysylka.StatusCode);
+
+            string tresc = await AplikacjaTestowa.TrescAsync(wysylka);
+            Assert.Contains("Serwer poczty nie odpowiada", tresc, StringComparison.Ordinal);
+
+            // Nic nie poszło, więc nie ma też śladu w historii wysyłek.
+            // Wpisany adres zostaje w formularzu - żeby dało się spróbować
+            // ponownie bez przepisywania go od nowa.
+            Assert.Empty(aplikacja.Poczta.Wyslane);
+            Assert.DoesNotContain("<th>Wysłano</th>", tresc, StringComparison.Ordinal);
+            Assert.Contains("value=\"ktos@klient.example\"", tresc, StringComparison.Ordinal);
+        }
+        finally
+        {
+            aplikacja.Poczta.Awaria = false;
+        }
+    }
+
     // Pierwszy kontrahent z listy wyboru na formularzu faktury.
     [GeneratedRegex(@"<option value=""([0-9a-fA-F-]{36})""")]
     private static partial Regex WzorzecKontrahenta();

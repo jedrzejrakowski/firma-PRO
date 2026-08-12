@@ -20,10 +20,26 @@ public sealed class AtrapaPoczty : INadawcaPoczty
     /// <summary>Pozwala udawać instalację bez skonfigurowanej poczty.</summary>
     public bool Dziala { get; set; } = true;
 
+    /// <summary>
+    /// Udaje niedostępny serwer poczty.
+    /// </summary>
+    /// <remarks>
+    /// Serwer poczty bywa wyłączony albo odrzuca hasło - to zwykłe zdarzenie,
+    /// nie awaria programu. Test sprawdza, że użytkownik dostaje wtedy
+    /// komunikat, a nie stronę błędu.
+    /// </remarks>
+    public bool Awaria { get; set; }
+
     public Task WyslijAsync(string adres, string temat, string tresc,
                             IReadOnlyList<Zalacznik>? zalaczniki = null,
                             CancellationToken anulowanie = default)
     {
+        if (Awaria)
+        {
+            throw new BladPocztyException("Serwer poczty nie odpowiada.",
+                new InvalidOperationException("atrapa"));
+        }
+
         Wyslane.Add(new Wiadomosc(adres, temat, tresc, zalaczniki ?? []));
         return Task.CompletedTask;
     }

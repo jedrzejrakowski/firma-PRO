@@ -1,4 +1,5 @@
 @page "{id:guid}"
+@using System.Globalization
 @model FirmaPro.Web.Pages.Faktury.SzczegolyModel
 @{
     ViewData["Tytul"] = "Faktura " + Model.Faktura.Numer;
@@ -116,6 +117,104 @@
 </div>
 
 
+<h2>Zapłata</h2>
+
+@if (Model.WalidacjaWplaty.SaBledy)
+{
+    <div class="powiadomienie niepowodzenie">
+        <ul class="bledy">
+            @foreach (Problem problem in Model.WalidacjaWplaty.Problemy
+                          .Where(p => p.Poziom == PoziomProblemu.Blad))
+            {
+                <li>@problem.Komunikat</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="kafelki">
+    <div class="kafelek">
+        <span class="etykieta">Stan</span>
+        <span class="kwota" style="font-size:1.1rem">@Model.Rozliczenie.Opis</span>
+        @if (Model.Rozliczenie.PoTerminie)
+        {
+            <span class="drobne">po terminie o @Model.Rozliczenie.DniPoTerminie dni</span>
+        }
+    </div>
+    <div class="kafelek">
+        <span class="etykieta">Wpłacono</span>
+        <span class="kwota">@Kwoty.NaTekst(Model.Rozliczenie.Zaplacono)</span>
+    </div>
+    <div class="kafelek wyroznik">
+        <span class="etykieta">Pozostaje</span>
+        <span class="kwota">@Kwoty.NaTekst(Model.Rozliczenie.Pozostalo)</span>
+    </div>
+</div>
+
+@if (Model.Wplaty.Count > 0)
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Data wpłaty</th>
+                <th class="liczba">Kwota</th>
+                <th>Uwagi</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (Platnosc wplata in Model.Wplaty)
+            {
+                <tr>
+                    <td class="nowrap">@wplata.Data.ToString("yyyy-MM-dd")</td>
+                    <td class="liczba">@Kwoty.NaTekst(wplata.Kwota)</td>
+                    <td>@wplata.Uwagi</td>
+                    <td>
+                        <form method="post" asp-page-handler="UsunWplate"
+                              asp-route-id="@Model.Faktura.Id" asp-route-wplataId="@wplata.Id"
+                              onsubmit="return confirm('Usunąć tę wpłatę?')">
+                            <button type="submit" class="usun-wiersz" title="Usuń wpłatę">&times;</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (Model.Rozliczenie.Pozostalo > 0)
+{
+    <div class="karta">
+        <form method="post" asp-page-handler="Wplata" asp-route-id="@Model.Faktura.Id">
+            <div class="siatka">
+                <div class="pole">
+                    <label for="kwota">Kwota wpłaty</label>
+                    <input type="number" id="kwota" name="KwotaWplaty" step="0.01" min="0.01"
+                           value="@Model.KwotaWplaty.ToString("0.00", CultureInfo.InvariantCulture)"
+                           required />
+                </div>
+
+                <div class="pole">
+                    <label for="dataWplaty">Data wpłaty</label>
+                    <input type="date" id="dataWplaty" name="DataWplaty"
+                           value="@Model.DataWplaty.ToString("yyyy-MM-dd")" required />
+                </div>
+
+                <div class="pole">
+                    <label for="uwagiWplaty">Uwagi</label>
+                    <input type="text" id="uwagiWplaty" name="UwagiWplaty"
+                           value="@Model.UwagiWplaty" maxlength="500"
+                           placeholder="np. przelew, wpłata częściowa" />
+                </div>
+            </div>
+
+            <div class="paskiem">
+                <button type="submit">Zapisz wpłatę</button>
+            </div>
+        </form>
+    </div>
+}
+
 <h2>Wyślij kontrahentowi</h2>
 
 @if (Model.WalidacjaWysylki.SaBledy)
@@ -169,9 +268,29 @@
                 powyżej — z kodem QR, jeśli faktura jest już w KSeF.
             </p>
 
+            @* Oba przyciski należą do jednego formularza, więc korzystają
+               z adresu wpisanego wyżej. Przy dwóch osobnych formularzach
+               przypomnienie szłoby ze starą wartością pola - i kończyło się
+               błędem tuż po tym, jak użytkownik poprawił adres. *@
             <div class="paskiem">
                 <button type="submit">Wyślij e-mailem</button>
+
+                @if (Model.Rozliczenie.Pozostalo > 0)
+                {
+                    <button type="submit" class="przycisk-drugi"
+                            formaction="@Url.Page("Szczegoly", "Przypomnij", new { id = Model.Faktura.Id })">
+                        Wyślij przypomnienie o zapłacie
+                    </button>
+                }
             </div>
+
+            @if (Model.Rozliczenie.Pozostalo > 0)
+            {
+                <p class="wskazowka">
+                    Przypomnienie niesie kwotę pozostałą do zapłaty i fakturę
+                    w załączniku — bez pliku XML.
+                </p>
+            }
         </form>
     }
 </div>

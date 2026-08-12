@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -63,6 +64,18 @@ public sealed record UstawieniaPoczty(
     }
 }
 
+/// <summary>
+/// Nie udało się wysłać wiadomości.
+/// </summary>
+/// <remarks>
+/// Serwer poczty bywa niedostępny, odrzuca hasło albo zrywa połączenie -
+/// to zwykłe zdarzenia, a nie awaria programu. Zamykamy je w jednym typie,
+/// żeby ekrany nie musiały znać wyjątków biblioteki pocztowej, i żeby żaden
+/// z nich nie pokazał użytkownikowi strony błędu zamiast komunikatu.
+/// </remarks>
+public sealed class BladPocztyException(string komunikat, Exception przyczyna)
+    : Exception(komunikat, przyczyna);
+
 /// <summary>Plik dołączany do wiadomości.</summary>
 public sealed record Zalacznik(string Nazwa, byte[] Dane, string TypTresci);
 
@@ -111,6 +124,28 @@ public sealed class NadawcaSmtp(UstawieniaPoczty ustawienia, ILogger<NadawcaSmtp
 
         using var klient = new SmtpClient();
 
+        try
+        {
+            await WyslijPrzezSerwerAsync(klient, wiadomosc, anulowanie);
+        }
+        catch (Exception blad) when (blad is SmtpCommandException or SmtpProtocolException
+                                             or MailKit.Security.AuthenticationException
+                                             or SslHandshakeException
+                                             or SocketException or IOException)
+        {
+            throw new BladPocztyException(
+                $"Nie udało się wysłać wiadomości przez serwer {ustawienia.Serwer}:" +
+                $"{ustawienia.Port}. {blad.Message}", blad);
+        }
+
+        // Do dziennika trafia sam fakt wysyłki i temat. Treść bywa nośnikiem
+        // odnośnika działającego jak hasło, więc nigdzie jej nie zapisujemy.
+        Dziennik.WyslanoWiadomosc(dziennik, adres, temat);
+    }
+
+    private async Task WyslijPrzezSerwerAsync(SmtpClient klient, MimeMessage wiadomosc,
+                                              CancellationToken anulowanie)
+    {
         await klient.ConnectAsync(
             ustawienia.Serwer,
             ustawienia.Port,
@@ -130,10 +165,6 @@ public sealed class NadawcaSmtp(UstawieniaPoczty ustawienia, ILogger<NadawcaSmtp
 
         await klient.SendAsync(wiadomosc, anulowanie);
         await klient.DisconnectAsync(quit: true, anulowanie);
-
-        // Do dziennika trafia sam fakt wysyłki i temat. Treść bywa nośnikiem
-        // odnośnika działającego jak hasło, więc nigdzie jej nie zapisujemy.
-        Dziennik.WyslanoWiadomosc(dziennik, adres, temat);
     }
 }
 

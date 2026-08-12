@@ -66,7 +66,13 @@ body {
 .nawigacja a:hover { color: #fff; border-bottom-color: #7fb3e0; }
 
 .konto { display: flex; align-items: center; gap: 14px; font-size: 0.9rem; }
-.firma { color: #cfe0ee; }
+.firma {
+    color: #cfe0ee;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
 .odnosnik-przycisk {
     background: none;
@@ -384,3 +390,7 @@ tfoot td { border-top: 2px solid var(--linia); background: #fbfcfd; }
 
 .dzialania-wiersza { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
 .przycisk-maly { padding: 4px 10px; font-size: 0.82rem; }
+
+/* Wiersz należności po terminie - tło subtelne, bo takich wierszy bywa
+   na liście wiele, a krzyczące czerwone tło przestaje cokolwiek znaczyć. */
+tr.po-terminie td { background: var(--czerwien-tlo); }

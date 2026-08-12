@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace FirmaPro.Domena;
 
 /// <summary>
@@ -45,7 +47,24 @@ public static class Kwoty
     /// miejsca po przecinku, kropka jako separator, bez separatora tysięcy.
     /// </summary>
     public static string NaXml(decimal kwota) =>
-        Zaokraglij(kwota).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        Zaokraglij(kwota).ToString("0.00", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Kwota zapisana po polsku: przecinek dziesiętny, spacja co trzy cyfry.
+    /// </summary>
+    /// <remarks>
+    /// Do tekstów czytanych przez ludzi - wiadomości do kontrahentów i wydruk.
+    /// Wewnątrz programu oraz w plikach dla urzędów liczby chodzą w zapisie
+    /// niezależnym od języka; te dwa światy nie mogą się pomieszać.
+    /// </remarks>
+    public static string NaTekst(decimal kwota) => kwota.ToString("N2", ZapisPolski);
+
+    private static readonly NumberFormatInfo ZapisPolski = new()
+    {
+        NumberDecimalSeparator = ",",
+        NumberGroupSeparator = " ",
+        NumberGroupSizes = [3]
+    };
 
     /// <summary>
     /// Formatuje liczbę (ilość, cenę) bez zbędnych zer i bez notacji

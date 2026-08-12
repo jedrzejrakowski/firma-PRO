@@ -1,4 +1,3 @@
-using System.Globalization;
 using FirmaPro.Dane;
 using FirmaPro.Dane.Encje;
 using FirmaPro.Domena;
@@ -108,12 +107,22 @@ public sealed class UslugaWysylkiFaktur(
                 "application/xml"));
         }
 
-        await poczta.WyslijAsync(
-            odbiorca,
-            $"Faktura {faktura.Numer} - {firma.Nazwa}",
-            Tresc(faktura, firma, wiadomosc),
-            zalaczniki,
-            anulowanie);
+        try
+        {
+            await poczta.WyslijAsync(
+                odbiorca,
+                $"Faktura {faktura.Numer} - {firma.Nazwa}",
+                Tresc(faktura, firma, wiadomosc),
+                zalaczniki,
+                anulowanie);
+        }
+        catch (BladPocztyException blad)
+        {
+            // Niedostępny serwer poczty to zwykłe zdarzenie, a nie awaria
+            // programu. Śladu wysyłki nie zapisujemy - nic nie poszło.
+            walidacja.Blad("Poczta", blad.Message);
+            return new WynikKonta<WyslanieFaktury>(null, walidacja);
+        }
 
         var wyslanie = new WyslanieFaktury
         {
@@ -149,24 +158,11 @@ public sealed class UslugaWysylkiFaktur(
         return $"Faktura_{numer}.{rozszerzenie}";
     }
 
-    /// <summary>
-    /// Zapis kwot dla człowieka: przecinek dziesiętny i spacja co trzy cyfry.
-    /// </summary>
-    /// <remarks>
-    /// Wewnątrz programu liczby chodzą w zapisie niezależnym od języka, bo tak
-    /// wymaga formularz przeglądarki. Wiadomość czyta jednak kontrahent, więc
-    /// kwota ma wyglądać tak, jak na wydruku faktury.
-    /// </remarks>
-    private static readonly NumberFormatInfo FormatKwot = new()
-    {
-        NumberDecimalSeparator = ",",
-        NumberGroupSeparator = " ",
-        NumberGroupSizes = [3]
-    };
-
     private static string Tresc(FakturaSprzedazy faktura, Firma firma, string? wiadomosc)
     {
-        string kwota = faktura.RazemBrutto.ToString("N2", FormatKwot);
+        // Kwotę czyta kontrahent, więc zapisujemy ją po polsku - tak samo
+        // jak na wydruku faktury.
+        string kwota = Kwoty.NaTekst(faktura.RazemBrutto);
 
         string wstep = string.IsNullOrWhiteSpace(wiadomosc)
             ? "W załączeniu przesyłamy fakturę."

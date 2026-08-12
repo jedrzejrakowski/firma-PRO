@@ -40,19 +40,28 @@ public sealed class ZapomnianeHasloModel(
             string odnosnik = $"{Request.Scheme}://{Request.Host}" +
                               Url.Page("/NoweHaslo", new { kod = reset.Kod });
 
-            await poczta.WyslijAsync(uzytkownik.Email, "Zmiana hasła w programie Firma PRO",
-                $"""
-                 Ktoś poprosił o zmianę hasła do konta {uzytkownik.Email}.
+            try
+            {
+                await poczta.WyslijAsync(uzytkownik.Email, "Zmiana hasła w programie Firma PRO",
+                    $"""
+                     Ktoś poprosił o zmianę hasła do konta {uzytkownik.Email}.
 
-                 Aby ustawić nowe hasło, otwórz ten odnośnik:
-                 {odnosnik}
+                     Aby ustawić nowe hasło, otwórz ten odnośnik:
+                     {odnosnik}
 
-                 Odnośnik działa raz i traci ważność po {UslugaKont.GodzinWaznosciResetu} godzinach.
+                     Odnośnik działa raz i traci ważność po {UslugaKont.GodzinWaznosciResetu} godzinach.
 
-                 Jeśli to nie Ty prosiłeś o zmianę, nie rób nic - hasło pozostanie
-                 bez zmian.
-                 """,
-                anulowanie: anulowanie);
+                     Jeśli to nie Ty prosiłeś o zmianę, nie rób nic - hasło pozostanie
+                     bez zmian.
+                     """,
+                    anulowanie: anulowanie);
+            }
+            catch (BladPocztyException)
+            {
+                // Także awarii poczty nie zdradzamy: sam komunikat o błędzie
+                // byłby potwierdzeniem, że pod tym adresem ktoś ma konto.
+                // Przyczyna trafia do dziennika serwera.
+            }
         }
 
         // Ta sama odpowiedź niezależnie od tego, czy konto istnieje. Inaczej

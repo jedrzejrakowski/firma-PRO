@@ -190,6 +190,39 @@ public sealed class Zaproszenie : EncjaBazowa, INalezyDoFirmy
     public Guid ZapraszajacyId { get; set; }
 }
 
+/// <summary>Wpłata na poczet faktury sprzedaży.</summary>
+/// <remarks>
+/// Osobne wpłaty, a nie samo pole „zapłacono": należność bywa regulowana
+/// w ratach, a przy sporze liczy się, kiedy i ile wpłynęło. Pola
+/// <c>Zaplacono</c> i <c>DataZaplaty</c> przy fakturze zostają jako
+/// podsumowanie - to one trafiają na wydruk i do pliku FA(3) - i program
+/// utrzymuje je sam na podstawie wpłat, żeby nie rozjechały się z prawdą.
+/// </remarks>
+public sealed class Platnosc : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    public Guid FakturaId { get; set; }
+    public FakturaSprzedazy? Faktura { get; set; }
+
+    public decimal Kwota { get; set; }
+
+    /// <summary>Dzień, w którym pieniądze wpłynęły.</summary>
+    public DateOnly Data { get; set; }
+
+    public string? Uwagi { get; set; }
+}
+
+/// <summary>Co zostało wysłane kontrahentowi.</summary>
+public enum RodzajWysylki
+{
+    /// <summary>Sama faktura.</summary>
+    Faktura,
+
+    /// <summary>Przypomnienie o niezapłaconej należności.</summary>
+    Przypomnienie
+}
+
 /// <summary>
 /// Ślad wysłania faktury pocztą do kontrahenta.
 /// </summary>
@@ -215,6 +248,8 @@ public sealed class WyslanieFaktury : EncjaBazowa, INalezyDoFirmy
 
     /// <summary>Czy dołączono plik XML obok wizualizacji PDF.</summary>
     public bool ZXmlem { get; set; }
+
+    public RodzajWysylki Rodzaj { get; set; } = RodzajWysylki.Faktura;
 }
 
 /// <summary>Kontrahent - nabywca na fakturze.</summary>

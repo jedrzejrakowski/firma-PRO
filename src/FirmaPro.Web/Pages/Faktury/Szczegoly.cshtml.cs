@@ -12,7 +12,8 @@ namespace FirmaPro.Web.Pages.Faktury;
 public sealed class SzczegolyModel(
     FirmaProDbContext baza,
     UslugaFaktur uslugaFaktur,
-    UslugaWysylkiFaktur uslugaWysylki) : PageModel
+    UslugaWysylkiFaktur uslugaWysylki,
+    UslugaPlatnosci uslugaPlatnosci) : PageModel
 {
     public FakturaSprzedazy Faktura { get; private set; } = null!;
 
@@ -28,6 +29,15 @@ public sealed class SzczegolyModel(
     public bool PocztaDziala => uslugaWysylki.PocztaDziala;
 
     public WynikWalidacji WalidacjaWysylki { get; private set; } = new();
+
+    [BindProperty] public decimal KwotaWplaty { get; set; }
+    [BindProperty] public DateOnly DataWplaty { get; set; }
+    [BindProperty] public string? UwagiWplaty { get; set; }
+
+    public IReadOnlyList<Platnosc> Wplaty { get; private set; } = [];
+    public Rozliczenie Rozliczenie { get; private set; } = new(0, 0, null, default);
+
+    public WynikWalidacji WalidacjaWplaty { get; private set; } = new();
 
     /// <summary>
     /// Czy u góry strony widać już komunikat z ostatniej operacji.
@@ -62,6 +72,64 @@ public sealed class SzczegolyModel(
         return Page();
     }
 
+    /// <summary>Zapisuje wpłatę do faktury.</summary>
+    public async Task<IActionResult> OnPostWplataAsync(Guid id, CancellationToken anulowanie)
+    {
+        FakturaSprzedazy? faktura = await WczytajAsync(id, anulowanie);
+        if (faktura is null)
+        {
+            return NotFound();
+        }
+
+        WynikKonta<Platnosc> wynik = await uslugaPlatnosci.DodajWplateAsync(
+            id, KwotaWplaty, DataWplaty, UwagiWplaty, anulowanie);
+
+        if (!wynik.Udalo)
+        {
+            Faktura = faktura;
+            WalidacjaWplaty = wynik.Walidacja;
+            await WczytajDodatkiAsync(id, anulowanie);
+            return Page();
+        }
+
+        TempData["Komunikat"] = $"Zapisano wpłatę {Kwoty.NaTekst(wynik.Dane!.Kwota)}.";
+        return RedirectToPage("Szczegoly", new { id });
+    }
+
+    public async Task<IActionResult> OnPostUsunWplateAsync(
+        Guid id, Guid wplataId, CancellationToken anulowanie)
+    {
+        TempData[await uslugaPlatnosci.UsunWplateAsync(wplataId, anulowanie)
+            ? "Komunikat"
+            : "Ostrzezenie"] = "Usunięto wpłatę.";
+
+        return RedirectToPage("Szczegoly", new { id });
+    }
+
+    /// <summary>Wysyła kontrahentowi przypomnienie o zapłacie.</summary>
+    public async Task<IActionResult> OnPostPrzypomnijAsync(Guid id, CancellationToken anulowanie)
+    {
+        FakturaSprzedazy? faktura = await WczytajAsync(id, anulowanie);
+        if (faktura is null)
+        {
+            return NotFound();
+        }
+
+        WynikKonta<WyslanieFaktury> wynik = await uslugaPlatnosci.WyslijPrzypomnienieAsync(
+            id, Adres, Tozsamosc.UzytkownikId(User), anulowanie);
+
+        if (!wynik.Udalo)
+        {
+            Faktura = faktura;
+            WalidacjaWysylki = wynik.Walidacja;
+            await WczytajDodatkiAsync(id, anulowanie);
+            return Page();
+        }
+
+        TempData["Komunikat"] = $"Przypomnienie wysłane na adres {wynik.Dane!.Adres}.";
+        return RedirectToPage("Szczegoly", new { id });
+    }
+
     /// <summary>Wysyła fakturę kontrahentowi pocztą.</summary>
     public async Task<IActionResult> OnPostPocztaAsync(Guid id, CancellationToken anulowanie)
     {
@@ -87,7 +155,26 @@ public sealed class SzczegolyModel(
     }
 
     private async Task WczytajWysylkiAsync(Guid id, CancellationToken anulowanie) =>
+        await WczytajDodatkiAsync(id, anulowanie);
+
+    private async Task WczytajDodatkiAsync(Guid id, CancellationToken anulowanie)
+    {
         Wysylki = await uslugaWysylki.HistoriaAsync(id, anulowanie);
+        Wplaty = await uslugaPlatnosci.WplatyAsync(id, anulowanie);
+        Rozliczenie = await uslugaPlatnosci.RozliczenieAsync(id, anulowanie);
+
+        // Pola formularza podpowiadają najczęstszy przypadek: całą resztę
+        // należności wpłaconą dzisiaj.
+        if (KwotaWplaty == 0)
+        {
+            KwotaWplaty = Rozliczenie.Pozostalo > 0 ? Rozliczenie.Pozostalo : 0;
+        }
+
+        if (DataWplaty == default)
+        {
+            DataWplaty = DateOnly.FromDateTime(DateTime.Today);
+        }
+    }
 
     public async Task<IActionResult> OnPostWyslijAsync(Guid id, CancellationToken anulowanie)
     {

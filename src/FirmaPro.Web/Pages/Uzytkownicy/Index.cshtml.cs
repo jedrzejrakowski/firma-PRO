@@ -66,7 +66,9 @@ public sealed class IndexModel(UslugaKont uslugaKont, INadawcaPoczty poczta) : P
         // wtedy czym się posłużyć.
         if (poczta.Dziala)
         {
-            await poczta.WyslijAsync(wynik.Dane.Email, "Zaproszenie do firmy w programie Firma PRO",
+            try
+            {
+                await poczta.WyslijAsync(wynik.Dane.Email, "Zaproszenie do firmy w programie Firma PRO",
                 $"""
                  Zapraszamy Cię do pracy w firmie w programie Firma PRO.
 
@@ -75,7 +77,17 @@ public sealed class IndexModel(UslugaKont uslugaKont, INadawcaPoczty poczta) : P
 
                  Odnośnik działa raz i traci ważność po {UslugaKont.DniWaznosciZaproszenia} dniach.
                  """,
-                anulowanie: anulowanie);
+                    anulowanie: anulowanie);
+            }
+            catch (BladPocztyException blad)
+            {
+                // Zaproszenie zostało wystawione i odnośnik działa - poszło
+                // jedynie wysłanie wiadomości. Mówimy o tym wprost, zamiast
+                // pokazywać stronę błędu.
+                TempData["Ostrzezenie"] =
+                    $"Zaproszenie wystawione, ale wiadomość nie wyszła: {blad.Message} " +
+                    "Przekaż odnośnik samodzielnie.";
+            }
         }
 
         // Formularz czyścimy, żeby kolejne zaproszenie nie poszło przez

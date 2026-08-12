@@ -80,6 +80,7 @@ public class FirmaProDbContext : DbContext
     public DbSet<Zaproszenie> Zaproszenia => Set<Zaproszenie>();
     public DbSet<ResetHasla> ResetyHasla => Set<ResetHasla>();
     public DbSet<WyslanieFaktury> WysylkiFaktur => Set<WyslanieFaktury>();
+    public DbSet<Platnosc> Platnosci => Set<Platnosc>();
     public DbSet<Kontrahent> Kontrahenci => Set<Kontrahent>();
     public DbSet<FakturaSprzedazy> FakturySprzedazy => Set<FakturaSprzedazy>();
     public DbSet<PozycjaFakturySprzedazy> PozycjeFaktur => Set<PozycjaFakturySprzedazy>();
@@ -328,6 +329,22 @@ public class FirmaProDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             e.HasIndex(w => new { w.FirmaId, w.FakturaId });
+            e.Property(w => w.Rodzaj).HasConversion<string>().HasMaxLength(32);
+        });
+
+        budowniczy.Entity<Platnosc>(e =>
+        {
+            e.ToTable("platnosci");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Kwota).HasPrecision(18, 2);
+            e.Property(p => p.Uwagi).HasMaxLength(500);
+
+            e.HasOne(p => p.Faktura)
+                .WithMany()
+                .HasForeignKey(p => p.FakturaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(p => new { p.FirmaId, p.FakturaId });
         });
     }
 
@@ -452,6 +469,9 @@ public class FirmaProDbContext : DbContext
 
         budowniczy.Entity<WyslanieFaktury>()
             .HasQueryFilter(w => w.FirmaId == AktualnaFirmaId);
+
+        budowniczy.Entity<Platnosc>()
+            .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

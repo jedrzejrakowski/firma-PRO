@@ -32,6 +32,7 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Własne konto, zmiana i odzyskiwanie hasła | gotowe |
 | Wysyłka poczty (zaproszenia, hasła, faktury) | gotowe |
 | Wysyłka faktury e-mailem do kontrahenta | gotowe |
+| Płatności, należności i przypomnienia | gotowe |
 | Kartoteka kontrahentów | gotowe |
 | Wystawianie faktur i podgląd dokumentu | gotowe |
 | Faktury korygujące | gotowe |
@@ -416,7 +417,8 @@ brak sprawdzenia nie ma wyglądać jak sprawdzenie.
 9. **Konta i role** — zakładanie firm, zapraszanie, uprawnienia ✔
 10. **Hasła i poczta** — własne konto, odzyskiwanie hasła ✔
 11. **Wysyłka faktur do kontrahenta** — PDF pocztą wprost z programu ✔
-12. Dalej: faktury zaliczkowe, płatności i należności, magazyn, KPiR
+12. **Płatności i należności** — wpłaty, przeterminowania, przypomnienia ✔
+13. Dalej: faktury zaliczkowe, magazyn, KPiR
 
 ## Konta, firmy i role
 
@@ -529,6 +531,37 @@ dostał, liczy się cała historia.
 Wysyłka do kontrahenta to co innego niż wysyłka do KSeF: pierwsza jest
 grzecznością wobec klienta i można ją powtórzyć, druga wprowadza fakturę do
 obiegu prawnego i zdarza się raz.
+
+## Płatności i należności
+
+Program pokazywał dotąd, co zostało wystawione, ale nie to, kto jest firmie
+winien pieniądze. Ekran **Należności** odpowiada na to drugie pytanie:
+niezapłacone faktury ułożone według terminu zapłaty (a nie daty wystawienia),
+suma do odzyskania i osobno suma po terminie.
+
+Wpłaty zapisuje się przy fakturze. Są **osobną listą, a nie polem
+„zapłacono"**: należność bywa regulowana w ratach, a przy sporze liczy się,
+kiedy i ile wpłynęło. Pola `Zaplacono` i `DataZaplaty` przy fakturze zostają
+jako podsumowanie - to one trafiają na wydruk i do pliku FA(3) - i program
+utrzymuje je sam na podstawie wpłat, żeby nie rozjechały się z prawdą.
+
+Reguła rozliczania siedzi w warstwie dziedziny (`Rozliczenie`), bo decyduje
+o pieniądzach, a nie o wyglądzie ekranu: ta sama liczba pokazuje się przy
+fakturze, na liście należności i w treści przypomnienia.
+
+Dwie rzeczy, które łatwo zrobić źle:
+
+- **zapłata w ostatnim dniu terminu jest zapłatą w terminie** - opóźnienie
+  zaczyna się nazajutrz. Inaczej program wysyłałby wezwania ludziom, którzy
+  zapłacili zgodnie z umową;
+- **nadpłata nie jest błędem i nie znika** - kontrahent bywa, że zaokrągli
+  przelew w górę albo zapłaci dwa razy. To pieniądze do zwrotu albo do
+  rozliczenia z następną fakturą, więc program je pokazuje.
+
+Przypomnienie o zapłacie wysyła się z ekranu faktury: niesie kwotę pozostałą
+do zapłaty, liczbę dni po terminie i samą fakturę w załączniku. Faktura już
+zapłacona przypomnienia nie dostanie - program tego pilnuje, bo taka pomyłka
+kosztuje więcej niż niewysłane wezwanie.
 
 ## Wdrożenie
 

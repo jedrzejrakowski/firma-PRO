@@ -1,0 +1,88 @@
+@page
+@model FirmaPro.Web.Pages.NaleznosciModel
+@{
+    ViewData["Tytul"] = "Należności";
+}
+
+<h1>Należności</h1>
+<p class="podtytul">Faktury, za które pieniądze jeszcze nie wpłynęły.</p>
+
+<div class="kafelki">
+    <div class="kafelek wyroznik">
+        <span class="etykieta">Do zapłaty razem</span>
+        <span class="kwota">@Kwoty.NaTekst(Model.Podsumowanie.Razem)</span>
+    </div>
+    <div class="kafelek">
+        <span class="etykieta">W tym po terminie</span>
+        <span class="kwota">@Kwoty.NaTekst(Model.Podsumowanie.PoTerminie)</span>
+        @if (Model.Podsumowanie.IlePoTerminie > 0)
+        {
+            <span class="drobne">faktur: @Model.Podsumowanie.IlePoTerminie</span>
+        }
+    </div>
+    <div class="kafelek">
+        <span class="etykieta">Faktur nieopłaconych</span>
+        <span class="kwota">@Model.Podsumowanie.Pozycje.Count</span>
+    </div>
+</div>
+
+@if (Model.Podsumowanie.Pozycje.Count == 0)
+{
+    <p class="pusto">Wszystkie wystawione faktury są zapłacone.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Termin</th>
+                <th>Numer</th>
+                <th>Nabywca</th>
+                <th class="liczba">Kwota faktury</th>
+                <th class="liczba">Wpłacono</th>
+                <th class="liczba">Pozostaje</th>
+                <th>Stan</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (Naleznosc pozycja in Model.Podsumowanie.Pozycje)
+            {
+                <tr class="@(pozycja.Rozliczenie.PoTerminie ? "po-terminie" : null)">
+                    <td class="nowrap">
+                        @(pozycja.Faktura.TerminPlatnosci?.ToString("yyyy-MM-dd") ?? "—")
+                    </td>
+                    <td class="nowrap">
+                        <a asp-page="/Faktury/Szczegoly" asp-route-id="@pozycja.Faktura.Id">
+                            <strong>@pozycja.Faktura.Numer</strong>
+                        </a>
+                    </td>
+                    <td>@pozycja.Faktura.NabywcaNazwa</td>
+                    <td class="liczba">@Kwoty.NaTekst(pozycja.Rozliczenie.Brutto)</td>
+                    <td class="liczba">
+                        @(pozycja.Rozliczenie.Zaplacono > 0
+                            ? Kwoty.NaTekst(pozycja.Rozliczenie.Zaplacono)
+                            : "—")
+                    </td>
+                    <td class="liczba"><strong>@Kwoty.NaTekst(pozycja.Rozliczenie.Pozostalo)</strong></td>
+                    <td class="nowrap">
+                        @if (pozycja.Rozliczenie.PoTerminie)
+                        {
+                            <span class="znacznik znacznik-odrzucona">
+                                po terminie o @pozycja.Rozliczenie.DniPoTerminie dni
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="drobne">@pozycja.Rozliczenie.Opis</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <p class="wskazowka">
+        Wpłatę zapisuje się na ekranie faktury — tam też wysyła się
+        kontrahentowi przypomnienie o zapłacie.
+    </p>
+}
