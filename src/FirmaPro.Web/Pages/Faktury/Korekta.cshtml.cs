@@ -100,7 +100,7 @@ public sealed class KorektaModel(
 
         TempData["Komunikat"] =
             $"Wystawiono korektę {wynik.Faktura!.Numer} na kwotę " +
-            $"{wynik.Faktura.RazemBrutto:N2} {wynik.Faktura.Waluta}.";
+            $"{Kwoty.NaTekst(wynik.Faktura.RazemBrutto)} {wynik.Faktura.Waluta}.";
 
         return RedirectToPage("Szczegoly", new { id = wynik.Faktura.Id });
     }

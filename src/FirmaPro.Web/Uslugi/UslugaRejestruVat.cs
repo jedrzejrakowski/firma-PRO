@@ -38,6 +38,7 @@ public sealed class UslugaRejestruVat(FirmaProDbContext baza)
         // do sierpnia.
         List<FakturaSprzedazy> sprzedaz = await baza.FakturySprzedazy
             .Include(f => f.Pozycje)
+            .Include(f => f.RozliczoneZaliczki)
             .Where(f => f.DataUjeciaVat >= od && f.DataUjeciaVat <= Do)
             .AsNoTracking()
             .ToListAsync(anulowanie);
@@ -48,7 +49,65 @@ public sealed class UslugaRejestruVat(FirmaProDbContext baza)
             .AsNoTracking()
             .ToListAsync(anulowanie);
 
-        return RejestrVat.Zbuduj(okres, sprzedaz.Select(NaWpis), zakupy.Select(NaWpis));
+        Dictionary<Guid, Dictionary<string, decimal>> zaliczki =
+            await ZafakturowaneZaliczkiAsync(sprzedaz, anulowanie);
+
+        return RejestrVat.Zbuduj(
+            okres,
+            sprzedaz.Select(f => NaWpis(f, zaliczki.GetValueOrDefault(f.Id))),
+            zakupy.Select(NaWpis));
+    }
+
+    /// <summary>
+    /// Wartości netto zaliczek rozliczonych fakturami końcowymi, w podziale
+    /// na stawki - osobno dla każdej faktury końcowej.
+    /// </summary>
+    /// <remarks>
+    /// Podatek od zaliczki wykazano już w miesiącu jej otrzymania. Gdyby
+    /// faktura końcowa weszła do rejestru całą wartością dostawy, ta sama
+    /// sprzedaż trafiłaby do podstawy opodatkowania dwa razy.
+    /// </remarks>
+    private async Task<Dictionary<Guid, Dictionary<string, decimal>>>
+        ZafakturowaneZaliczkiAsync(List<FakturaSprzedazy> sprzedaz,
+                                   CancellationToken anulowanie)
+    {
+        List<Guid> zaliczkoweId = [.. sprzedaz
+            .SelectMany(f => f.RozliczoneZaliczki)
+            .Select(z => z.ZaliczkowaId)
+            .Distinct()];
+
+        if (zaliczkoweId.Count == 0)
+        {
+            return [];
+        }
+
+        Dictionary<Guid, List<PozycjaFakturySprzedazy>> pozycje = (await baza.FakturySprzedazy
+                .Where(f => zaliczkoweId.Contains(f.Id))
+                .Include(f => f.Pozycje)
+                .AsNoTracking()
+                .ToListAsync(anulowanie))
+            .ToDictionary(f => f.Id, f => f.Pozycje.ToList());
+
+        Dictionary<Guid, Dictionary<string, decimal>> wynik = [];
+
+        foreach (FakturaSprzedazy koncowa in sprzedaz.Where(f => f.RozliczoneZaliczki.Count > 0))
+        {
+            Dictionary<string, decimal> wedlugStawek = new(StringComparer.Ordinal);
+
+            foreach (RozliczonaZaliczka rozliczona in koncowa.RozliczoneZaliczki)
+            {
+                foreach (PozycjaFakturySprzedazy pozycja in
+                         pozycje.GetValueOrDefault(rozliczona.ZaliczkowaId, []))
+                {
+                    wedlugStawek[pozycja.KodStawki] =
+                        wedlugStawek.GetValueOrDefault(pozycja.KodStawki) + pozycja.WartoscNetto;
+                }
+            }
+
+            wynik[koncowa.Id] = wedlugStawek;
+        }
+
+        return wynik;
     }
 
     /// <summary>
@@ -60,20 +119,36 @@ public sealed class UslugaRejestruVat(FirmaProDbContext baza)
     /// zgadzać rejestr - przy kilku drobnych pozycjach obie drogi dają różne
     /// grosze.
     /// </remarks>
-    private static WpisSprzedazy NaWpis(FakturaSprzedazy faktura)
+    /// <param name="zaliczki">
+    /// Netto zafakturowanych już zaliczek w podziale na stawki - odejmowane
+    /// od faktury końcowej. <c>null</c>, gdy faktura żadnych nie rozlicza.
+    /// </param>
+    private static WpisSprzedazy NaWpis(FakturaSprzedazy faktura,
+                                        Dictionary<string, decimal>? zaliczki = null)
     {
         // Faktura korygująca niesie pozycje w dwóch wersjach: sprzed zmiany
         // i po niej. Do rejestru wchodzi różnica, bo tylko o tyle zmienia się
         // podatek - wykazanie nowego stanu policzyłoby sprzedaż drugi raz.
-        List<KwotyWStawce> wedlugStawek = faktura.Pozycje
+        Dictionary<string, List<PozycjaFakturySprzedazy>> wedlugKodu = faktura.Pozycje
             .GroupBy(p => p.KodStawki, StringComparer.Ordinal)
-            .Select(grupa =>
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+
+        // Zaliczka mogła być w stawce, której na fakturze końcowej już nie ma
+        // - i tak trzeba ją odjąć, więc idziemy po sumie obu zbiorów stawek.
+        IEnumerable<string> kody = zaliczki is null
+            ? wedlugKodu.Keys
+            : wedlugKodu.Keys.Union(zaliczki.Keys, StringComparer.Ordinal);
+
+        List<KwotyWStawce> wedlugStawek = kody
+            .Select(kod =>
             {
-                StawkaVat stawka = StawkaVat.ZKodu(grupa.Key);
+                StawkaVat stawka = StawkaVat.ZKodu(kod);
+                List<PozycjaFakturySprzedazy> pozycje = wedlugKodu.GetValueOrDefault(kod, []);
 
                 decimal netto = Kwoty.Zaokraglij(
-                    grupa.Where(p => !p.StanPrzed).Sum(p => p.WartoscNetto)
-                    - grupa.Where(p => p.StanPrzed).Sum(p => p.WartoscNetto));
+                    pozycje.Where(p => !p.StanPrzed).Sum(p => p.WartoscNetto)
+                    - pozycje.Where(p => p.StanPrzed).Sum(p => p.WartoscNetto)
+                    - (zaliczki?.GetValueOrDefault(kod) ?? 0m));
 
                 return new KwotyWStawce(stawka, netto, stawka.PodatekOd(netto));
             })

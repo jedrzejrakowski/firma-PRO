@@ -493,7 +493,7 @@ public static class WydrukFaktury
             }
 
             Podsumowanie(podsumowanie);
-            Platnosc(podsumowanie, platnosc);
+            Platnosc(platnosc);
             KodWeryfikacyjny();
             Uwagi(uwagi);
         }
@@ -536,6 +536,14 @@ public static class WydrukFaktury
                 wiersze.Add(("Zapłacono", faktura.Platnosc.DataZaplaty is DateOnly zaplata
                     ? Styl.Data(zaplata)
                     : "tak"));
+            }
+
+            // Bez tych wierszy odbiorca faktury końcowej nie wie, skąd wzięła
+            // się kwota do zapłaty mniejsza od wartości dostawy.
+            foreach (DaneZaliczki zaliczka in faktura.Zaliczkowe)
+            {
+                wiersze.Add(($"Zaliczka {zaliczka.Numer}",
+                    Styl.Kwota(zaliczka.Brutto) + " " + faktura.Waluta));
             }
 
             if (!string.IsNullOrWhiteSpace(faktura.Platnosc.Rachunek))
@@ -645,15 +653,18 @@ public static class WydrukFaktury
 
         // ----------------------------------------------------------- płatność
 
-        private void Platnosc(PodsumowanieFaktury podsumowanie,
-                              List<(string Etykieta, string Wartosc)> wiersze)
+        private void Platnosc(List<(string Etykieta, string Wartosc)> wiersze)
         {
             _y += Styl.Mm(2);
 
             double yStart = _y;
 
+            // Faktura końcowa obejmuje całą dostawę, ale nabywca zapłacił już
+            // zaliczki - do zapłaty zostaje sama różnica (art. 106f ust. 3).
+            decimal pozostaje = faktura.DoZaplaty;
+
             // Po prawej: kwota do zapłaty - to jej odbiorca szuka najpierw.
-            string doZaplaty = Styl.Kwota(podsumowanie.RazemBrutto) + " " + faktura.Waluta;
+            string doZaplaty = Styl.Kwota(pozostaje) + " " + faktura.Waluta;
 
             _rysik.DrawString("Do zapłaty", Styl.Mala, Styl.TekstSzary,
                 new XRect(Styl.Lewa, _y, Styl.SzerokoscTresci, Styl.Mm(4)),
@@ -676,7 +687,7 @@ public static class WydrukFaktury
             _y = Math.Max(_y, yStart + Styl.Mm(14)) + Styl.Mm(2);
 
             // Kwota słownie - utrudnia podrobienie dokumentu.
-            _rysik.DrawString("Słownie: " + Slownie.Kwota(podsumowanie.RazemBrutto, faktura.Waluta),
+            _rysik.DrawString("Słownie: " + Slownie.Kwota(pozostaje, faktura.Waluta),
                 Styl.Zwykla, Styl.Tekst, Styl.Lewa, _y + Styl.Mm(3));
 
             _y += Styl.Mm(8);

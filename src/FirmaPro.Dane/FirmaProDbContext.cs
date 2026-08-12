@@ -81,6 +81,8 @@ public class FirmaProDbContext : DbContext
     public DbSet<ResetHasla> ResetyHasla => Set<ResetHasla>();
     public DbSet<WyslanieFaktury> WysylkiFaktur => Set<WyslanieFaktury>();
     public DbSet<Platnosc> Platnosci => Set<Platnosc>();
+    public DbSet<PozycjaZamowieniaFaktury> PozycjeZamowien => Set<PozycjaZamowieniaFaktury>();
+    public DbSet<RozliczonaZaliczka> RozliczoneZaliczki => Set<RozliczonaZaliczka>();
     public DbSet<Kontrahent> Kontrahenci => Set<Kontrahent>();
     public DbSet<FakturaSprzedazy> FakturySprzedazy => Set<FakturaSprzedazy>();
     public DbSet<PozycjaFakturySprzedazy> PozycjeFaktur => Set<PozycjaFakturySprzedazy>();
@@ -101,6 +103,7 @@ public class FirmaProDbContext : DbContext
         KonfigurujKontrahentow(modelBuilder);
         KonfigurujFaktury(modelBuilder);
         KonfigurujWysylki(modelBuilder);
+        KonfigurujZaliczki(modelBuilder);
         KonfigurujZakupy(modelBuilder);
         KonfigurujZamknieciaOkresow(modelBuilder);
         KonfigurujNumeracje(modelBuilder);
@@ -315,6 +318,46 @@ public class FirmaProDbContext : DbContext
         });
     }
 
+    private static void KonfigurujZaliczki(ModelBuilder budowniczy)
+    {
+        budowniczy.Entity<PozycjaZamowieniaFaktury>(e =>
+        {
+            e.ToTable("pozycje_zamowien");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Nazwa).HasMaxLength(512).IsRequired();
+            e.Property(p => p.Jednostka).HasMaxLength(64).IsRequired();
+            e.Property(p => p.KodStawki).HasMaxLength(16).IsRequired();
+            e.Property(p => p.Gtu).HasMaxLength(16);
+            e.Property(p => p.Ilosc).HasPrecision(18, 6);
+            e.Property(p => p.CenaNetto).HasPrecision(18, 2);
+
+            e.HasOne(p => p.Faktura)
+                .WithMany(f => f!.PozycjeZamowienia)
+                .HasForeignKey(p => p.FakturaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(p => new { p.FirmaId, p.FakturaId });
+        });
+
+        budowniczy.Entity<RozliczonaZaliczka>(e =>
+        {
+            e.ToTable("rozliczone_zaliczki");
+            e.HasKey(z => z.Id);
+            e.Property(z => z.Numer).HasMaxLength(256).IsRequired();
+            e.Property(z => z.NumerKsef).HasMaxLength(64);
+            e.Property(z => z.Brutto).HasPrecision(18, 2);
+
+            e.HasOne(z => z.Faktura)
+                .WithMany(f => f!.RozliczoneZaliczki)
+                .HasForeignKey(z => z.FakturaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Jedna zaliczka rozliczana jest tylko raz - inaczej ta sama
+            // kwota zniknęłaby z podstawy opodatkowania dwukrotnie.
+            e.HasIndex(z => new { z.FirmaId, z.ZaliczkowaId }).IsUnique();
+        });
+    }
+
     private static void KonfigurujWysylki(ModelBuilder budowniczy)
     {
         budowniczy.Entity<WyslanieFaktury>(e =>
@@ -472,6 +515,11 @@ public class FirmaProDbContext : DbContext
 
         budowniczy.Entity<Platnosc>()
             .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
+
+        budowniczy.Entity<PozycjaZamowieniaFaktury>()
+            .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<RozliczonaZaliczka>()
+            .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

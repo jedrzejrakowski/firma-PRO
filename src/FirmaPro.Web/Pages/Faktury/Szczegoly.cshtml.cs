@@ -39,6 +39,13 @@ public sealed class SzczegolyModel(
 
     public WynikWalidacji WalidacjaWplaty { get; private set; } = new();
 
+    /// <summary>Czy ta faktura zaliczkowa została już rozliczona końcową.</summary>
+    public bool ZaliczkaRozliczona { get; private set; }
+
+    /// <summary>Suma zaliczek zafakturowanych przed tą fakturą końcową.</summary>
+    public decimal SumaZaliczek =>
+        Kwoty.Zaokraglij(Faktura.RozliczoneZaliczki.Sum(z => z.Brutto));
+
     /// <summary>
     /// Czy u góry strony widać już komunikat z ostatniej operacji.
     /// </summary>
@@ -163,6 +170,9 @@ public sealed class SzczegolyModel(
         Wplaty = await uslugaPlatnosci.WplatyAsync(id, anulowanie);
         Rozliczenie = await uslugaPlatnosci.RozliczenieAsync(id, anulowanie);
 
+        ZaliczkaRozliczona = Faktura.Rodzaj == RodzajFaktury.Zaliczkowa
+            && await baza.RozliczoneZaliczki.AnyAsync(z => z.ZaliczkowaId == id, anulowanie);
+
         // Pola formularza podpowiadają najczęstszy przypadek: całą resztę
         // należności wpłaconą dzisiaj.
         if (KwotaWplaty == 0)
@@ -208,7 +218,8 @@ public sealed class SzczegolyModel(
     }
 
     /// <summary>Udostępnia wizualizację faktury w PDF - do wysłania nabywcy.</summary>
-    public async Task<IActionResult> OnGetPdfAsync(Guid id, CancellationToken anulowanie)
+    public async Task<IActionResult> OnGetPdfAsync(Guid id, bool duplikat,
+                                                   CancellationToken anulowanie)
     {
         FakturaSprzedazy? faktura = await WczytajAsync(id, anulowanie);
         if (faktura is null)
@@ -216,8 +227,10 @@ public sealed class SzczegolyModel(
             return NotFound();
         }
 
-        byte[] pdf = await uslugaFaktur.ZbudujPdfAsync(id, anulowanie);
-        string nazwa = BezpiecznaNazwa(faktura.Numer) + ".pdf";
+        byte[] pdf = await uslugaFaktur.ZbudujPdfAsync(id, duplikat, anulowanie);
+
+        string nazwa = BezpiecznaNazwa(faktura.Numer)
+                       + (duplikat ? "_duplikat" : string.Empty) + ".pdf";
 
         return File(pdf, "application/pdf", nazwa);
     }
@@ -225,6 +238,7 @@ public sealed class SzczegolyModel(
     private Task<FakturaSprzedazy?> WczytajAsync(Guid id, CancellationToken anulowanie) =>
         baza.FakturySprzedazy
             .Include(f => f.Pozycje)
+            .Include(f => f.RozliczoneZaliczki)
             .FirstOrDefaultAsync(f => f.Id == id, anulowanie);
 
     /// <summary>Zamienia numer faktury na nazwę pliku bez znaków specjalnych.</summary>

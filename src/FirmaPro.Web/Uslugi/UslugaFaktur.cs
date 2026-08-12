@@ -4,6 +4,7 @@ using FirmaPro.Domena;
 using FirmaPro.Ksef;
 using FirmaPro.Wydruk;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace FirmaPro.Web.Uslugi;
 
@@ -38,6 +39,13 @@ public sealed class UslugaFaktur(
     /// Dokument zapisywany jest dopiero po pomyślnej walidacji - nie chcemy
     /// trzymać w bazie faktur, których i tak nie da się wysłać.
     /// </remarks>
+    /// <param name="przedZapisem">
+    /// Ostatnie poprawki na gotowej encji, wykonywane jeszcze przed zapisem.
+    /// Faktura końcowa dopisuje tu rozliczane zaliczki, żeby cały dokument
+    /// powstał jednym zapisem - dopisywanie dzieci do faktury już zapisanej
+    /// EF Core uznałby za zmianę istniejących rekordów, bo klucze nadajemy
+    /// sami i nie są puste.
+    /// </param>
     public async Task<WynikWystawienia> WystawAsync(
         Guid kontrahentId,
         DateOnly dataWystawienia,
@@ -47,6 +55,7 @@ public sealed class UslugaFaktur(
         string? podstawaZwolnienia,
         IReadOnlyList<(string Nazwa, string Jednostka, decimal Ilosc,
                        decimal CenaNetto, string KodStawki, string? Gtu)> pozycje,
+        Action<FakturaSprzedazy>? przedZapisem = null,
         CancellationToken anulowanie = default)
     {
         Firma firma = await baza.Firmy
@@ -79,12 +88,264 @@ public sealed class UslugaFaktur(
         model.Numer = await numeracja.NastepnyNumerAsync(dataWystawienia, anulowanie);
 
         FakturaSprzedazy encja = NaEncje(model, kontrahent);
+        przedZapisem?.Invoke(encja);
+
         baza.FakturySprzedazy.Add(encja);
         await baza.SaveChangesAsync(anulowanie);
 
         Dziennik.WystawionoFakture(dziennik, encja.Numer, encja.RazemBrutto);
 
         return new WynikWystawienia(encja, walidacja);
+    }
+
+    /// <summary>
+    /// Wystawia fakturę zaliczkową na otrzymaną wpłatę.
+    /// </summary>
+    /// <remarks>
+    /// Faktura zaliczkowa dokumentuje pieniądze, a nie towar: jej wiersze to
+    /// rozbicie wpłaty na stawki podatku, a to, czego wpłata dotyczy, opisuje
+    /// zamówienie (art. 106f ust. 1 pkt 4 ustawy). Podatek liczony jest
+    /// „w stu" - zaliczka jest kwotą brutto.
+    /// </remarks>
+    public async Task<WynikWystawienia> WystawZaliczkowaAsync(
+        Guid kontrahentId,
+        DateOnly dataWystawienia,
+        decimal kwotaZaliczki,
+        FormaPlatnosci? formaPlatnosci,
+        IReadOnlyList<(string Nazwa, string Jednostka, decimal Ilosc,
+                       decimal CenaNetto, string KodStawki, string? Gtu)> zamowienie,
+        CancellationToken anulowanie = default)
+    {
+        ArgumentNullException.ThrowIfNull(zamowienie);
+
+        Firma firma = await baza.Firmy
+            .SingleAsync(f => f.Id == baza.AktualnaFirmaId, anulowanie);
+
+        Kontrahent? kontrahent = await baza.Kontrahenci
+            .FirstOrDefaultAsync(k => k.Id == kontrahentId, anulowanie);
+
+        if (kontrahent is null)
+        {
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "Nabywca", "nie znaleziono wskazanego kontrahenta"));
+        }
+
+        List<PozycjaZamowienia> pozycjeZamowienia = [.. zamowienie.Select(p => new PozycjaZamowienia
+        {
+            Nazwa = p.Nazwa?.Trim() ?? string.Empty,
+            Jednostka = string.IsNullOrWhiteSpace(p.Jednostka) ? "szt." : p.Jednostka.Trim(),
+            Ilosc = p.Ilosc,
+            CenaNetto = p.CenaNetto,
+            Stawka = StawkaVat.TryZKodu(p.KodStawki, out StawkaVat? stawka)
+                ? stawka
+                : StawkaVat.Vat23,
+            Gtu = string.IsNullOrWhiteSpace(p.Gtu) ? null : p.Gtu
+        })];
+
+        decimal wartoscZamowienia = Zaliczka.WartoscZamowienia(pozycjeZamowienia);
+
+        if (pozycjeZamowienia.Count == 0 || wartoscZamowienia <= 0)
+        {
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "Zamowienie", "zamówienie musi mieć przynajmniej jedną pozycję o wartości większej od zera"));
+        }
+
+        if (kwotaZaliczki <= 0)
+        {
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "KwotaZaliczki", "kwota zaliczki musi być większa od zera"));
+        }
+
+        // Zaliczka wyższa od zamówienia to zwykle pomyłka w kwocie albo
+        // w zamówieniu - a wystawiona, zawyżyłaby podstawę opodatkowania.
+        if (kwotaZaliczki > wartoscZamowienia)
+        {
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "KwotaZaliczki",
+                $"zaliczka {Kwoty.NaTekst(kwotaZaliczki)} jest wyższa niż wartość zamówienia " +
+                $"{Kwoty.NaTekst(wartoscZamowienia)}"));
+        }
+
+        IReadOnlyList<CzescZaliczki> czesci = Zaliczka.Rozbij(pozycjeZamowienia, kwotaZaliczki);
+
+        Faktura model = ZbudujModel(firma, kontrahent, dataWystawienia, dataWystawienia,
+            dataWystawienia, formaPlatnosci, null,
+            [.. czesci.Select(c => (
+                Nazwa: $"Zaliczka na poczet zamówienia - stawka {c.Stawka.Opis}",
+                Jednostka: "usł.",
+                Ilosc: 1m,
+                CenaNetto: c.Netto,
+                KodStawki: c.Stawka.Kod,
+                Gtu: (string?)null))]);
+
+        model.Rodzaj = RodzajFaktury.Zaliczkowa;
+        model.Zamowienie = pozycjeZamowienia;
+
+        // Zaliczka z definicji jest już zapłacona - to ona jest powodem
+        // wystawienia dokumentu.
+        model.Platnosc.Zaplacono = true;
+        model.Platnosc.DataZaplaty = dataWystawienia;
+
+        model.Numer = "FZ/ROBOCZA";
+        WynikWalidacji walidacja = Walidator.SprawdzFakture(model);
+        if (walidacja.SaBledy)
+        {
+            return new WynikWystawienia(null, walidacja);
+        }
+
+        model.Numer = await numeracja.NastepnyNumerAsync(dataWystawienia, anulowanie);
+
+        FakturaSprzedazy encja = NaEncje(model, kontrahent);
+        encja.Zaplacono = true;
+        encja.DataZaplaty = dataWystawienia;
+
+        // Zaliczka to pieniądze, które już wpłynęły - musi więc mieć wpłatę,
+        // a nie sam znacznik „zapłacona". Inaczej ekran należności liczyłby
+        // z wpłat, znacznik brałby się znikąd i oba pokazywałyby co innego.
+        baza.Platnosci.Add(new Platnosc
+        {
+            FakturaId = encja.Id,
+            Kwota = encja.RazemBrutto,
+            Data = dataWystawienia,
+            Uwagi = "Otrzymana zaliczka"
+        });
+
+        int nr = 1;
+        foreach (PozycjaZamowienia pozycja in pozycjeZamowienia)
+        {
+            encja.PozycjeZamowienia.Add(new PozycjaZamowieniaFaktury
+            {
+                NrWiersza = nr++,
+                Nazwa = pozycja.Nazwa,
+                Jednostka = pozycja.Jednostka,
+                Ilosc = pozycja.Ilosc,
+                CenaNetto = pozycja.CenaNetto,
+                KodStawki = pozycja.Stawka.Kod,
+                Gtu = pozycja.Gtu
+            });
+        }
+
+        baza.FakturySprzedazy.Add(encja);
+        await baza.SaveChangesAsync(anulowanie);
+
+        Dziennik.WystawionoFakture(dziennik, encja.Numer, encja.RazemBrutto);
+
+        return new WynikWystawienia(encja, walidacja);
+    }
+
+    /// <summary>
+    /// Wystawia fakturę końcową rozliczającą wskazane zaliczki.
+    /// </summary>
+    /// <remarks>
+    /// Faktura końcowa obejmuje całą dostawę, ale wykazuje ją pomniejszoną
+    /// o zafakturowane wcześniej zaliczki (art. 106f ust. 3 ustawy) - inaczej
+    /// ta sama kwota trafiłaby do podstawy opodatkowania dwa razy.
+    /// </remarks>
+    public async Task<WynikWystawienia> WystawKoncowaAsync(
+        Guid kontrahentId,
+        DateOnly dataWystawienia,
+        DateOnly? terminPlatnosci,
+        FormaPlatnosci? formaPlatnosci,
+        IReadOnlyList<Guid> zaliczki,
+        IReadOnlyList<(string Nazwa, string Jednostka, decimal Ilosc,
+                       decimal CenaNetto, string KodStawki, string? Gtu)> pozycje,
+        CancellationToken anulowanie = default)
+    {
+        ArgumentNullException.ThrowIfNull(zaliczki);
+
+        if (zaliczki.Count == 0)
+        {
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "Zaliczki", "wskaż przynajmniej jedną fakturę zaliczkową"));
+        }
+
+        List<FakturaSprzedazy> zaliczkowe = await baza.FakturySprzedazy
+            .Where(f => zaliczki.Contains(f.Id) && f.Rodzaj == RodzajFaktury.Zaliczkowa)
+            .ToListAsync(anulowanie);
+
+        if (zaliczkowe.Count != zaliczki.Count)
+        {
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "Zaliczki", "nie znaleziono wszystkich wskazanych faktur zaliczkowych"));
+        }
+
+        if (zaliczkowe.Any(f => f.KontrahentId != kontrahentId))
+        {
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "Zaliczki", "faktura końcowa musi dotyczyć tego samego nabywcy co zaliczki"));
+        }
+
+        HashSet<Guid> juzRozliczone = (await baza.RozliczoneZaliczki
+                .Where(z => zaliczki.Contains(z.ZaliczkowaId))
+                .Select(z => z.ZaliczkowaId)
+                .ToListAsync(anulowanie))
+            .ToHashSet();
+
+        if (juzRozliczone.Count > 0)
+        {
+            string numery = string.Join(", ", zaliczkowe
+                .Where(f => juzRozliczone.Contains(f.Id))
+                .Select(f => f.Numer));
+
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "Zaliczki", $"te zaliczki są już rozliczone fakturą końcową: {numery}"));
+        }
+
+        decimal sumaZaliczek = Kwoty.Zaokraglij(zaliczkowe.Sum(f => f.RazemBrutto));
+
+        try
+        {
+            return await WystawAsync(kontrahentId, dataWystawienia,
+                dataWystawienia, terminPlatnosci, formaPlatnosci, null, pozycje,
+                koncowa =>
+                {
+                    koncowa.Rodzaj = RodzajFaktury.Rozliczeniowa;
+
+                    foreach (FakturaSprzedazy zaliczkowa in zaliczkowe)
+                    {
+                        koncowa.RozliczoneZaliczki.Add(new RozliczonaZaliczka
+                        {
+                            ZaliczkowaId = zaliczkowa.Id,
+                            Numer = zaliczkowa.Numer,
+                            DataWystawienia = zaliczkowa.DataWystawienia,
+                            NumerKsef = zaliczkowa.NumerKsef,
+                            Brutto = zaliczkowa.RazemBrutto
+                        });
+                    }
+
+                    // Faktura końcowa obejmuje całą dostawę, ale za część
+                    // nabywca już zapłacił. Zaliczka wchodzi więc jako wpłata,
+                    // żeby „pozostaje do zapłaty" pokazywało prawdziwą różnicę,
+                    // a nie całość drugi raz.
+                    baza.Platnosci.Add(new Platnosc
+                    {
+                        FakturaId = koncowa.Id,
+                        Kwota = sumaZaliczek,
+                        Data = dataWystawienia,
+                        Uwagi = "Rozliczone zaliczki: " +
+                                string.Join(", ", zaliczkowe.Select(f => f.Numer))
+                    });
+
+                    if (sumaZaliczek >= koncowa.RazemBrutto)
+                    {
+                        koncowa.Zaplacono = true;
+                        koncowa.DataZaplaty = dataWystawienia;
+                    }
+                },
+                anulowanie);
+        }
+        catch (DbUpdateException wyjatek) when (wyjatek.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation
+        })
+        {
+            // Sprawdzenie powyżej mogło się rozminąć z drugim żądaniem, które
+            // rozliczało tę samą zaliczkę. Ostatnie słowo ma baza danych.
+            baza.ChangeTracker.Clear();
+
+            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
+                "Zaliczki", "te zaliczki są już rozliczone fakturą końcową"));
+        }
     }
 
     /// <summary>
@@ -124,16 +385,6 @@ public sealed class UslugaFaktur(
                 "Faktura", "nie znaleziono faktury do skorygowania"));
         }
 
-        if (korygowana.CzyKorekta)
-        {
-            // Korekta korekty jest dopuszczalna, ale wymaga wskazania
-            // faktury pierwotnej i osobnego przemyślenia kwot - na razie
-            // wolimy powiedzieć wprost, że tego nie obsługujemy, niż
-            // wystawić dokument, którego nikt nie sprawdził.
-            return new WynikWystawienia(null, WynikWalidacji.ZBledem(
-                "Faktura", "korygowanie faktury korygującej nie jest jeszcze obsługiwane"));
-        }
-
         if (string.IsNullOrWhiteSpace(przyczynaKorekty))
         {
             return new WynikWystawienia(null, WynikWalidacji.ZBledem(
@@ -153,6 +404,8 @@ public sealed class UslugaFaktur(
                 korygowana.NumerKsef)
         ];
 
+        // Przy korekcie korekty stanem sprzed jest to, co pokazywała
+        // poprzednia korekta po zmianie - a nie treść faktury pierwotnej.
         model.PozycjePrzedKorekta = korygowana.Pozycje
             .Where(p => !p.StanPrzed)
             .OrderBy(p => p.NrWiersza)
@@ -173,7 +426,10 @@ public sealed class UslugaFaktur(
             return new WynikWystawienia(null, walidacja);
         }
 
-        model.Numer = await numeracja.NastepnyNumerAsync(dataWystawienia, anulowanie);
+        // Korekty mają własną serię numerów - patrz UslugaNumeracji.
+        model.Numer = await numeracja.NastepnyNumerAsync(
+            dataWystawienia, UslugaNumeracji.SeriaKorekt,
+            UslugaNumeracji.DomyslnyWzorKorekt, anulowanie);
 
         FakturaSprzedazy encja = NaEncje(model, KontrahentZFaktury(korygowana));
         encja.KontrahentId = korygowana.KontrahentId;
@@ -309,6 +565,8 @@ public sealed class UslugaFaktur(
     {
         FakturaSprzedazy faktura = await baza.FakturySprzedazy
             .Include(f => f.Pozycje)
+            .Include(f => f.PozycjeZamowienia)
+            .Include(f => f.RozliczoneZaliczki)
             .SingleAsync(f => f.Id == fakturaId, anulowanie);
 
         Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
@@ -325,10 +583,25 @@ public sealed class UslugaFaktur(
     /// ponowne złożenie dałoby inny skrót i kod prowadzący donikąd.
     /// </remarks>
     public async Task<byte[]> ZbudujPdfAsync(Guid fakturaId,
+                                             CancellationToken anulowanie = default) =>
+        await ZbudujPdfAsync(fakturaId, duplikat: false, anulowanie);
+
+    /// <summary>
+    /// Buduje wizualizację, opcjonalnie jako duplikat.
+    /// </summary>
+    /// <remarks>
+    /// Duplikat to ten sam dokument wydany ponownie - gdy odbiorca zgubił
+    /// egzemplarz (art. 106l ustawy). Treść jest identyczna; zmienia się samo
+    /// oznaczenie i data wystawienia egzemplarza.
+    /// </remarks>
+    public async Task<byte[]> ZbudujPdfAsync(Guid fakturaId,
+                                             bool duplikat,
                                              CancellationToken anulowanie = default)
     {
         FakturaSprzedazy faktura = await baza.FakturySprzedazy
             .Include(f => f.Pozycje)
+            .Include(f => f.PozycjeZamowienia)
+            .Include(f => f.RozliczoneZaliczki)
             .SingleAsync(f => f.Id == fakturaId, anulowanie);
 
         Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
@@ -341,6 +614,11 @@ public sealed class UslugaFaktur(
                     faktura.NumerKsef!, firma.Nip, faktura.DataWystawienia,
                     faktura.SkrotXml!, firma.Srodowisko)
                 : OpcjeWydruku.DlaProjektu();
+
+        if (duplikat)
+        {
+            opcje = opcje.JakoDuplikat(DateOnly.FromDateTime(DateTime.Today));
+        }
 
         return WydrukFaktury.Utworz(NaModel(faktura, firma), opcje);
     }
@@ -516,6 +794,20 @@ public sealed class UslugaFaktur(
             ? []
             : [new DaneFakturyKorygowanej(encja.KorygowanaNumer,
                 encja.KorygowanaDataWystawienia.Value, encja.KorygowanaNumerKsef)],
+        Zamowienie = [.. encja.PozycjeZamowienia
+            .OrderBy(p => p.NrWiersza)
+            .Select(p => new PozycjaZamowienia
+            {
+                Nazwa = p.Nazwa,
+                Jednostka = p.Jednostka,
+                Ilosc = p.Ilosc,
+                CenaNetto = p.CenaNetto,
+                Stawka = StawkaVat.ZKodu(p.KodStawki),
+                Gtu = p.Gtu
+            })],
+        Zaliczkowe = [.. encja.RozliczoneZaliczki
+            .OrderBy(z => z.DataWystawienia)
+            .Select(z => new DaneZaliczki(z.Numer, z.DataWystawienia, z.NumerKsef, z.Brutto))],
         PozycjePrzedKorekta = encja.Pozycje
             .Where(p => p.StanPrzed)
             .OrderBy(p => p.NrWiersza)

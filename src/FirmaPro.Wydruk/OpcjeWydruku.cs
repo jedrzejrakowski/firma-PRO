@@ -88,4 +88,17 @@ public sealed record OpcjeWydruku
 
     /// <summary>Buduje opcje dla dokumentu, którego nie ma jeszcze w KSeF.</summary>
     public static OpcjeWydruku DlaProjektu() => new() { Projekt = true };
+
+    /// <summary>
+    /// Zmienia wydruk w duplikat wystawiony we wskazanym dniu.
+    /// </summary>
+    /// <remarks>
+    /// Duplikat to ten sam dokument, wydany ponownie - różni go wyłącznie
+    /// oznaczenie i data wystawienia egzemplarza (art. 106l ustawy). Treść
+    /// faktury pozostaje bez zmian, więc kod QR i numer KSeF zostają te same.
+    /// </remarks>
+    public OpcjeWydruku JakoDuplikat(DateOnly dataWystawienia) => this with
+    {
+        Egzemplarz = $"Duplikat z dnia {dataWystawienia:yyyy-MM-dd}"
+    };
 }

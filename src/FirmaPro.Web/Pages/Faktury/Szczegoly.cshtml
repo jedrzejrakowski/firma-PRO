@@ -89,11 +89,58 @@
             <div class="kwota">@Model.Faktura.RazemVat.ToString("N2")</div>
         </div>
         <div class="razem">
-            <div class="etykieta">Do zapłaty</div>
-            <div class="kwota">@Model.Faktura.RazemBrutto.ToString("N2") @Model.Faktura.Waluta</div>
+            <div class="etykieta">@(Model.Faktura.RozliczoneZaliczki.Count > 0 ? "Wartość dostawy" : "Do zapłaty")</div>
+            <div class="kwota">@Kwoty.NaTekst(Model.Faktura.RazemBrutto) @Model.Faktura.Waluta</div>
         </div>
     </div>
 </div>
+
+@* Faktura końcowa obejmuje całą dostawę, ale część nabywca opłacił już
+   zaliczką - i to musi być widać, żeby nikt nie zapłacił drugi raz
+   (art. 106f ust. 3 ustawy). *@
+@if (Model.Faktura.RozliczoneZaliczki.Count > 0)
+{
+    <div class="karta">
+        <h2 style="margin-top:0">Rozliczone zaliczki</h2>
+
+        <table class="pozycje">
+            <thead>
+                <tr>
+                    <th>Numer</th>
+                    <th>Wystawiona</th>
+                    <th>Numer KSeF</th>
+                    <th class="liczba">Kwota</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (RozliczonaZaliczka zaliczka in
+                          Model.Faktura.RozliczoneZaliczki.OrderBy(z => z.DataWystawienia))
+                {
+                    <tr>
+                        <td><strong>@zaliczka.Numer</strong></td>
+                        <td>@zaliczka.DataWystawienia.ToString("yyyy-MM-dd")</td>
+                        <td>@(zaliczka.NumerKsef ?? "—")</td>
+                        <td class="liczba">@Kwoty.NaTekst(zaliczka.Brutto)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="podsumowanie-kwot">
+            <div>
+                <div class="etykieta">Zafakturowane zaliczkami</div>
+                <div class="kwota">@Kwoty.NaTekst(Model.SumaZaliczek)</div>
+            </div>
+            <div class="razem">
+                <div class="etykieta">Pozostaje z tej faktury</div>
+                <div class="kwota">
+                    @Kwoty.NaTekst(Model.Faktura.RazemBrutto - Model.SumaZaliczek)
+                    @Model.Faktura.Waluta
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <div class="paskiem">
     @if (Model.Faktura.Status != StatusKsef.Przyjeta)
@@ -103,16 +150,27 @@
         </form>
     }
 
-    @if (!Model.Faktura.CzyKorekta)
+    @* Korektę można wystawić także do korekty - drugą poprawkę tej samej
+       faktury robi się właśnie tak. *@
+    <a class="przycisk przycisk-drugi" asp-page="Korekta"
+       asp-route-id="@Model.Faktura.Id">Wystaw korektę</a>
+
+    @* Rozliczonej już zaliczki nie da się rozliczyć drugi raz, więc odsyłanie
+       do formularza końcowej byłoby ślepą uliczką. *@
+    @if (Model.Faktura.Rodzaj == RodzajFaktury.Zaliczkowa && !Model.ZaliczkaRozliczona)
     {
-        <a class="przycisk przycisk-drugi" asp-page="Korekta"
-           asp-route-id="@Model.Faktura.Id">Wystaw korektę</a>
+        <a class="przycisk przycisk-drugi" asp-page="Koncowa"
+           asp-route-id="@Model.Faktura.Id">Wystaw fakturę końcową</a>
     }
 
     <a class="przycisk" asp-page-handler="Pdf"
        asp-route-id="@Model.Faktura.Id">Pobierz PDF</a>
     <a class="przycisk przycisk-drugi" asp-page-handler="Xml"
        asp-route-id="@Model.Faktura.Id">Pobierz XML</a>
+    @* Duplikat wydaje się, gdy odbiorca zgubił egzemplarz (art. 106l ustawy) -
+       treść jest ta sama, zmienia się samo oznaczenie i data wydania. *@
+    <a class="przycisk przycisk-drugi" asp-page-handler="Pdf"
+       asp-route-id="@Model.Faktura.Id" asp-route-duplikat="true">Duplikat</a>
     <a class="przycisk przycisk-drugi" asp-page="Index">Wróć do listy</a>
 </div>
 

@@ -201,6 +201,27 @@ public sealed class TestyWydruku
         Assert.Equal(1, dokument.PageCount);
     }
 
+    /// <summary>Faktura końcowa ze wskazanymi zaliczkami też się drukuje.</summary>
+    /// <remarks>
+    /// Każda zaliczka dokłada wiersz w bloku płatności, a ten blok musi się
+    /// zmieścić razem z podsumowaniem - inaczej zakończenie faktury zostałoby
+    /// oderwane od reszty.
+    /// </remarks>
+    [Fact]
+    public void FakturaKoncowaZZaliczkamiSieDrukuje()
+    {
+        Faktura faktura = Fabryka.PrzykladowaFaktura();
+        faktura.Rodzaj = RodzajFaktury.Rozliczeniowa;
+        faktura.Zaliczkowe =
+        [
+            new DaneZaliczki("FV/2026/07/9", new DateOnly(2026, 7, 15), null, 1230m),
+            new DaneZaliczki("FV/2026/06/3", new DateOnly(2026, 6, 10), null, 615m)
+        ];
+
+        using PdfDocument dokument = Otworz(WydrukFaktury.Utworz(faktura));
+        Assert.Equal(1, dokument.PageCount);
+    }
+
     // ------------------------------------------------------------ pomocnicze
 
     /// <summary>Skrót o poprawnej długości - treść nie ma tu znaczenia.</summary>

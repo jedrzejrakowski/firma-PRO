@@ -7,7 +7,8 @@
 <h1>Faktury sprzedaży</h1>
 <p class="podtytul">Wystaw fakturę i wyślij ją do Krajowego Systemu e-Faktur.</p>
 
-<p><a class="przycisk" asp-page="Nowa">Wystaw fakturę</a></p>
+<p><a class="przycisk" asp-page="Nowa">Wystaw fakturę</a>
+    <a class="przycisk przycisk-drugi" asp-page="Zaliczkowa">Faktura zaliczkowa</a></p>
 
 @if (Model.Faktury.Count == 0)
 {

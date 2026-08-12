@@ -164,6 +164,19 @@ public sealed record DaneFakturyKorygowanej(
     DateOnly DataWystawienia,
     string? NumerKsef);
 
+/// <summary>
+/// Faktura zaliczkowa rozliczana fakturą końcową.
+/// </summary>
+/// <remarks>
+/// Poza numerem niesie kwotę: na wydruku trzeba pokazać, ile z wartości
+/// dostawy nabywca już zapłacił, żeby nie zapłacił drugi raz.
+/// </remarks>
+public sealed record DaneZaliczki(
+    string Numer,
+    DateOnly DataWystawienia,
+    string? NumerKsef,
+    decimal Brutto);
+
 /// <summary>Kompletna faktura.</summary>
 public sealed class Faktura
 {
@@ -226,6 +239,40 @@ public sealed class Faktura
     /// W <see cref="Pozycje"/> siedzi stan po korekcie.
     /// </remarks>
     public List<PozycjaFaktury> PozycjePrzedKorekta { get; set; } = [];
+
+    /// <summary>
+    /// Pozycje zamówienia, na poczet którego wpłacono zaliczkę.
+    /// </summary>
+    /// <remarks>
+    /// Wymagane na fakturze zaliczkowej (art. 106f ust. 1 pkt 4 ustawy):
+    /// wiersze faktury pokazują samą wpłatę, więc bez zamówienia nie byłoby
+    /// wiadomo, czego ta wpłata dotyczy.
+    /// </remarks>
+    public List<PozycjaZamowienia> Zamowienie { get; set; } = [];
+
+    /// <summary>
+    /// Faktury zaliczkowe rozliczane tą fakturą.
+    /// </summary>
+    /// <remarks>
+    /// Wskazywane na fakturze końcowej (art. 106f ust. 3 ustawy) - to one
+    /// mówią, ile z należności zostało już zafakturowane wcześniej.
+    /// </remarks>
+    public List<DaneZaliczki> Zaliczkowe { get; set; } = [];
+
+    /// <summary>Ile z tej faktury zafakturowano już zaliczkami.</summary>
+    public decimal ZafakturowaneZaliczkami =>
+        Kwoty.Zaokraglij(Zaliczkowe.Sum(z => z.Brutto));
+
+    /// <summary>
+    /// Kwota, której wystawca żąda tym dokumentem.
+    /// </summary>
+    /// <remarks>
+    /// Dla zwykłej faktury to jej wartość brutto. Faktura końcowa obejmuje
+    /// całą dostawę, ale za zaliczki nabywca już zapłacił - do zapłaty
+    /// zostaje różnica (art. 106f ust. 3 ustawy).
+    /// </remarks>
+    public decimal DoZaplaty =>
+        Kwoty.Zaokraglij(Podsumowanie().RazemBrutto - ZafakturowaneZaliczkami);
 
     /// <summary>Czy dokument jest fakturą korygującą.</summary>
     public bool CzyKorekta =>

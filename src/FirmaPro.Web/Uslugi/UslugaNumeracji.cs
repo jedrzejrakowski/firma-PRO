@@ -19,6 +19,23 @@ public sealed class UslugaNumeracji(FirmaProDbContext baza)
     /// <summary>Domyślny wzór numeru dla nowo zakładanej firmy.</summary>
     public const string DomyslnyWzor = "FV/{ROK}/{MC}/{NR}";
 
+    /// <summary>Nazwa serii zwykłej sprzedaży.</summary>
+    public const string SeriaSprzedazy = "Sprzedaż";
+
+    /// <summary>
+    /// Nazwa serii faktur korygujących.
+    /// </summary>
+    /// <remarks>
+    /// Korekty numerowane są osobno, bo tak prowadzi je większość firm:
+    /// przy przeglądaniu ksiąg widać wtedy od razu, że dokument jest korektą,
+    /// bez zaglądania w jego treść. Prawo nie wymaga osobnej serii, ale też
+    /// jej nie zabrania - numeracja ma być tylko ciągła w obrębie serii.
+    /// </remarks>
+    public const string SeriaKorekt = "Korekty";
+
+    /// <summary>Domyślny wzór numeru korekty.</summary>
+    public const string DomyslnyWzorKorekt = "KOR/{ROK}/{MC}/{NR}";
+
     /// <summary>
     /// Rezerwuje kolejny numer na wskazany dzień i zwraca go.
     /// </summary>
@@ -27,13 +44,21 @@ public sealed class UslugaNumeracji(FirmaProDbContext baza)
     /// dla każdej pary rok-miesiąc.
     /// </remarks>
     public async Task<string> NastepnyNumerAsync(DateOnly dataWystawienia,
+                                                 CancellationToken anulowanie = default) =>
+        await NastepnyNumerAsync(dataWystawienia, SeriaSprzedazy, DomyslnyWzor, anulowanie);
+
+    /// <summary>Rezerwuje kolejny numer we wskazanej serii.</summary>
+    public async Task<string> NastepnyNumerAsync(DateOnly dataWystawienia,
+                                                 string nazwaSerii,
+                                                 string domyslnyWzor,
                                                  CancellationToken anulowanie = default)
     {
         SeriaNumeracji seria = await baza.SerieNumeracji
-            .FirstOrDefaultAsync(s => s.Rok == dataWystawienia.Year
+            .FirstOrDefaultAsync(s => s.Nazwa == nazwaSerii
+                                      && s.Rok == dataWystawienia.Year
                                       && s.Miesiac == dataWystawienia.Month,
                                  anulowanie)
-            ?? await ZalozSerieAsync(dataWystawienia, anulowanie);
+            ?? await ZalozSerieAsync(dataWystawienia, nazwaSerii, domyslnyWzor, anulowanie);
 
         seria.OstatniNumer++;
         await baza.SaveChangesAsync(anulowanie);
@@ -42,18 +67,22 @@ public sealed class UslugaNumeracji(FirmaProDbContext baza)
     }
 
     private async Task<SeriaNumeracji> ZalozSerieAsync(DateOnly data,
+                                                       string nazwaSerii,
+                                                       string domyslnyWzor,
                                                        CancellationToken anulowanie)
     {
-        // Wzór przepisujemy z serii z poprzedniego okresu, żeby zmiana formatu
-        // numeru nie znikała przy przejściu na nowy miesiąc.
+        // Wzór przepisujemy z serii z poprzedniego okresu - tej samej serii,
+        // żeby zmiana formatu numeru nie znikała przy przejściu na nowy
+        // miesiąc, a korekty nie przejęły wzoru sprzedaży.
         SeriaNumeracji? poprzednia = await baza.SerieNumeracji
+            .Where(s => s.Nazwa == nazwaSerii)
             .OrderByDescending(s => s.Rok).ThenByDescending(s => s.Miesiac)
             .FirstOrDefaultAsync(anulowanie);
 
         var seria = new SeriaNumeracji
         {
-            Nazwa = "Sprzedaż",
-            Wzor = poprzednia?.Wzor ?? DomyslnyWzor,
+            Nazwa = nazwaSerii,
+            Wzor = poprzednia?.Wzor ?? domyslnyWzor,
             Rok = data.Year,
             Miesiac = data.Month,
             OstatniNumer = 0

@@ -1,0 +1,157 @@
+@page "{id:guid}"
+@model FirmaPro.Web.Pages.Faktury.KoncowaModel
+@{
+    ViewData["Tytul"] = "Faktura końcowa";
+}
+
+<h1>Faktura końcowa</h1>
+<p class="podtytul">
+    Obejmuje całą dostawę dla nabywcy <strong>@Model.NabywcaNazwa</strong>
+    i rozlicza wskazane zaliczki.
+</p>
+
+@if (Model.Bledy.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie można wystawić faktury:</strong>
+        <ul class="bledy">
+            @foreach (string blad in Model.Bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+    </div>
+}
+
+<form method="post">
+    <input type="hidden" name="KontrahentId" value="@Model.KontrahentId" />
+
+    <div class="karta">
+        <div class="siatka">
+            <div class="pole">
+                <label for="dataWystawienia">Data wystawienia</label>
+                <input type="date" id="dataWystawienia" name="DataWystawienia"
+                       value="@Model.DataWystawienia.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div class="pole">
+                <label for="termin">Termin płatności</label>
+                <input type="date" id="termin" name="TerminPlatnosci"
+                       value="@Model.TerminPlatnosci?.ToString("yyyy-MM-dd")" />
+            </div>
+
+            <div class="pole">
+                <label for="forma">Forma płatności</label>
+                <select id="forma" name="FormaPlatnosci">
+                    @foreach (FormaPlatnosci forma in Enum.GetValues<FormaPlatnosci>())
+                    {
+                        <option value="@((int)forma)" selected="@(forma == Model.FormaPlatnosci)">
+                            @NowaModel.OpisFormy(forma)
+                        </option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="karta">
+        <h2 style="margin-top:0">Rozliczane zaliczki</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:5%"></th>
+                    <th>Numer</th>
+                    <th>Wystawiona</th>
+                    <th class="liczba">Kwota</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (ZaliczkaDoRozliczenia zaliczka in Model.Dostepne)
+                {
+                    <tr>
+                        <td>
+                            @if (zaliczka.JuzRozliczona)
+                            {
+                                <span class="znacznik znacznik-robocza">rozliczona</span>
+                            }
+                            else
+                            {
+                                <input type="checkbox" name="Zaliczki" value="@zaliczka.Id"
+                                       checked="@Model.Zaliczki.Contains(zaliczka.Id)" />
+                            }
+                        </td>
+                        <td class="nowrap"><strong>@zaliczka.Numer</strong></td>
+                        <td class="nowrap">@zaliczka.DataWystawienia.ToString("yyyy-MM-dd")</td>
+                        <td class="liczba">@Kwoty.NaTekst(zaliczka.Brutto)</td>
+                        <td></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <p class="wskazowka">
+            Zaliczkę można rozliczyć tylko raz — inaczej ta sama kwota zniknęłaby
+            z podstawy opodatkowania dwukrotnie.
+        </p>
+    </div>
+
+    <div class="karta">
+        <h2 style="margin-top:0">Pozycje dostawy</h2>
+
+        <table class="pozycje">
+            <thead>
+                <tr>
+                    <th style="width:36%">Nazwa towaru lub usługi</th>
+                    <th style="width:10%">J.m.</th>
+                    <th style="width:11%">Ilość</th>
+                    <th style="width:14%">Cena netto</th>
+                    <th style="width:14%">Stawka VAT</th>
+                    <th style="width:11%">GTU</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Pozycje.Count; i++)
+                {
+                    <tr>
+                        <td><input type="text" name="Pozycje[@i].Nazwa" value="@Model.Pozycje[i].Nazwa" maxlength="512" /></td>
+                        <td><input type="text" name="Pozycje[@i].Jednostka" value="@Model.Pozycje[i].Jednostka" /></td>
+                        <td><input type="number" step="0.000001" min="0" name="Pozycje[@i].Ilosc" value="@Model.Pozycje[i].Ilosc" /></td>
+                        <td><input type="number" step="0.01" min="0" name="Pozycje[@i].CenaNetto" value="@Model.Pozycje[i].CenaNetto" /></td>
+                        <td>
+                            <select name="Pozycje[@i].KodStawki">
+                                @foreach (StawkaVat stawka in StawkaVat.Wszystkie)
+                                {
+                                    <option value="@stawka.Kod" selected="@(stawka.Kod == Model.Pozycje[i].KodStawki)">
+                                        @stawka.Opis
+                                    </option>
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <select name="Pozycje[@i].Gtu">
+                                <option value="">—</option>
+                                @foreach (string gtu in NowaModel.KodyGtu)
+                                {
+                                    <option value="@gtu" selected="@(gtu == Model.Pozycje[i].Gtu)">@gtu</option>
+                                }
+                            </select>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <p class="wskazowka">
+            Pozycje podpowiedziane są z zamówienia. Faktura końcowa obejmuje całą
+            dostawę — to plik FA(3) niesie informację, które zaliczki już
+            zafakturowano.
+        </p>
+    </div>
+
+    <div class="paskiem">
+        <button type="submit">Wystaw fakturę końcową</button>
+        <a class="przycisk przycisk-drugi" asp-page="Szczegoly" asp-route-id="@Model.Id">Anuluj</a>
+    </div>
+</form>

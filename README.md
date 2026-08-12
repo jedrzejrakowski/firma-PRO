@@ -35,7 +35,9 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Płatności, należności i przypomnienia | gotowe |
 | Kartoteka kontrahentów | gotowe |
 | Wystawianie faktur i podgląd dokumentu | gotowe |
-| Faktury korygujące | gotowe |
+| Faktury korygujące (także korekta do korekty) | gotowe |
+| Faktury zaliczkowe i końcowe | gotowe |
+| Duplikat faktury | gotowe |
 | Ustawienia firmy wraz z tokenem KSeF | gotowe |
 | Wizualizacja PDF z kodem QR | gotowe |
 | Faktury zakupu | gotowe |
@@ -270,10 +272,59 @@ Korekta przechodzi **walidację prawdziwym schematem FA(3)** we wszystkich
 wariantach: faktury z numerem KSeF i sprzed KSeF, korekty zbiorczej do kilku
 faktur naraz oraz każdego z trzech typów skutku.
 
-Czego jeszcze nie ma: **korekty do korekty** (program mówi o tym wprost,
-zamiast wystawić dokument, którego nikt nie sprawdził) i osobnej serii
-numeracji dla korekt - na razie idą tą samą serią co faktury, co jest zgodne
-z przepisami, ale różni się od przyzwyczajeń części księgowych.
+### Korekta do korekty i osobna seria
+
+Korektę można wystawić także **do korekty** - drugą poprawkę tej samej faktury
+robi się właśnie tak, bo poprawia się ostatni obowiązujący stan dokumentu.
+
+Korekty mają **własną serię numeracji** (`KOR/{ROK}/{MC}/{NR}`), niezależną
+od ciągu faktur sprzedaży. Przepisy tego nie wymagają, ale przy przeglądaniu
+rejestru widać od razu, który dokument jest poprawką.
+
+## Duplikat faktury
+
+Gdy odbiorca zgubi egzemplarz, wystawia się duplikat (art. 106l ustawy):
+ta sama treść, dopisane oznaczenie „DUPLIKAT" i data jego wydania. W programie
+to przycisk **Duplikat** przy fakturze - nie powstaje nowy dokument w bazie
+ani nie idzie nic do KSeF, bo duplikat nie jest osobną fakturą.
+
+## Faktury zaliczkowe i końcowe
+
+Faktura zaliczkowa dokumentuje **pieniądze, które wpłynęły**, a nie dostawę.
+Dlatego formularz jest inny niż przy zwykłej fakturze: pozycje opisują
+**zamówienie**, a osobne pole to kwota wpłaty brutto.
+
+- podatek liczony jest **„w stu"** - zaliczka jest kwotą brutto,
+- kwota dzieli się między stawki zamówienia **proporcjonalnie** do ich
+  wartości; grosz z zaokrąglenia dopisywany jest do największej części,
+  żeby suma części zawsze równała się wpłacie,
+- zaliczka wyższa niż wartość zamówienia jest odrzucana,
+- w pliku FA(3) idzie sekcja `Zamowienie` z pozycjami i `WartoscZamowienia`.
+
+Zaliczka jest z definicji zapłacona, więc program **zapisuje przy niej wpłatę**
+na pełną kwotę - nie sam znacznik. Dzięki temu ekran zapłaty, należności
+i wydruk mówią to samo.
+
+### Co robi faktura końcowa
+
+Faktura końcowa obejmuje **całą dostawę**, ale wykazuje ją pomniejszoną
+o zafakturowane wcześniej zaliczki (art. 106f ust. 3 ustawy). W programie
+oznacza to trzy rzeczy naraz:
+
+1. **Plik FA(3)** niesie sekcje `FakturaZaliczkowa` wskazujące rozliczane
+   zaliczki - numerem KSeF, a gdy zaliczka poszła poza systemem, własnym
+   numerem ze znacznikiem `NrKSeFZN`.
+2. **Do zapłaty** - na ekranie i na wydruku - to wartość dostawy **minus**
+   zaliczki. Zaliczka wchodzi jako wpłata przy fakturze końcowej, więc
+   należności pokazują samą dopłatę. Bez tego nabywca dostałby dokument
+   z żądaniem zapłaty za coś, co już opłacił.
+3. **Rejestr VAT** odejmuje zaliczki od faktury końcowej, stawka po stawce.
+   Podatek od zaliczki wykazano już w miesiącu jej otrzymania - gdyby końcowa
+   weszła całą wartością dostawy, ta sama sprzedaż trafiłaby do podstawy
+   opodatkowania dwa razy.
+
+Jedną zaliczkę można rozliczyć **tylko raz**. Pilnuje tego sprawdzenie przed
+zapisem i - na wypadek dwóch żądań naraz - warunek jednoznaczności w bazie.
 
 ## Rejestr VAT
 
@@ -418,7 +469,8 @@ brak sprawdzenia nie ma wyglądać jak sprawdzenie.
 10. **Hasła i poczta** — własne konto, odzyskiwanie hasła ✔
 11. **Wysyłka faktur do kontrahenta** — PDF pocztą wprost z programu ✔
 12. **Płatności i należności** — wpłaty, przeterminowania, przypomnienia ✔
-13. Dalej: faktury zaliczkowe, magazyn, KPiR
+13. **Braki w fakturowaniu** — zaliczkowe i końcowe, duplikat, osobna seria korekt ✔
+14. Dalej: zestawienia dla księgowej, magazyn, KPiR
 
 ## Konta, firmy i role
 
@@ -752,3 +804,10 @@ Kod QR na wydruku został odczytany z gotowego pliku PDF czytnikiem kodów
 i porównany ze skrótem SHA-256 wysłanego dokumentu — link prowadzi dokładnie
 tam, gdzie powinien. Nie sprawdzono natomiast, czy strona KSeF pod tym
 adresem pokaże fakturę; to znów wymaga połączenia z żywym systemem.
+
+Faktury zaliczkowe i końcowe przeszły drogę **przez przeglądarkę**: wystawienie
+zaliczki, rozliczenie jej fakturą końcową, nieudaną próbę rozliczenia drugi
+raz, duplikat i dwie korekty jedna po drugiej. Sprawdzone są też skutki
+liczbowe - kwota do zapłaty na ekranie, w należnościach i na wydruku PDF oraz
+wpis w rejestrze VAT pomniejszony o zaliczkę. Same pliki FA(3) w trzech nowych
+wariantach przechodzą walidację oryginalnym schematem Ministerstwa.

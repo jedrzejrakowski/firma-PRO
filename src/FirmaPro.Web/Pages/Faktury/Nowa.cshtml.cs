@@ -85,7 +85,7 @@ public sealed class NowaModel(FirmaProDbContext baza, UslugaFaktur uslugaFaktur)
             PodstawaZwolnienia,
             wypelnione.Select(p => (p.Nazwa, p.Jednostka, p.Ilosc, p.CenaNetto,
                                     p.KodStawki, p.Gtu)).ToList(),
-            anulowanie);
+            anulowanie: anulowanie);
 
         if (!wynik.Udalo)
         {
@@ -98,7 +98,7 @@ public sealed class NowaModel(FirmaProDbContext baza, UslugaFaktur uslugaFaktur)
 
         TempData["Komunikat"] =
             $"Wystawiono fakturę {wynik.Faktura!.Numer} na kwotę " +
-            $"{wynik.Faktura.RazemBrutto:N2} {wynik.Faktura.Waluta}.";
+            $"{Kwoty.NaTekst(wynik.Faktura.RazemBrutto)} {wynik.Faktura.Waluta}.";
 
         return RedirectToPage("Szczegoly", new { id = wynik.Faktura.Id });
     }

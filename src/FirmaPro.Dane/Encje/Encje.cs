@@ -190,6 +190,61 @@ public sealed class Zaproszenie : EncjaBazowa, INalezyDoFirmy
     public Guid ZapraszajacyId { get; set; }
 }
 
+/// <summary>
+/// Pozycja zamówienia zapisana przy fakturze zaliczkowej.
+/// </summary>
+/// <remarks>
+/// Wiersze faktury zaliczkowej pokazują samą wpłatę, więc bez zamówienia nie
+/// byłoby wiadomo, czego ta wpłata dotyczy (art. 106f ust. 1 pkt 4 ustawy).
+/// Zamówienie zapisujemy przy dokumencie, a nie osobno: ma pokazywać stan
+/// z dnia wystawienia, tak samo jak dane nabywcy.
+/// </remarks>
+public sealed class PozycjaZamowieniaFaktury : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    public Guid FakturaId { get; set; }
+    public FakturaSprzedazy? Faktura { get; set; }
+
+    public int NrWiersza { get; set; }
+
+    public string Nazwa { get; set; } = string.Empty;
+    public string Jednostka { get; set; } = "szt.";
+    public decimal Ilosc { get; set; } = 1m;
+    public decimal CenaNetto { get; set; }
+    public string KodStawki { get; set; } = "23";
+    public string? Gtu { get; set; }
+}
+
+/// <summary>
+/// Wskazanie faktury zaliczkowej rozliczanej fakturą końcową.
+/// </summary>
+/// <remarks>
+/// Osobna tabela, bo faktura końcowa rozlicza zwykle kilka zaliczek
+/// (art. 106f ust. 3 ustawy).
+/// </remarks>
+public sealed class RozliczonaZaliczka : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    /// <summary>Faktura końcowa.</summary>
+    public Guid FakturaId { get; set; }
+    public FakturaSprzedazy? Faktura { get; set; }
+
+    /// <summary>Rozliczana faktura zaliczkowa.</summary>
+    public Guid ZaliczkowaId { get; set; }
+
+    /// <summary>Numer zaliczkowej przepisany na chwilę wystawienia.</summary>
+    public string Numer { get; set; } = string.Empty;
+
+    public DateOnly DataWystawienia { get; set; }
+
+    public string? NumerKsef { get; set; }
+
+    /// <summary>Kwota brutto rozliczanej zaliczki.</summary>
+    public decimal Brutto { get; set; }
+}
+
 /// <summary>Wpłata na poczet faktury sprzedaży.</summary>
 /// <remarks>
 /// Osobne wpłaty, a nie samo pole „zapłacono": należność bywa regulowana
@@ -416,6 +471,12 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
                or RodzajFaktury.KorektaRozliczeniowej;
 
     public ICollection<PozycjaFakturySprzedazy> Pozycje { get; set; } = [];
+
+    /// <summary>Pozycje zamówienia - tylko przy fakturze zaliczkowej.</summary>
+    public ICollection<PozycjaZamowieniaFaktury> PozycjeZamowienia { get; set; } = [];
+
+    /// <summary>Zaliczki rozliczane tą fakturą - tylko przy fakturze końcowej.</summary>
+    public ICollection<RozliczonaZaliczka> RozliczoneZaliczki { get; set; } = [];
 
     /// <summary>
     /// Czy dokument jest już zamknięty na zmiany.

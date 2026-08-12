@@ -31,6 +31,102 @@ public class TestyZgodnosciZeSchematem
         ZbudujISprawdz(Fabryka.PrzykladowaFaktura());
     }
 
+    /// <summary>
+    /// Faktura zaliczkowa: wiersze pokazują wpłatę, a zamówienie - czego dotyczy.
+    /// </summary>
+    /// <remarks>
+    /// Sekcja Zamowienie stoi w schemacie na samym końcu Fa, po warunkach
+    /// transakcji. Zła kolejność elementów nie psuje niczego widocznego -
+    /// dopiero KSeF odrzuca taki dokument.
+    /// </remarks>
+    [Fact]
+    public void FakturaZaliczkowa()
+    {
+        Faktura faktura = Fabryka.PrzykladowaFaktura();
+        faktura.Rodzaj = RodzajFaktury.Zaliczkowa;
+
+        faktura.Zamowienie =
+        [
+            new PozycjaZamowienia
+            {
+                Nazwa = "Wykonanie instalacji",
+                Jednostka = "usł.",
+                Ilosc = 1m,
+                CenaNetto = 10000m,
+                Stawka = StawkaVat.Vat23
+            },
+            new PozycjaZamowienia
+            {
+                Nazwa = "Materiały budowlane",
+                Jednostka = "kpl.",
+                Ilosc = 2m,
+                CenaNetto = 1500m,
+                Stawka = StawkaVat.Vat8
+            }
+        ];
+
+        // Wiersze faktury to samo rozbicie wpłaconej zaliczki na stawki.
+        faktura.Pozycje = [.. Zaliczka.Rozbij(faktura.Zamowienie, 6150m)
+            .Select(czesc => new PozycjaFaktury
+            {
+                Nazwa = $"Zaliczka - stawka {czesc.Stawka.Opis}",
+                Jednostka = "usł.",
+                Ilosc = 1m,
+                CenaNetto = czesc.Netto,
+                Stawka = czesc.Stawka
+            })];
+
+        ZbudujISprawdz(faktura);
+    }
+
+    /// <summary>
+    /// Faktura końcowa wskazuje zaliczki - i te z KSeF, i te wystawione poza nim.
+    /// </summary>
+    [Fact]
+    public void FakturaKoncowaZeWskazaniemZaliczek()
+    {
+        Faktura faktura = Fabryka.PrzykladowaFaktura();
+        faktura.Rodzaj = RodzajFaktury.Rozliczeniowa;
+
+        faktura.Zaliczkowe =
+        [
+            new DaneZaliczki("FV/2026/07/9", new DateOnly(2026, 7, 15),
+                "5252248481-20260715-0AAAAA-BBBBBB-CC", 1230m),
+            new DaneZaliczki("FV/2026/06/3", new DateOnly(2026, 6, 10), null, 615m)
+        ];
+
+        ZbudujISprawdz(faktura);
+    }
+
+    /// <summary>Korekta faktury zaliczkowej niesie i zamówienie, i dane korekty.</summary>
+    [Fact]
+    public void KorektaFakturyZaliczkowej()
+    {
+        Faktura faktura = Fabryka.PrzykladowaFaktura();
+        faktura.Rodzaj = RodzajFaktury.KorektaZaliczkowej;
+        faktura.PrzyczynaKorekty = "Zmiana wartości zamówienia";
+        faktura.TypKorekty = TypKorektyVat.WDacieKorekty;
+        faktura.Korygowane =
+        [
+            new DaneFakturyKorygowanej("FV/2026/07/9", new DateOnly(2026, 7, 15),
+                "5252248481-20260715-0AAAAA-BBBBBB-CC")
+        ];
+
+        faktura.Zamowienie =
+        [
+            new PozycjaZamowienia
+            {
+                Nazwa = "Wykonanie instalacji",
+                Jednostka = "usł.",
+                Ilosc = 1m,
+                CenaNetto = 9000m,
+                Stawka = StawkaVat.Vat23
+            }
+        ];
+
+        ZbudujISprawdz(faktura);
+    }
+
     [Fact]
     public void NabywcaBezNumeruNip()
     {

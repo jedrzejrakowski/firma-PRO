@@ -247,8 +247,10 @@ public static class Fa3Generator
         fa.Add(Adnotacje(faktura));
         fa.Add(new XElement(Ns + "RodzajFaktury", KodyRodzajow[faktura.Rodzaj]));
         DodajDaneKorekty(fa, faktura);
+        DodajFakturyZaliczkowe(fa, faktura);
         DodajWiersze(fa, faktura);
         DodajPlatnosc(fa, faktura);
+        DodajZamowienie(fa, faktura);
 
         return fa;
     }
@@ -353,6 +355,78 @@ public static class Fa3Generator
 
             fa.Add(dane);
         }
+    }
+
+    /// <summary>
+    /// Wskazuje faktury zaliczkowe rozliczane fakturą końcową.
+    /// </summary>
+    /// <remarks>
+    /// Kolejność w schemacie jest ustalona: sekcja stoi po DodatkowyOpis,
+    /// a przed wierszami faktury. Faktura wystawiona w KSeF wskazywana jest
+    /// numerem KSeF; wystawiona poza nim - własnym numerem ze znacznikiem.
+    /// </remarks>
+    private static void DodajFakturyZaliczkowe(XElement fa, Faktura faktura)
+    {
+        foreach (DaneZaliczki zaliczkowa in faktura.Zaliczkowe)
+        {
+            fa.Add(string.IsNullOrWhiteSpace(zaliczkowa.NumerKsef)
+                ? new XElement(Ns + "FakturaZaliczkowa",
+                    new XElement(Ns + "NrKSeFZN", "1"),
+                    new XElement(Ns + "NrFaZaliczkowej", zaliczkowa.Numer))
+                : new XElement(Ns + "FakturaZaliczkowa",
+                    new XElement(Ns + "NrKSeFFaZaliczkowej", zaliczkowa.NumerKsef)));
+        }
+    }
+
+    /// <summary>
+    /// Zamówienie lub umowa, na poczet których wpłacono zaliczkę.
+    /// </summary>
+    /// <remarks>
+    /// W schemacie sekcja stoi na końcu Fa, po warunkach transakcji. Wartość
+    /// zamówienia podaje się z podatkiem - to kwota, do której zmierzają
+    /// kolejne zaliczki.
+    /// </remarks>
+    private static void DodajZamowienie(XElement fa, Faktura faktura)
+    {
+        if (faktura.Zamowienie.Count == 0)
+        {
+            return;
+        }
+
+        var sekcja = new XElement(Ns + "Zamowienie",
+            new XElement(Ns + "WartoscZamowienia",
+                Kwoty.NaXml(Zaliczka.WartoscZamowienia(faktura.Zamowienie))));
+
+        int numer = 1;
+
+        foreach (PozycjaZamowienia pozycja in faktura.Zamowienie)
+        {
+            var wiersz = new XElement(Ns + "ZamowienieWiersz",
+                new XElement(Ns + "NrWierszaZam", numer++));
+
+            DodajGdyJest(wiersz, "P_7Z", pozycja.Nazwa);
+            DodajGdyJest(wiersz, "P_8AZ", pozycja.Jednostka);
+
+            wiersz.Add(new XElement(Ns + "P_8BZ",
+                Kwoty.LiczbaNaXml(pozycja.Ilosc, 6)));
+            wiersz.Add(new XElement(Ns + "P_9AZ",
+                Kwoty.LiczbaNaXml(pozycja.CenaNetto, 2)));
+            wiersz.Add(new XElement(Ns + "P_11NettoZ",
+                Kwoty.NaXml(pozycja.WartoscNetto)));
+
+            if (pozycja.Stawka.NaliczaPodatek)
+            {
+                wiersz.Add(new XElement(Ns + "P_11VatZ", Kwoty.NaXml(pozycja.KwotaVat)));
+            }
+
+            wiersz.Add(new XElement(Ns + "P_12Z", pozycja.Stawka.Kod));
+
+            DodajGdyJest(wiersz, "GTUZ", pozycja.Gtu);
+
+            sekcja.Add(wiersz);
+        }
+
+        fa.Add(sekcja);
     }
 
     private static void DodajWiersze(XElement fa, Faktura faktura)
