@@ -190,6 +190,33 @@ public sealed class Zaproszenie : EncjaBazowa, INalezyDoFirmy
     public Guid ZapraszajacyId { get; set; }
 }
 
+/// <summary>
+/// Ślad wysłania faktury pocztą do kontrahenta.
+/// </summary>
+/// <remarks>
+/// Osobna tabela, a nie pole przy fakturze: faktura bywa wysyłana kilka razy
+/// - pod poprawiony adres albo drugi raz, bo pierwsza wiadomość zaginęła.
+/// Przy sporze o to, czy kontrahent fakturę dostał, liczy się cała historia,
+/// a nie sam ostatni raz.
+/// </remarks>
+public sealed class WyslanieFaktury : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    public Guid FakturaId { get; set; }
+    public FakturaSprzedazy? Faktura { get; set; }
+
+    public string Adres { get; set; } = string.Empty;
+
+    /// <summary>Kto wysłał - do odtworzenia przebiegu sprawy.</summary>
+    public Guid? UzytkownikId { get; set; }
+
+    public DateTimeOffset WyslanoUtc { get; set; }
+
+    /// <summary>Czy dołączono plik XML obok wizualizacji PDF.</summary>
+    public bool ZXmlem { get; set; }
+}
+
 /// <summary>Kontrahent - nabywca na fakturze.</summary>
 public sealed class Kontrahent : EncjaBazowa, INalezyDoFirmy
 {

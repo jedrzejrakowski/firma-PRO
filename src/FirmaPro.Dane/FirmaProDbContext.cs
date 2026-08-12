@@ -79,6 +79,7 @@ public class FirmaProDbContext : DbContext
     public DbSet<CzlonkostwoWFirmie> Czlonkostwa => Set<CzlonkostwoWFirmie>();
     public DbSet<Zaproszenie> Zaproszenia => Set<Zaproszenie>();
     public DbSet<ResetHasla> ResetyHasla => Set<ResetHasla>();
+    public DbSet<WyslanieFaktury> WysylkiFaktur => Set<WyslanieFaktury>();
     public DbSet<Kontrahent> Kontrahenci => Set<Kontrahent>();
     public DbSet<FakturaSprzedazy> FakturySprzedazy => Set<FakturaSprzedazy>();
     public DbSet<PozycjaFakturySprzedazy> PozycjeFaktur => Set<PozycjaFakturySprzedazy>();
@@ -98,6 +99,7 @@ public class FirmaProDbContext : DbContext
         KonfigurujUzytkownikow(modelBuilder);
         KonfigurujKontrahentow(modelBuilder);
         KonfigurujFaktury(modelBuilder);
+        KonfigurujWysylki(modelBuilder);
         KonfigurujZakupy(modelBuilder);
         KonfigurujZamknieciaOkresow(modelBuilder);
         KonfigurujNumeracje(modelBuilder);
@@ -312,6 +314,23 @@ public class FirmaProDbContext : DbContext
         });
     }
 
+    private static void KonfigurujWysylki(ModelBuilder budowniczy)
+    {
+        budowniczy.Entity<WyslanieFaktury>(e =>
+        {
+            e.ToTable("wysylki_faktur");
+            e.HasKey(w => w.Id);
+            e.Property(w => w.Adres).HasMaxLength(256).IsRequired();
+
+            e.HasOne(w => w.Faktura)
+                .WithMany()
+                .HasForeignKey(w => w.FakturaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(w => new { w.FirmaId, w.FakturaId });
+        });
+    }
+
     private static void KonfigurujZakupy(ModelBuilder budowniczy)
     {
         budowniczy.Entity<FakturaZakupu>(e =>
@@ -430,6 +449,9 @@ public class FirmaProDbContext : DbContext
         // w firmie zachowywała się jak każda inna lista.
         budowniczy.Entity<Zaproszenie>()
             .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
+
+        budowniczy.Entity<WyslanieFaktury>()
+            .HasQueryFilter(w => w.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

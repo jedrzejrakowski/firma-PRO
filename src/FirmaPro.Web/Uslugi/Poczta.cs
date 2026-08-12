@@ -12,7 +12,8 @@ public sealed record UstawieniaPoczty(
     string? Haslo,
     string AdresNadawcy,
     string NazwaNadawcy,
-    bool SzyfrowanieOdRazu)
+    bool SzyfrowanieOdRazu,
+    bool BezSzyfrowania)
 {
     /// <summary>
     /// Czyta ustawienia poczty; <c>null</c>, gdy nie skonfigurowano serwera.
@@ -44,6 +45,12 @@ public sealed record UstawieniaPoczty(
         // szyfrowanie po nawiązaniu połączenia. To najczęstszy podział.
         int port = int.TryParse(ustawienia["Poczta:Port"], out int wskazany) ? wskazany : 587;
 
+        // Połączenie bez szyfrowania ma sens wyłącznie do przekaźnika
+        // stojącego na tej samej maszynie. Domyślnie wymagamy szyfrowania,
+        // bo poza taką sytuacją hasło do poczty szłoby otwartym tekstem.
+        bool bezSzyfrowania =
+            bool.TryParse(ustawienia["Poczta:BezSzyfrowania"], out bool jawnie) && jawnie;
+
         return new UstawieniaPoczty(
             serwer.Trim(),
             port,
@@ -51,9 +58,13 @@ public sealed record UstawieniaPoczty(
             ustawienia["Poczta:Haslo"],
             nadawca.Trim(),
             ustawienia["Poczta:NazwaNadawcy"] ?? "Firma PRO",
-            port == 465);
+            port == 465,
+            bezSzyfrowania);
     }
 }
+
+/// <summary>Plik dołączany do wiadomości.</summary>
+public sealed record Zalacznik(string Nazwa, byte[] Dane, string TypTresci);
 
 /// <summary>Wysyłanie wiadomości do użytkowników.</summary>
 public interface INadawcaPoczty
@@ -69,6 +80,7 @@ public interface INadawcaPoczty
     bool Dziala { get; }
 
     Task WyslijAsync(string adres, string temat, string tresc,
+                     IReadOnlyList<Zalacznik>? zalaczniki = null,
                      CancellationToken anulowanie = default);
 }
 
@@ -79,22 +91,35 @@ public sealed class NadawcaSmtp(UstawieniaPoczty ustawienia, ILogger<NadawcaSmtp
     public bool Dziala => true;
 
     public async Task WyslijAsync(string adres, string temat, string tresc,
+                                  IReadOnlyList<Zalacznik>? zalaczniki = null,
                                   CancellationToken anulowanie = default)
     {
         var wiadomosc = new MimeMessage();
         wiadomosc.From.Add(new MailboxAddress(ustawienia.NazwaNadawcy, ustawienia.AdresNadawcy));
         wiadomosc.To.Add(MailboxAddress.Parse(adres));
         wiadomosc.Subject = temat;
-        wiadomosc.Body = new TextPart("plain") { Text = tresc };
+
+        var tresci = new BodyBuilder { TextBody = tresc };
+
+        foreach (Zalacznik zalacznik in zalaczniki ?? [])
+        {
+            tresci.Attachments.Add(zalacznik.Nazwa, zalacznik.Dane,
+                ContentType.Parse(zalacznik.TypTresci));
+        }
+
+        wiadomosc.Body = tresci.ToMessageBody();
 
         using var klient = new SmtpClient();
 
         await klient.ConnectAsync(
             ustawienia.Serwer,
             ustawienia.Port,
-            ustawienia.SzyfrowanieOdRazu
-                ? SecureSocketOptions.SslOnConnect
-                : SecureSocketOptions.StartTls,
+            ustawienia switch
+            {
+                { BezSzyfrowania: true } => SecureSocketOptions.None,
+                { SzyfrowanieOdRazu: true } => SecureSocketOptions.SslOnConnect,
+                _ => SecureSocketOptions.StartTls
+            },
             anulowanie);
 
         if (!string.IsNullOrWhiteSpace(ustawienia.Uzytkownik))
@@ -125,6 +150,7 @@ public sealed class NadawcaDoDziennika(ILogger<NadawcaDoDziennika> dziennik) : I
     public bool Dziala => false;
 
     public Task WyslijAsync(string adres, string temat, string tresc,
+                            IReadOnlyList<Zalacznik>? zalaczniki = null,
                             CancellationToken anulowanie = default)
     {
         Dziennik.PocztaNieskonfigurowana(dziennik, adres, temat, tresc);

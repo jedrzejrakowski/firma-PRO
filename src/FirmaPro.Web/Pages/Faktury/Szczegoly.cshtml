@@ -115,6 +115,90 @@
     <a class="przycisk przycisk-drugi" asp-page="Index">Wróć do listy</a>
 </div>
 
+
+<h2>Wyślij kontrahentowi</h2>
+
+@if (Model.WalidacjaWysylki.SaBledy)
+{
+    <div class="powiadomienie niepowodzenie">
+        <ul class="bledy">
+            @foreach (Problem problem in Model.WalidacjaWysylki.Problemy
+                          .Where(p => p.Poziom == PoziomProblemu.Blad))
+            {
+                <li>@problem.Komunikat</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="karta">
+    @if (!Model.PocztaDziala)
+    {
+        <p class="wskazowka" style="margin:0">
+            Poczta nie jest skonfigurowana w tej instalacji, więc program nie wyśle
+            wiadomości. Pobierz PDF powyżej i wyślij go swoją pocztą — albo poproś
+            o ustawienie serwera poczty we wdrożeniu.
+        </p>
+    }
+    else
+    {
+        <form method="post" asp-page-handler="Poczta" asp-route-id="@Model.Faktura.Id">
+            <div class="pole">
+                <label for="adres">Adres odbiorcy</label>
+                <input type="email" id="adres" name="Adres" value="@Model.Adres"
+                       required maxlength="256" />
+            </div>
+
+            <div class="pole">
+                <label for="wiadomosc">Wiadomość (opcjonalnie)</label>
+                <input type="text" id="wiadomosc" name="Wiadomosc" value="@Model.Wiadomosc"
+                       maxlength="500"
+                       placeholder="W załączeniu przesyłamy fakturę." />
+            </div>
+
+            <div class="pole-wyboru">
+                @* Odznaczone pole wyboru nie wysyła nic, więc pod spodem stoi
+                   ukryte pole z wartością przeciwną. *@
+                <input type="checkbox" id="xml" name="DolaczXml" value="true" />
+                <input type="hidden" name="DolaczXml" value="false" />
+                <label for="xml">Dołącz także plik XML</label>
+            </div>
+
+            <p class="wskazowka">
+                W załączeniu idzie ta sama wizualizacja PDF, którą można pobrać
+                powyżej — z kodem QR, jeśli faktura jest już w KSeF.
+            </p>
+
+            <div class="paskiem">
+                <button type="submit">Wyślij e-mailem</button>
+            </div>
+        </form>
+    }
+</div>
+
+@if (Model.Wysylki.Count > 0)
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Wysłano</th>
+                <th>Adres</th>
+                <th>Załączniki</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (WyslanieFaktury wyslanie in Model.Wysylki)
+            {
+                <tr>
+                    <td class="nowrap">@wyslanie.WyslanoUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@wyslanie.Adres</td>
+                    <td>@(wyslanie.ZXmlem ? "PDF i XML" : "PDF")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
 @if (Model.Faktura.Status != StatusKsef.Przyjeta)
 {
     <p style="color:var(--tekst-szary);font-size:0.88rem;margin-top:14px">

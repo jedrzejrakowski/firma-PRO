@@ -9,9 +9,25 @@ using Microsoft.EntityFrameworkCore;
 namespace FirmaPro.Web.Pages.Faktury;
 
 /// <summary>Podgląd faktury wraz z wysyłką do KSeF.</summary>
-public sealed class SzczegolyModel(FirmaProDbContext baza, UslugaFaktur uslugaFaktur) : PageModel
+public sealed class SzczegolyModel(
+    FirmaProDbContext baza,
+    UslugaFaktur uslugaFaktur,
+    UslugaWysylkiFaktur uslugaWysylki) : PageModel
 {
     public FakturaSprzedazy Faktura { get; private set; } = null!;
+
+    /// <summary>Adres, pod który poleci wiadomość - domyślnie z kartoteki.</summary>
+    [BindProperty] public string Adres { get; set; } = string.Empty;
+
+    [BindProperty] public string? Wiadomosc { get; set; }
+
+    [BindProperty] public bool DolaczXml { get; set; }
+
+    public IReadOnlyList<WyslanieFaktury> Wysylki { get; private set; } = [];
+
+    public bool PocztaDziala => uslugaWysylki.PocztaDziala;
+
+    public WynikWalidacji WalidacjaWysylki { get; private set; } = new();
 
     /// <summary>
     /// Czy u góry strony widać już komunikat z ostatniej operacji.
@@ -36,8 +52,42 @@ public sealed class SzczegolyModel(FirmaProDbContext baza, UslugaFaktur uslugaFa
                        || TempData.Peek("Ostrzezenie") is not null;
 
         Faktura = faktura;
+        await WczytajWysylkiAsync(id, anulowanie);
+
+        // Adres z kartoteki kontrahenta to najczęstszy wybór, ale zostaje
+        // do poprawienia: faktury bywają wysyłane do księgowości klienta,
+        // a nie na adres wpisany w kartotece.
+        Adres = await uslugaWysylki.AdresKontrahentaAsync(id, anulowanie) ?? string.Empty;
+
         return Page();
     }
+
+    /// <summary>Wysyła fakturę kontrahentowi pocztą.</summary>
+    public async Task<IActionResult> OnPostPocztaAsync(Guid id, CancellationToken anulowanie)
+    {
+        FakturaSprzedazy? faktura = await WczytajAsync(id, anulowanie);
+        if (faktura is null)
+        {
+            return NotFound();
+        }
+
+        WynikKonta<WyslanieFaktury> wynik = await uslugaWysylki.WyslijAsync(
+            id, Adres, Wiadomosc, DolaczXml, Tozsamosc.UzytkownikId(User), anulowanie);
+
+        if (!wynik.Udalo)
+        {
+            Faktura = faktura;
+            WalidacjaWysylki = wynik.Walidacja;
+            await WczytajWysylkiAsync(id, anulowanie);
+            return Page();
+        }
+
+        TempData["Komunikat"] = $"Faktura wysłana na adres {wynik.Dane!.Adres}.";
+        return RedirectToPage("Szczegoly", new { id });
+    }
+
+    private async Task WczytajWysylkiAsync(Guid id, CancellationToken anulowanie) =>
+        Wysylki = await uslugaWysylki.HistoriaAsync(id, anulowanie);
 
     public async Task<IActionResult> OnPostWyslijAsync(Guid id, CancellationToken anulowanie)
     {

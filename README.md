@@ -30,7 +30,8 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Logowanie i konta użytkowników | gotowe |
 | Zakładanie firm, zapraszanie współpracowników, role | gotowe |
 | Własne konto, zmiana i odzyskiwanie hasła | gotowe |
-| Wysyłka poczty (zaproszenia, zmiana hasła) | gotowe, **niesprawdzona na żywym serwerze poczty** |
+| Wysyłka poczty (zaproszenia, hasła, faktury) | gotowe |
+| Wysyłka faktury e-mailem do kontrahenta | gotowe |
 | Kartoteka kontrahentów | gotowe |
 | Wystawianie faktur i podgląd dokumentu | gotowe |
 | Faktury korygujące | gotowe |
@@ -414,7 +415,8 @@ brak sprawdzenia nie ma wyglądać jak sprawdzenie.
 8. **Wdrożenie** — kontenery, HTTPS, kopie zapasowe ✔
 9. **Konta i role** — zakładanie firm, zapraszanie, uprawnienia ✔
 10. **Hasła i poczta** — własne konto, odzyskiwanie hasła ✔
-11. Dalej: wysyłka faktur pocztą, faktury zaliczkowe, magazyn, KPiR
+11. **Wysyłka faktur do kontrahenta** — PDF pocztą wprost z programu ✔
+12. Dalej: faktury zaliczkowe, płatności i należności, magazyn, KPiR
 
 ## Konta, firmy i role
 
@@ -507,6 +509,26 @@ w pliku `.env` wdrożenia, gdy program ma obsługiwać wiele firm.
 
 Przy pracy nad programem rejestracja jest otwarta, żeby dało się wyklikać
 całą drogę bez zaglądania do ustawień.
+
+## Wysyłka faktury kontrahentowi
+
+Kontrahent dostaje z KSeF plik XML, ale chce czegoś, co da się przeczytać
+i podpiąć pod przelew. Z ekranu faktury idzie więc pocztą **ta sama
+wizualizacja PDF**, którą można pobrać ręcznie — z kodem QR, jeśli faktura
+jest już w KSeF. Plik XML dołącza się na życzenie, jednym polem wyboru.
+
+Adres podpowiadany jest z kartoteki kontrahenta, ale zostaje do poprawienia:
+faktury bywają wysyłane do księgowości klienta, a nie na adres z kartoteki.
+
+Każda wysyłka zostawia ślad widoczny przy fakturze — data, adres i to, co
+poszło w załączniku. Ślad jest osobną listą, a nie jednym polem „wysłano",
+bo faktura bywa wysyłana kilka razy: pod poprawiony adres albo drugi raz,
+gdy pierwsza wiadomość zaginęła. Przy sporze o to, czy kontrahent fakturę
+dostał, liczy się cała historia.
+
+Wysyłka do kontrahenta to co innego niż wysyłka do KSeF: pierwsza jest
+grzecznością wobec klienta i można ją powtórzyć, druga wprowadza fakturę do
+obiegu prawnego i zdarza się raz.
 
 ## Wdrożenie
 
@@ -678,11 +700,12 @@ samym woluminie kluczy). Kopie zapasowe sprawdzone są na działającej bazie:
 udana runda, wykrycie kopii uciętej w połowie, wykrycie kopii pustej oraz
 odtworzenie bazy nadpisanej „przez pomyłkę".
 
-Nie sprawdzono **wysyłki poczty przeciwko prawdziwemu serwerowi SMTP** -
-w środowisku budowy nie ma do czego się połączyć. Sprawdzone jest to, co
-wokół niej: ekrany zależne od poczty same się wyłączają, gdy nie jest
-skonfigurowana, a odzyskanie hasła działa również bez niej, odnośnikiem od
-właściciela. Pierwsze wysłanie zaproszenia u siebie warto potraktować jako
+Wysyłka poczty sprawdzona jest **przeciwko prawdziwemu serwerowi SMTP** -
+prostemu serwerowi uruchomionemu na czas próby. Wiadomość dotarła w całości:
+nagłówki, polska treść i dwa załączniki, z których plik PDF zaczyna się od
+`%PDF-`, a XML niesie przestrzeń nazw wzoru FA(3). Nie sprawdzono natomiast
+połączenia **szyfrowanego z uwierzytelnieniem** - do tego trzeba prawdziwego
+dostawcy poczty. Pierwsze wysłanie faktury u siebie warto potraktować jako
 sprawdzenie ustawień serwera poczty.
 
 Nie udało się natomiast uruchomić **całego zestawu z docker-compose naraz** -

@@ -72,6 +72,7 @@ services:
       Poczta__Haslo: ${POCZTA_HASLO:-}
       Poczta__AdresNadawcy: ${POCZTA_NADAWCA:-}
       Poczta__NazwaNadawcy: ${POCZTA_NAZWA_NADAWCY:-Firma PRO}
+      Poczta__BezSzyfrowania: ${POCZTA_BEZ_SZYFROWANIA:-false}
     volumes:
       - klucze:/dane/klucze
 

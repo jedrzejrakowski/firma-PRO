@@ -52,7 +52,7 @@ public sealed class ZapomnianeHasloModel(
                  Jeśli to nie Ty prosiłeś o zmianę, nie rób nic - hasło pozostanie
                  bez zmian.
                  """,
-                anulowanie);
+                anulowanie: anulowanie);
         }
 
         // Ta sama odpowiedź niezależnie od tego, czy konto istnieje. Inaczej

@@ -75,7 +75,7 @@ public sealed class IndexModel(UslugaKont uslugaKont, INadawcaPoczty poczta) : P
 
                  Odnośnik działa raz i traci ważność po {UslugaKont.DniWaznosciZaproszenia} dniach.
                  """,
-                anulowanie);
+                anulowanie: anulowanie);
         }
 
         // Formularz czyścimy, żeby kolejne zaproszenie nie poszło przez

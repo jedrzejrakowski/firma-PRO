@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using FirmaPro.Ksef;
+using FirmaPro.Web.Uslugi;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -41,6 +42,15 @@ public sealed partial class AplikacjaTestowa : WebApplicationFactory<Program>, I
     /// </remarks>
     public AtrapaKsef? Ksef { get; set; }
 
+    /// <summary>
+    /// Poczta podstawiona na czas testów.
+    /// </summary>
+    /// <remarks>
+    /// Podstawiana zawsze, a nie na życzenie: test nigdy nie powinien wysłać
+    /// prawdziwej wiadomości, choćby przez pomyłkę w ustawieniach.
+    /// </remarks>
+    public AtrapaPoczty Poczta { get; } = new();
+
     public async Task InitializeAsync() => await _baza.InitializeAsync();
 
     async Task IAsyncLifetime.DisposeAsync()
@@ -63,10 +73,14 @@ public sealed partial class AplikacjaTestowa : WebApplicationFactory<Program>, I
         // aplikacji - dzięki temu test może podstawić atrapę już po tym,
         // jak aplikacja wstała.
         builder.ConfigureTestServices(uslugi =>
+        {
+            uslugi.AddSingleton<INadawcaPoczty>(Poczta);
+
             uslugi.AddScoped<IFabrykaKlientowKsef>(dostawca =>
                 Ksef is { } atrapa
                     ? new FabrykaZAtrapy(atrapa)
-                    : ActivatorUtilities.CreateInstance<FabrykaKlientowKsef>(dostawca)));
+                    : ActivatorUtilities.CreateInstance<FabrykaKlientowKsef>(dostawca));
+        });
     }
 
     /// <summary>

@@ -129,6 +129,7 @@ budowniczy.Services.AddSingleton<IPasswordHasher<object>, PasswordHasher<object>
 budowniczy.Services.AddSingleton<IOchronaTokena, OchronaTokena>();
 budowniczy.Services.AddScoped<UslugaNumeracji>();
 budowniczy.Services.AddScoped<UslugaFaktur>();
+budowniczy.Services.AddScoped<UslugaWysylkiFaktur>();
 budowniczy.Services.AddScoped<UslugaZakladania>();
 budowniczy.Services.AddScoped<UslugaKont>();
 

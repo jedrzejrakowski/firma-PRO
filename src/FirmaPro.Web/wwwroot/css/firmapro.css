@@ -54,7 +54,7 @@ body {
     letter-spacing: 0.01em;
 }
 
-.nawigacja { display: flex; gap: 20px; flex: 1; }
+.nawigacja { display: flex; gap: 16px; flex: 1; white-space: nowrap; }
 
 .nawigacja a {
     color: #d6e4f0;
@@ -370,7 +370,16 @@ tfoot td { border-top: 2px solid var(--linia); background: #fbfcfd; }
     border-color: #2e6da4;
 }
 
-.konto-odnosnik { color: #cfe0ee; text-decoration: none; }
+/* Długie imię i nazwisko nie może rozpychać paska tak, żeby zawijała się
+   nawigacja - w razie czego skracamy je wielokropkiem. */
+.konto-odnosnik {
+    color: #cfe0ee;
+    text-decoration: none;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .konto-odnosnik:hover { color: #fff; text-decoration: underline; }
 
 .dzialania-wiersza { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
