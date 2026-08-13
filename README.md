@@ -51,7 +51,13 @@ Systemie e-Faktur od 1 lutego 2026 r.
 
 ## Uruchomienie
 
-Wymagany **.NET SDK 10.0** lub nowszy oraz PostgreSQL.
+> Chcesz tylko **zobaczyć działający program** na własnym komputerze, bez
+> instalowania narzędzi programistycznych? Zajrzyj do
+> [Uruchomienie na Windows krok po kroku](wdrozenie/URUCHOMIENIE-WINDOWS.md) —
+> potrzebny jest wyłącznie Docker Desktop i jedno polecenie.
+
+Poniższy sposób jest dla pracy nad kodem. Wymagany **.NET SDK 10.0**
+lub nowszy oraz PostgreSQL.
 
 ```bash
 git clone https://github.com/jedrzejrakowski/firma-PRO.git
