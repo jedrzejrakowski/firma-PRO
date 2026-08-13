@@ -267,6 +267,18 @@ Numery poprawne rachunkowo, a przy tym oczywiście sztuczne:
 Token, certyfikat i dane logowania działają **wyłącznie w tym środowisku,
 w którym powstały** — token z `ap-test` nie zadziała na produkcji i odwrotnie.
 
+W Aplikacji Podatnika da się wygenerować **token** albo **certyfikat KSeF**.
+Program obsługuje na razie wyłącznie token, więc wybierz token.
+
+> **Termin, o którym trzeba pamiętać.** Według zapowiedzi tokeny działają
+> do końca 2026 r., a od 1 stycznia 2027 r. jedyną metodą uwierzytelniania
+> w API ma być **certyfikat KSeF**. Bez obsługi certyfikatów program
+> przestanie się wtedy logować do systemu — u każdej firmy, która go używa.
+> Różnica nie sprowadza się do sposobu podpisania żądania: token niesie
+> uprawnienia nadane przy jego tworzeniu, a certyfikat tylko potwierdza
+> tożsamość i opiera się na uprawnieniach nadanych wcześniej w systemie.
+> Daty warto potwierdzić w podręczniku Ministerstwa przed planowaniem prac.
+
 NIP w Ustawieniach musi być **ten sam**, dla którego wygenerowano token —
 niezgodność kończy się odpowiedzią 401, a ekran sprawdzenia wymienia ją jako
 jedną z trzech typowych przyczyn.
