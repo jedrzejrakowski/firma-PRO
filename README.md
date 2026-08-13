@@ -219,17 +219,45 @@ Ministerstwo prowadzi bezpłatne **środowisko testowe** — faktury wystawione
 tam nie mają mocy prawnej i nie da się nimi niczego zepsuć. To na nim
 sprawdza się integrację, zanim padnie pierwsza prawdziwa faktura.
 
-1. Wejdź na `https://ksef-test.mf.gov.pl` i zaloguj się do aplikacji webowej
-   KSeF w środowisku **testowym**.
-2. Wygeneruj **token** dla numeru NIP swojej firmy. Nadaj mu uprawnienie do
-   wystawiania faktur; jeśli chcesz też pobierać faktury zakupu, dodaj
-   uprawnienie do odczytu.
-3. Token pokazywany jest **jeden raz** — skopiuj go od razu. Nie wysyłaj go
-   e-mailem ani komunikatorem; jest wart tyle, co prawo do wystawiania faktur
-   w Twoim imieniu.
-4. W programie: **Ustawienia firmy** → środowisko *Testowe*, wklej token,
-   zapisz.
-5. Kliknij **Sprawdź połączenie z KSeF**.
+**Nie potrzebujesz do tego firmy ani numeru NIP.** Środowisko testowe nie
+sprawdza numerów w rejestrze podatników i nie wymaga podpisu kwalifikowanego
+ani profilu zaufanego — wpisuje się tam dowolny, wymyślony NIP, a żadna
+czynność nie wywołuje skutków prawnych. To właśnie po to jest.
+
+Program sprawdza jednak **sumę kontrolną** numeru, więc „1234567890" odrzuci.
+Numery poprawne rachunkowo, a przy tym oczywiście sztuczne:
+
+| NIP | |
+|---|---|
+| `8888888888` | używany jako testowy w materiałach o KSeF |
+| `9999999999` | |
+| `7777777777` | |
+| `1111111111` | |
+
+1. Wejdź na aplikację podatnika w środowisku **testowym**:
+   `https://web2te-ksef.mf.gov.pl/web/` (gdyby adres nie działał, spróbuj
+   `https://ksef-test.mf.gov.pl` — Ministerstwo przenosiło je między
+   wersjami KSeF).
+2. Zaloguj się, wybierając identyfikator **NIP** i wpisując wybrany numer
+   z tabeli powyżej. W środowisku testowym to wystarczy.
+3. Wygeneruj **token** dla tego numeru. Nadaj mu uprawnienie do wystawiania
+   faktur; jeśli chcesz też pobierać faktury zakupu, dodaj uprawnienie
+   do odczytu.
+4. Token pokazywany jest **jeden raz** — skopiuj go od razu. Nawet testowego
+   nie wysyłaj e-mailem ani komunikatorem: przyzwyczajenie przenosi się
+   potem na produkcję, gdzie token jest wart tyle, co prawo do wystawiania
+   faktur w Twoim imieniu.
+5. W programie: **Ustawienia firmy** → NIP taki sam jak przy logowaniu,
+   środowisko *Testowe*, wklej token, zapisz.
+6. Kliknij **Sprawdź połączenie z KSeF**.
+
+NIP w Ustawieniach musi być **ten sam**, dla którego wygenerowano token —
+niezgodność kończy się odpowiedzią 401, a ekran sprawdzenia wymienia ją jako
+jedną z trzech typowych przyczyn.
+
+Prawdziwy NIP dostaniesz dopiero razem z zarejestrowaną działalnością
+(dla jednoosobowej działalności to bezpłatny wniosek w CEIDG). Do prób
+i do rozwoju programu nie jest potrzebny.
 
 #### Co robi sprawdzenie
 
