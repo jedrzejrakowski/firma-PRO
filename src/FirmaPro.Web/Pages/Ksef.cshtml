@@ -1,0 +1,94 @@
+@page
+@model FirmaPro.Web.Pages.KsefModel
+@{
+    ViewData["Tytul"] = "Połączenie z KSeF";
+}
+
+<h1>Połączenie z KSeF</h1>
+<p class="podtytul">
+    Sprawdzenie przechodzi tę samą drogę co wysyłka faktury, ale zatrzymuje się
+    tuż przed wysłaniem dokumentu — nic nie powstaje i nic nie trafia do systemu.
+</p>
+
+<div class="karta">
+    <div class="siatka">
+        <div class="pole">
+            <label>Firma</label>
+            <p>@Model.NazwaFirmy</p>
+        </div>
+        <div class="pole">
+            <label>NIP</label>
+            <p>@Model.Nip</p>
+        </div>
+        <div class="pole">
+            <label>Środowisko</label>
+            <p>@Model.Srodowisko</p>
+        </div>
+    </div>
+
+    <p class="wskazowka">
+        Środowisko i token zmienia się w <a asp-page="Ustawienia">Ustawieniach firmy</a>.
+        Token musi pochodzić z tego samego środowiska, które jest tu wybrane —
+        token testowy nie zadziała na produkcji ani odwrotnie.
+    </p>
+
+    <form method="post">
+        <button type="submit">Sprawdź połączenie</button>
+    </form>
+</div>
+
+@if (Model.Wynik is { } wynik)
+{
+    <div class="powiadomienie @(wynik.Udalo ? "powodzenie" : "niepowodzenie")">
+        @if (wynik.Udalo)
+        {
+            <strong>Połączenie działa.</strong>
+            <span>Można wystawiać faktury do KSeF.</span>
+        }
+        else
+        {
+            <strong>Sprawdzenie nie przeszło.</strong>
+            <span>
+                Nieudanych kroków: @wynik.IleBledow. Pierwszy błąd na liście
+                jest przyczyną — kolejne kroki zwykle są tylko jego skutkiem.
+            </span>
+        }
+    </div>
+
+    <div class="karta">
+        <table class="pozycje">
+            <thead>
+                <tr>
+                    <th style="width:22%">Krok</th>
+                    <th style="width:10%">Stan</th>
+                    <th>Wynik</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (KrokDiagnostyki krok in wynik.Kroki)
+                {
+                    <tr>
+                        <td><strong>@krok.Nazwa</strong></td>
+                        <td>
+                            <span class="znacznik @KsefModel.KlasaStanu(krok.Stan)">
+                                @KsefModel.OpisStanu(krok.Stan)
+                            </span>
+                        </td>
+                        <td>
+                            @krok.Komunikat
+                            @if (!string.IsNullOrWhiteSpace(krok.Wskazowka))
+                            {
+                                <div class="wskazowka">@krok.Wskazowka</div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <p class="wskazowka">
+            Sprawdzono @wynik.Kiedy.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+            dla środowiska @wynik.Srodowisko.
+        </p>
+    </div>
+}

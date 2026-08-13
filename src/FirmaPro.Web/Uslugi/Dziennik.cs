@@ -1,3 +1,5 @@
+using FirmaPro.Domena;
+
 namespace FirmaPro.Web.Uslugi;
 
 /// <summary>
@@ -48,6 +50,21 @@ internal static partial class Dziennik
                   "(„{temat}\") nie została wysłana. Treść: {tresc}")]
     internal static partial void PocztaNieskonfigurowana(
         ILogger dziennik, string adres, string temat, string tresc);
+
+    [LoggerMessage(
+        EventId = 1007,
+        Level = LogLevel.Warning,
+        Message = "Sprawdzenie połączenia z KSeF nie przeszło kroku: {krok}")]
+    internal static partial void NieudanaDiagnostyka(
+        ILogger dziennik, Exception przyczyna, string krok);
+
+    [LoggerMessage(
+        EventId = 1008,
+        Level = LogLevel.Information,
+        Message = "Sprawdzono połączenie z KSeF ({srodowisko}): " +
+                  "udane={udalo}, błędów={ileBledow}")]
+    internal static partial void ZakonczonaDiagnostyka(
+        ILogger dziennik, SrodowiskoKsef srodowisko, bool udalo, int ileBledow);
 
     [LoggerMessage(
         EventId = 1004,

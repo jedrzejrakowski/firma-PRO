@@ -43,6 +43,18 @@ public sealed class AtrapaKsef : HttpMessageHandler
 
     // Ślady wywołań - test może sprawdzić, co dokładnie zostało wysłane.
     public List<string> Wywolania { get; } = [];
+
+    /// <summary>
+    /// Wymusza odpowiedź błędem na ścieżkach o podanym przedrostku.
+    /// </summary>
+    /// <remarks>
+    /// Diagnostyka połączenia istnieje właśnie po to, żeby nazywać przyczyny
+    /// niepowodzeń, więc testy muszą umieć te niepowodzenia wywołać.
+    /// </remarks>
+    public (string Przedrostek, HttpStatusCode Kod)? Awaria { get; set; }
+
+    /// <summary>Udaje brak łączności - żądanie nie dochodzi do serwera.</summary>
+    public bool ZrywajPolaczenie { get; set; }
     public string? OdszyfrowanyToken { get; private set; }
     public byte[]? KluczSesji { get; private set; }
     public byte[]? WektorSesji { get; private set; }
@@ -105,6 +117,20 @@ public sealed class AtrapaKsef : HttpMessageHandler
         string sciezka = request.RequestUri!.AbsolutePath.Split("/v2/")[^1].TrimStart('/');
         string bezZapytania = sciezka.Split('?')[0];
         Wywolania.Add($"{request.Method} {bezZapytania}");
+
+        if (ZrywajPolaczenie)
+        {
+            throw new HttpRequestException("Nazwa hosta nie została rozwiązana.");
+        }
+
+        if (Awaria is { } awaria
+            && bezZapytania.StartsWith(awaria.Przedrostek, StringComparison.Ordinal))
+        {
+            return Json(awaria.Kod, new
+            {
+                status = new { code = (int)awaria.Kod, description = "Wymuszony błąd testowy" }
+            });
+        }
 
         string tresc = request.Content is null
             ? string.Empty

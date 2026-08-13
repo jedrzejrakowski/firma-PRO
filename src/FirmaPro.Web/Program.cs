@@ -149,6 +149,7 @@ budowniczy.Services.AddScoped<UslugaZakupow>();
 budowniczy.Services.AddScoped<UslugaImportuZakupow>();
 budowniczy.Services.AddScoped<UslugaRejestruVat>();
 budowniczy.Services.AddScoped<UslugaDeklaracji>();
+budowniczy.Services.AddScoped<UslugaDiagnostykiKsef>();
 
 // Klient KSeF korzysta z puli połączeń, żeby nie wyczerpywać gniazd
 // sieciowych. Adres bazowy ustawia fabryka - zależy od środowiska firmy.
@@ -174,6 +175,7 @@ budowniczy.Services.AddRazorPages(opcje =>
     // Zasada pilnowana jest tutaj, a nie w kodzie stron - inaczej łatwo
     // o ekran, przy którym ktoś zapomniał sprawdzić rolę.
     opcje.Conventions.AuthorizePage("/Ustawienia", ZasadaWlasciciela);
+    opcje.Conventions.AuthorizePage("/Ksef", ZasadaWlasciciela);
     opcje.Conventions.AuthorizeFolder("/Uzytkownicy", ZasadaWlasciciela);
 })
 .AddMvcOptions(opcje => opcje.Filters.Add<FiltrTylkoDoPodgladu>());

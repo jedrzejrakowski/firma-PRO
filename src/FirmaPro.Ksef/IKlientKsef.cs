@@ -55,6 +55,21 @@ public sealed record WynikWeryfikacji(
     public bool WToku => !Przyjeta && !Odrzucona;
 }
 
+/// <summary>
+/// Stan środowiska KSeF sprawdzony bez użycia tokena.
+/// </summary>
+/// <remarks>
+/// Pobranie certyfikatów to jedyne wywołanie, które nie wymaga
+/// uwierzytelnienia - nadaje się więc na sprawdzenie, czy program w ogóle
+/// dociera do serwera, zanim zacznie podejrzewać token.
+/// </remarks>
+public sealed record StanSrodowiska(
+    string Adres,
+    int IleCertyfikatow,
+    bool MaKluczDoTokena,
+    bool MaKluczDoSesji,
+    DateTimeOffset? NajblizszeWygasniecie);
+
 /// <summary>Podsumowanie faktury zakupowej pobranej z systemu.</summary>
 public sealed record FakturaZakupowa(
     string NumerKsef,
@@ -89,6 +104,17 @@ public interface IKlientKsef
 {
     /// <summary>Środowisko, z którym rozmawia ten egzemplarz klienta.</summary>
     SrodowiskoKsef Srodowisko { get; }
+
+    /// <summary>
+    /// Sprawdza, czy środowisko odpowiada i udostępnia ważne klucze.
+    /// </summary>
+    /// <remarks>
+    /// Wywołanie nie wymaga tokena, więc rozdziela dwie zupełnie różne
+    /// przyczyny niepowodzenia: „program nie dociera do KSeF" i „KSeF nie
+    /// uznaje tokena". Bez tego rozróżnienia pierwsze uruchomienie u klienta
+    /// sprowadza się do zgadywania.
+    /// </remarks>
+    Task<StanSrodowiska> SprawdzSrodowiskoAsync(CancellationToken anulowanie = default);
 
     /// <summary>
     /// Uwierzytelnia się tokenem KSeF i zapamiętuje token dostępowy.

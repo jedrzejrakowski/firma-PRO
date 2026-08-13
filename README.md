@@ -26,6 +26,7 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Generator XML FA(3) | gotowe |
 | Warstwa danych (EF Core, PostgreSQL, wielofirmowość) | gotowe |
 | Komunikacja z KSeF (wysyłka, UPO, faktury zakupowe) | gotowe |
+| Sprawdzenie połączenia z KSeF krok po kroku | gotowe |
 | Link weryfikacyjny kodu QR (KOD I) | gotowe |
 | Logowanie i konta użytkowników | gotowe |
 | Zakładanie firm, zapraszanie współpracowników, role | gotowe |
@@ -211,6 +212,65 @@ dana w całym systemie. Traktowany jest odpowiednio:
 Docelowo, przy wdrożeniu produkcyjnym, klucze ochrony powinny trafić do
 zewnętrznego magazynu sekretów; zmienia się wtedy tylko implementacja
 `IOchronaTokena`.
+
+### Pierwsze uruchomienie: próba na testowym KSeF
+
+Ministerstwo prowadzi bezpłatne **środowisko testowe** — faktury wystawione
+tam nie mają mocy prawnej i nie da się nimi niczego zepsuć. To na nim
+sprawdza się integrację, zanim padnie pierwsza prawdziwa faktura.
+
+1. Wejdź na `https://ksef-test.mf.gov.pl` i zaloguj się do aplikacji webowej
+   KSeF w środowisku **testowym**.
+2. Wygeneruj **token** dla numeru NIP swojej firmy. Nadaj mu uprawnienie do
+   wystawiania faktur; jeśli chcesz też pobierać faktury zakupu, dodaj
+   uprawnienie do odczytu.
+3. Token pokazywany jest **jeden raz** — skopiuj go od razu. Nie wysyłaj go
+   e-mailem ani komunikatorem; jest wart tyle, co prawo do wystawiania faktur
+   w Twoim imieniu.
+4. W programie: **Ustawienia firmy** → środowisko *Testowe*, wklej token,
+   zapisz.
+5. Kliknij **Sprawdź połączenie z KSeF**.
+
+#### Co robi sprawdzenie
+
+Ekran „Połączenie z KSeF" przechodzi tę samą drogę co wysyłka faktury, ale
+zatrzymuje się tuż przed wysłaniem dokumentu: **nic nie powstaje i nic nie
+trafia do systemu**. Sesja wysyłkowa jest otwierana wyłącznie po to, żeby
+udowodnić, że się da, i natychmiast zamykana.
+
+| Krok | Co dowodzi |
+|---|---|
+| Dane firmy | NIP jest poprawny — to po nim KSeF rozpoznaje wystawcę |
+| Środowisko | z którym systemem program rozmawia; produkcja jest oznaczona ostrzeżeniem |
+| Token KSeF | token istnieje i daje się odczytać; widać też, czy pochodzi ze zmiennej `KSEF_TOKEN` |
+| Połączenie z serwerem | program dociera do KSeF — to wywołanie **nie używa tokena**, więc jego niepowodzenie na pewno nie jest winą tokena |
+| Klucze szyfrowania | system udostępnia ważne certyfikaty do szyfrowania tokena i klucza sesji |
+| Uwierzytelnienie tokenem | KSeF uznał token dla tego numeru NIP |
+| Otwarcie sesji wysyłkowej | wysyłanie faktur zadziała |
+| Dostęp do faktur zakupu | token ma też uprawnienie do odczytu (brak to ostrzeżenie, nie błąd) |
+
+**Pierwszy błąd na liście jest przyczyną** — kolejne kroki są zwykle tylko
+jego skutkiem i program oznacza je jako pominięte, zamiast mnożyć komunikaty.
+
+#### Najczęstsze przyczyny niepowodzenia
+
+Program tłumaczy odpowiedzi KSeF na zdania po polsku i przy każdej podpowiada,
+co zrobić. Warto znać cztery, które zdarzają się najczęściej:
+
+- **Nie dociera do serwera** — to sieć, nie token. Na serwerze sprawdź zaporę
+  i serwer pośredniczący; program łączy się wychodząco po porcie 443.
+- **KSeF nie uznał tokena** (HTTP 401) — token wygasł lub został unieważniony,
+  wygenerowano go dla **innego numeru NIP**, albo pochodzi z **innego
+  środowiska** niż wybrane. Ta ostatnia pomyłka jest najczęstsza.
+- **Brak uprawnień** (HTTP 403) — token istnieje, ale nie ma prawa do tej
+  operacji. Uprawnienia zmienia się w aplikacji webowej KSeF.
+- **Token nie daje się odszyfrować** — utracone klucze ochrony danych,
+  najczęściej po starcie kontenera bez trwałego katalogu kluczy. Przywróć
+  katalog albo wpisz token ponownie.
+
+Dopiero gdy wszystkie kroki są zielone, warto wystawić pierwszą prawdziwą
+fakturę — i nadal na środowisku testowym, żeby zobaczyć cały obieg: wysyłkę,
+nadanie numeru KSeF, UPO i kod QR na wydruku.
 
 ## Wydruk faktury
 
@@ -470,7 +530,8 @@ brak sprawdzenia nie ma wyglądać jak sprawdzenie.
 11. **Wysyłka faktur do kontrahenta** — PDF pocztą wprost z programu ✔
 12. **Płatności i należności** — wpłaty, przeterminowania, przypomnienia ✔
 13. **Braki w fakturowaniu** — zaliczkowe i końcowe, duplikat, osobna seria korekt ✔
-14. Dalej: zestawienia dla księgowej, magazyn, KPiR
+14. **Próba na testowym KSeF** — sprawdzenie połączenia krok po kroku ✔
+15. Dalej: zestawienia dla księgowej, magazyn, KPiR
 
 ## Konta, firmy i role
 
@@ -762,7 +823,15 @@ a właśnie taki błąd zdarzył się przy tworzeniu klienta KSeF.
 **Połączenia z żywym KSeF nie da się zweryfikować w środowisku budowy** —
 dostęp do `ksef.mf.gov.pl` jest tam zablokowany. Sprawdzenie należy wykonać
 u siebie, przeciwko bezpłatnemu środowisku testowemu Ministerstwa: zapisać
-token w Ustawieniach, wystawić fakturę i wysłać ją.
+token w Ustawieniach i kliknąć **Sprawdź połączenie z KSeF** — instrukcja
+krok po kroku jest wyżej, w części
+[Pierwsze uruchomienie](#pierwsze-uruchomienie-próba-na-testowym-ksef).
+
+Sam ekran sprawdzenia jest przetestowany przeciwko atrapie serwera we
+wszystkich rodzajach niepowodzenia, które ma rozróżniać: brak tokena, zerwana
+łączność, token odrzucony, brak uprawnienia do zakupów i token nie do
+odszyfrowania. Testy pilnują też, że sprawdzenie **niczego nie wystawia**
+i nie zostawia otwartej sesji.
 
 Zweryfikowana jest natomiast **zawartość** przesyłki: dokument przechodzi
 walidację oryginalnym schematem XSD, a koperta kryptograficzna — test

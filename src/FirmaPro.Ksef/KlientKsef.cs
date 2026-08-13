@@ -81,6 +81,32 @@ public sealed class KlientKsef : IKlientKsef
     /// <summary>Numer bieżącej sesji wysyłkowej, jeśli jest otwarta.</summary>
     public string? NumerSesji => _numerSesji;
 
+    // -------------------------------------------------------- sprawdzenie łączności
+
+    public async Task<StanSrodowiska> SprawdzSrodowiskoAsync(
+        CancellationToken anulowanie = default)
+    {
+        // Świadomie pomijamy zapamiętane certyfikaty: sprawdzenie ma pokazać
+        // stan teraz, a nie odtworzyć to, co pobrano przy poprzedniej wysyłce.
+        _certyfikaty = await GetAsync<List<CertyfikatPubliczny>>(
+            "security/public-key-certificates", null, anulowanie);
+
+        DateTimeOffset teraz = _czas.GetUtcNow();
+
+        List<CertyfikatPubliczny> wazne = [.. _certyfikaty
+            .Where(c => c.WaznyOd <= teraz && c.WaznyDo >= teraz)];
+
+        bool Ma(string przeznaczenie) =>
+            wazne.Any(c => c.Przeznaczenie.Contains(przeznaczenie, StringComparer.Ordinal));
+
+        return new StanSrodowiska(
+            _http.BaseAddress?.ToString() ?? AdresyKsef.Api(Srodowisko),
+            wazne.Count,
+            Ma(UzycieToken),
+            Ma(UzycieKluczSymetryczny),
+            wazne.Count == 0 ? null : wazne.Min(c => c.WaznyDo));
+    }
+
     // ------------------------------------------------------ uwierzytelnianie
 
     public async Task UwierzytelnijAsync(string nip, string tokenKsef,

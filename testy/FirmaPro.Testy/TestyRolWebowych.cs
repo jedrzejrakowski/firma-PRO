@@ -77,7 +77,7 @@ public sealed partial class TestyRolWebowych(AplikacjaTestowa aplikacja)
     {
         using HttpClient wlasciciel = await ZalozFirmeAsync("wlasc");
 
-        foreach (string adres in new[] { "/Ustawienia", "/Uzytkownicy" })
+        foreach (string adres in new[] { "/Ustawienia", "/Uzytkownicy", "/Ksef" })
         {
             using HttpResponseMessage odpowiedz =
                 await wlasciciel.GetAsync(new Uri(adres, UriKind.Relative));
@@ -97,7 +97,9 @@ public sealed partial class TestyRolWebowych(AplikacjaTestowa aplikacja)
         using HttpClient ksiegowy = await DolaczAsync(
             aplikacja, wlasciciel, "ksiegowa-ksieg@example.pl", "Ksiegowy");
 
-        foreach (string adres in new[] { "/Ustawienia", "/Uzytkownicy" })
+        // Sprawdzenie połączenia z KSeF też jest sprawą właściciela - sięga
+        // po token firmy, więc nie może być otwarte dla wszystkich.
+        foreach (string adres in new[] { "/Ustawienia", "/Uzytkownicy", "/Ksef" })
         {
             using HttpResponseMessage odpowiedz =
                 await ksiegowy.GetAsync(new Uri(adres, UriKind.Relative));
