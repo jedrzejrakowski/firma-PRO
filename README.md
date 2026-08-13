@@ -238,10 +238,12 @@ Numery poprawne rachunkowo, a przy tym oczywiście sztuczne:
    `https://ap-test.ksef.mf.gov.pl`. Nazewnictwo jest tu konsekwentne —
    `ap-` to aplikacja podatnika, `api-` to interfejs programistyczny,
    przyrostek `-test` / `-demo` / brak przyrostka oznacza środowisko.
-2. Wybierz **„Zaloguj uwierzytelnieniem testowym"**. To osobna opcja obok
-   profilu zaufanego, e-dowodu i podpisu kwalifikowanego — i jedyna, która
-   nie wymaga niczego poza wpisaniem numeru NIP. Bez niej wygląda to tak,
-   jakby do środowiska testowego również potrzebny był profil zaufany.
+2. Na ekranie logowania są dwie karty. Wybierz lewą — **„Uwierzytelnienie
+   testowe"** (*Podpisz się dedykowanym mechanizmem na potrzeby testów*) —
+   i kliknij w niej **Zaloguj**. Prawa karta, „Certyfikat kwalifikowany",
+   wymaga podpisu kwalifikowanego albo pieczęci elektronicznej i do prób
+   nie jest potrzebna. Przycisk w lewej karcie jest podpisany po prostu
+   „Zaloguj", więc łatwo go wziąć za wariant tego drugiego.
 3. Podaj wybrany numer z tabeli powyżej, a potem w części administracyjnej
    wygeneruj **token** dla tego numeru. Nadaj mu uprawnienie do wystawiania
    faktur; jeśli chcesz też pobierać faktury zakupu, dodaj uprawnienie
