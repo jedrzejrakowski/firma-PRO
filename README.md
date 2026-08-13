@@ -244,17 +244,25 @@ Numery poprawne rachunkowo, a przy tym oczywiście sztuczne:
    wymaga podpisu kwalifikowanego albo pieczęci elektronicznej i do prób
    nie jest potrzebna. Przycisk w lewej karcie jest podpisany po prostu
    „Zaloguj", więc łatwo go wziąć za wariant tego drugiego.
-3. Podaj wybrany numer z tabeli powyżej, a potem w części administracyjnej
-   wygeneruj **token** dla tego numeru. Nadaj mu uprawnienie do wystawiania
-   faktur; jeśli chcesz też pobierać faktury zakupu, dodaj uprawnienie
-   do odczytu.
-4. Token pokazywany jest **jeden raz** — skopiuj go od razu. Nawet testowego
+3. Formularz pyta o numer **dwa razy** i oba razy podaj ten sam:
+   - *NIP firmy* u góry to **kontekst** — podmiot, w imieniu którego działasz;
+   - *Typ identyfikatora* zostaw na **Pieczęć NIP**, a w *Numer NIP* wpisz
+     ten sam numer — ta część udaje podpis certyfikatem, czyli mówi,
+     **kim jesteś**.
+
+   Równość obu numerów oznacza „jestem tą firmą" i daje uprawnienia
+   właścicielskie. Podpis PESEL-em uczyniłby z Ciebie osobę fizyczną bez
+   żadnych uprawnień do tego NIP-u, których nie miałby Ci kto nadać.
+4. Po zalogowaniu, w części administracyjnej, wygeneruj **token** dla tego
+   numeru. Nadaj mu uprawnienie do wystawiania faktur; jeśli chcesz też
+   pobierać faktury zakupu, dodaj uprawnienie do odczytu.
+5. Token pokazywany jest **jeden raz** — skopiuj go od razu. Nawet testowego
    nie wysyłaj e-mailem ani komunikatorem: przyzwyczajenie przenosi się
    potem na produkcję, gdzie token jest wart tyle, co prawo do wystawiania
    faktur w Twoim imieniu.
-5. W programie: **Ustawienia firmy** → NIP taki sam jak przy logowaniu,
+6. W programie: **Ustawienia firmy** → NIP taki sam jak przy logowaniu,
    środowisko *Testowe*, wklej token, zapisz.
-6. Kliknij **Sprawdź połączenie z KSeF**.
+7. Kliknij **Sprawdź połączenie z KSeF**.
 
 Token, certyfikat i dane logowania działają **wyłącznie w tym środowisku,
 w którym powstały** — token z `ap-test` nie zadziała na produkcji i odwrotnie.
