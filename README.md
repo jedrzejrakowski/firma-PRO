@@ -234,13 +234,16 @@ Numery poprawne rachunkowo, a przy tym oczywiście sztuczne:
 | `7777777777` | |
 | `1111111111` | |
 
-1. Wejdź na aplikację podatnika w środowisku **testowym**:
-   `https://web2te-ksef.mf.gov.pl/web/` (gdyby adres nie działał, spróbuj
-   `https://ksef-test.mf.gov.pl` — Ministerstwo przenosiło je między
-   wersjami KSeF).
-2. Zaloguj się, wybierając identyfikator **NIP** i wpisując wybrany numer
-   z tabeli powyżej. W środowisku testowym to wystarczy.
-3. Wygeneruj **token** dla tego numeru. Nadaj mu uprawnienie do wystawiania
+1. Wejdź na **Aplikację Podatnika KSeF 2.0 w wersji testowej**:
+   `https://ap-test.ksef.mf.gov.pl`. Nazewnictwo jest tu konsekwentne —
+   `ap-` to aplikacja podatnika, `api-` to interfejs programistyczny,
+   przyrostek `-test` / `-demo` / brak przyrostka oznacza środowisko.
+2. Wybierz **„Zaloguj uwierzytelnieniem testowym"**. To osobna opcja obok
+   profilu zaufanego, e-dowodu i podpisu kwalifikowanego — i jedyna, która
+   nie wymaga niczego poza wpisaniem numeru NIP. Bez niej wygląda to tak,
+   jakby do środowiska testowego również potrzebny był profil zaufany.
+3. Podaj wybrany numer z tabeli powyżej, a potem w części administracyjnej
+   wygeneruj **token** dla tego numeru. Nadaj mu uprawnienie do wystawiania
    faktur; jeśli chcesz też pobierać faktury zakupu, dodaj uprawnienie
    do odczytu.
 4. Token pokazywany jest **jeden raz** — skopiuj go od razu. Nawet testowego
@@ -250,6 +253,9 @@ Numery poprawne rachunkowo, a przy tym oczywiście sztuczne:
 5. W programie: **Ustawienia firmy** → NIP taki sam jak przy logowaniu,
    środowisko *Testowe*, wklej token, zapisz.
 6. Kliknij **Sprawdź połączenie z KSeF**.
+
+Token, certyfikat i dane logowania działają **wyłącznie w tym środowisku,
+w którym powstały** — token z `ap-test` nie zadziała na produkcji i odwrotnie.
 
 NIP w Ustawieniach musi być **ten sam**, dla którego wygenerowano token —
 niezgodność kończy się odpowiedzią 401, a ekran sprawdzenia wymienia ją jako
