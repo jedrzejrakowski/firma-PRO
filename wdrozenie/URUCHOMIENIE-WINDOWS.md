@@ -169,14 +169,30 @@ Najpierw ustal, na czym stoisz: **Ctrl+Shift+Esc** → **Wydajność** →
    lub *Security*.
 3. Ustaw **Enabled**, zapisz i wyjdź (zwykle **F10**).
 
-**Wirtualizacja: Włączona** — brakuje składników Windows. W PowerShellu
-uruchomionym **jako administrator**:
+**Wirtualizacja: Włączona** — wirtualizacja działa, ale brakuje składników
+Windows, przez które Docker z niej korzysta. Otwórz **PowerShell jako
+administrator** (prawy przycisk na menu Start → *Terminal (Administrator)*)
+i wykonaj:
 
 ```powershell
-wsl --install
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
 ```
 
-Potem uruchom komputer ponownie i włącz Docker Desktop.
+Obie mają zakończyć się komunikatem *Operacja została ukończona pomyślnie*.
+Następnie **uruchom komputer ponownie** — składniki włączają się dopiero
+przy starcie systemu. Po ponownym uruchomieniu, znów jako administrator:
+
+```powershell
+wsl --update
+wsl --set-default-version 2
+```
+
+I dopiero wtedy włącz Docker Desktop.
+
+> Dlaczego `dism`, a nie prostsze `wsl --install`: na komputerze, gdzie WSL
+> jest już częściowo obecny, `wsl --install` potrafi wypisać samą pomoc
+> i nie zrobić nic. Wtedy nie wiadomo, czy polecenie zadziałało.
 
 > Na komputerze służbowym wejście do BIOS-u bywa zablokowane przez dział
 > informatyczny. Gdyby tak było, program da się uruchomić bez Dockera —
