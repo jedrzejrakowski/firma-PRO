@@ -124,7 +124,7 @@ else
         </tr>
         <tr>
             <td>Podatek należny z ewidencji</td>
-            <td class="liczba">@Model.Podglad.Rejestr.Sprzedaz.PodatekNalezny.ToString("N2")</td>
+            <td class="liczba">@Kwoty.NaTekst(Model.Podglad.Rejestr.Sprzedaz.PodatekNalezny)</td>
         </tr>
         <tr>
             <td>Wierszy zakupów z prawem do odliczenia</td>
@@ -132,7 +132,7 @@ else
         </tr>
         <tr>
             <td>Podatek naliczony z ewidencji</td>
-            <td class="liczba">@Model.Podglad.Rejestr.Zakupy.PodatekNaliczony.ToString("N2")</td>
+            <td class="liczba">@Kwoty.NaTekst(Model.Podglad.Rejestr.Zakupy.PodatekNaliczony)</td>
         </tr>
     </tbody>
 </table>

@@ -68,8 +68,8 @@ public sealed partial class TestyZaliczkowychWeb(AplikacjaTestowa aplikacja)
         string html = await AplikacjaTestowa.TrescAsync(szczegoly);
 
         // 1230 brutto przy 23% to 1000 netto i 230 podatku.
-        Assert.Contains("1,000.00", html, StringComparison.Ordinal);
-        Assert.Contains("230.00", html, StringComparison.Ordinal);
+        Assert.Contains("1 000,00", html, StringComparison.Ordinal);
+        Assert.Contains("230,00", html, StringComparison.Ordinal);
 
         // Zaliczka jest z definicji zapłacona, więc nie ma jej w należnościach.
         using HttpResponseMessage naleznosci =
@@ -359,12 +359,12 @@ public sealed partial class TestyZaliczkowychWeb(AplikacjaTestowa aplikacja)
 
         // Zaliczka wykazana osobno: 2000 netto, 460 podatku, 2460 brutto.
         Assert.Equal(
-            ["2,000.00", "460.00", "2,460.00"],
+            ["2 000,00", "460,00", "2 460,00"],
             KwotyWWierszu(html, WzorZaliczkowej(numerKoncowej)));
 
         // Dostawa 20 000 netto minus zafakturowane 2000 to 18 000 w końcowej.
         Assert.Equal(
-            ["18,000.00", "4,140.00", "22,140.00"],
+            ["18 000,00", "4 140,00", "22 140,00"],
             KwotyWWierszu(html, numerKoncowej));
     }
 

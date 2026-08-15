@@ -61,7 +61,7 @@ public sealed class ZaproszenieModel(UslugaKont uslugaKont) : PageModel
         await Tozsamosc.ZalogujAsync(HttpContext, wynik.Dane!.Uzytkownik!, wynik.Dane);
 
         TempData["Komunikat"] = $"Dołączono do firmy {wynik.Dane.Firma?.Nazwa}.";
-        return RedirectToPage("/Faktury/Index");
+        return RedirectToPage("/Pulpit");
     }
 
     private async Task WczytajAsync(CancellationToken anulowanie)

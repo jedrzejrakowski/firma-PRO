@@ -67,7 +67,7 @@ public sealed partial class TestyRolWebowych(AplikacjaTestowa aplikacja)
             adresFormularza: adres);
 
         Assert.Equal(HttpStatusCode.Redirect, przyjecie.StatusCode);
-        Assert.Equal("/Faktury", przyjecie.Headers.Location?.OriginalString);
+        Assert.Equal("/Pulpit", przyjecie.Headers.Location?.OriginalString);
 
         return zapraszany;
     }
@@ -318,7 +318,7 @@ public sealed partial class TestyRolWebowych(AplikacjaTestowa aplikacja)
             });
 
         Assert.Equal(HttpStatusCode.Redirect, logowanie.StatusCode);
-        Assert.Equal("/Faktury", logowanie.Headers.Location?.OriginalString);
+        Assert.Equal("/Pulpit", logowanie.Headers.Location?.OriginalString);
     }
 
     /// <summary>

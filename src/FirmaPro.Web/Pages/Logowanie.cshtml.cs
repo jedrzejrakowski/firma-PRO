@@ -42,7 +42,7 @@ public sealed class LogowanieModel(
     public IActionResult OnGet()
     {
         return User.Identity?.IsAuthenticated == true
-            ? RedirectToPage("/Faktury/Index")
+            ? RedirectToPage("/Pulpit")
             : Page();
     }
 
@@ -83,6 +83,6 @@ public sealed class LogowanieModel(
 
         await Tozsamosc.ZalogujAsync(HttpContext, uzytkownik, czlonkostwo);
 
-        return RedirectToPage("/Faktury/Index");
+        return RedirectToPage("/Pulpit");
     }
 }

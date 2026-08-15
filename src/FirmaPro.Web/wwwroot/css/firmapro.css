@@ -1,156 +1,426 @@
 /* Wygląd programu Firma PRO.
-   Układ celowo oszczędny - to narzędzie do pracy, w którym liczy się
-   czytelność tabel i formularzy, a nie efekty wizualne. */
+
+   Powłoka jest celowo „programem”, a nie stroną: stałe menu boczne, stały
+   pasek górny, a przewija się wyłącznie treść w środku. Dzięki temu przy
+   przewijaniu długiej listy faktur nie ucieka nawigacja ani przyciski.
+
+   Kolor wiodący to głęboka zieleń morska, nie granat - granat ma w Polsce
+   każdy program księgowy i nic po nim nie zostaje w pamięci. Bursztyn jest
+   zarezerwowany dla kwot, które mają zwrócić uwagę (zaległości), więc nie
+   wolno go używać do ozdoby. Kolory znaczeniowe (dobrze/uwaga/źle) trzymamy
+   osobno od kolorów marki, żeby zmiana marki nie popsuła czytelności
+   statusów. */
 
 :root {
-    --granat: #1f4e79;
-    --granat-jasny: #2e6da4;
-    --tlo: #f4f6f9;
+    --atrament: #0e4f4b;
+    --atrament-ciemny: #0a3d3a;
+    --atrament-jasny: #14706a;
+    --bursztyn: #a8660a;
+    --papier: #f2f2ee;
     --karta: #ffffff;
-    --linia: #d5dee7;
-    --tekst: #16202b;
-    --tekst-szary: #5c6b7a;
-    --zielen: #0a7a24;
-    --zielen-tlo: #e3f5e7;
-    --czerwien: #b00020;
-    --czerwien-tlo: #fdecef;
-    --zolty-tlo: #fff6e0;
-    --zolty: #8a5b00;
+    --bok: #0c3f3c;
+    --bok-tekst: #b9d6d1;
+    --bok-tekst-mocny: #ffffff;
+    --bok-kreska: #1a5350;
+    --tekst: #16211f;
+    --tekst-drugi: #5b6a66;
+    --kreska: #e2e3dd;
+    --dobrze: #1b6e45;
+    --dobrze-tlo: #e7f2eb;
+    --uwaga: #8a5a00;
+    --uwaga-tlo: #faf0dc;
+    --zle: #a32b21;
+    --zle-tlo: #fbeae8;
+    --cien: 0 1px 2px rgba(22, 33, 31, .05), 0 10px 30px -14px rgba(22, 33, 31, .25);
+    --cien-menu: 0 4px 6px rgba(22, 33, 31, .04), 0 16px 40px -12px rgba(22, 33, 31, .28);
+    --na-atramencie: #ffffff;
+
+    --szeryf: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --bezszeryf: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    --jednostajna: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
 
+html, body { height: 100%; }
+
 body {
     margin: 0;
-    background: var(--tlo);
+    background: var(--papier);
     color: var(--tekst);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    font-size: 15px;
-    line-height: 1.55;
+    font-family: var(--bezszeryf);
+    font-size: 14.5px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
 }
 
-/* ------------------------------------------------------------ pasek górny */
+svg { display: block; }
 
-.pasek {
-    background: var(--granat);
-    color: #fff;
+/* ==================================================== powłoka programu */
+
+/* Siatka na całą wysokość okna: menu boczne stoi, treść się przewija. */
+.program {
+    display: grid;
+    grid-template-columns: 244px 1fr;
+    height: 100%;
 }
 
-.pasek-tresc {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 0 20px;
+.glowna {
     display: flex;
-    align-items: center;
-    gap: 28px;
-    min-height: 56px;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--papier);
+}
+
+/* ------------------------------------------------------- pasek boczny */
+
+.bok {
+    background: var(--bok);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
 }
 
 .znak {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 16px 14px;
+    color: var(--bok-tekst-mocny);
+    text-decoration: none;
+}
+
+.znak-nazwa {
+    font-family: var(--szeryf);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    line-height: 1;
+}
+
+.znak-nazwa i { font-style: normal; color: var(--bok-tekst); font-weight: 400; }
+
+.znak-podpis {
+    display: block;
+    font-size: 9.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--bok-tekst);
+    margin-top: 3px;
+}
+
+.grupa {
+    font-size: 10px;
     font-weight: 700;
-    font-size: 1.15rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--bok-tekst);
+    opacity: .65;
+    padding: 16px 18px 6px;
+}
+
+.bok nav { display: flex; flex-direction: column; gap: 1px; padding: 0 8px; }
+
+/* Pulpit stoi sam nad grupami - stąd własny odstęp od znaku firmowego. */
+.bok nav.nav-szczyt { padding-top: 14px; }
+
+.bok nav a {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    color: var(--bok-tekst);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.bok nav a:hover { background: var(--bok-kreska); color: var(--bok-tekst-mocny); }
+
+.bok nav a.tu {
+    background: var(--bok-kreska);
+    color: var(--bok-tekst-mocny);
+    font-weight: 600;
+}
+
+.bok nav a svg { flex: none; opacity: .9; }
+
+.licznik {
+    margin-left: auto;
+    font-size: 11.5px;
+    font-weight: 700;
+    background: var(--zle);
     color: #fff;
-    text-decoration: none;
-    letter-spacing: 0.01em;
+    border-radius: 999px;
+    padding: 1px 7px;
 }
 
-.nawigacja { display: flex; gap: 16px; flex: 1; white-space: nowrap; }
-
-.nawigacja a {
-    color: #d6e4f0;
-    text-decoration: none;
-    padding: 4px 0;
-    border-bottom: 2px solid transparent;
+.bok-stopka {
+    margin-top: auto;
+    padding: 14px 18px;
+    border-top: 1px solid var(--bok-kreska);
+    font-size: 12px;
+    color: var(--bok-tekst);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.nawigacja a:hover { color: #fff; border-bottom-color: #7fb3e0; }
+.kropka-ok { width: 7px; height: 7px; border-radius: 50%; background: var(--dobrze); flex: none; }
 
-.konto { display: flex; align-items: center; gap: 14px; font-size: 0.9rem; }
-.firma {
-    color: #cfe0ee;
-    max-width: 180px;
+/* --------------------------------------------------------- pasek górny */
+
+.gora {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 18px;
+    background: var(--karta);
+    border-bottom: 1px solid var(--kreska);
+    flex: none;
+}
+
+.wybor-firmy {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid var(--kreska);
+    border-radius: 9px;
+    padding: 5px 10px 5px 6px;
+    font-size: 13.5px;
+    font-weight: 600;
+    background: none;
+    color: var(--tekst);
+    font-family: inherit;
+    max-width: 280px;
+}
+
+.wybor-firmy select {
+    width: auto;
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    max-width: 200px;
+}
+
+.wybor-firmy .nazwa-firmy {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.odnosnik-przycisk {
+/* Kwadracik z inicjałami firmy - szybciej wpada w oko niż sama nazwa. */
+.odznaka {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: var(--atrament);
+    color: var(--na-atramencie);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 11.5px;
+    flex: none;
+}
+
+.narzedzia { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+
+.ikonka {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    border: 1px solid transparent;
     background: none;
-    border: none;
-    color: #cfe0ee;
+    color: var(--tekst-drugi);
     cursor: pointer;
+    position: relative;
+}
+
+.ikonka:hover { background: var(--papier); border-color: var(--kreska); color: var(--tekst); }
+
+/* ----------------------------------------------------- menu rozwijane */
+
+.rozwijak { position: relative; }
+
+.menu-lista {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 236px;
+    background: var(--karta);
+    border: 1px solid var(--kreska);
+    border-radius: 11px;
+    box-shadow: var(--cien-menu);
+    padding: 6px;
+    z-index: 40;
+}
+
+.menu-lista[hidden] { display: none; }
+
+.menu-lista a,
+.menu-lista button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: none;
+    color: var(--tekst);
+    text-decoration: none;
     font: inherit;
-    padding: 0;
-    text-decoration: underline;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
 }
 
-.odnosnik-przycisk:hover { color: #fff; }
+.menu-lista a:hover,
+.menu-lista button:hover { background: var(--papier); }
 
-/* ----------------------------------------------------------------- treść */
-
-.tresc {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 28px 20px 60px;
+.menu-lista a small,
+.menu-lista button small {
+    display: block;
+    color: var(--tekst-drugi);
+    font-size: 12px;
+    font-weight: 400;
 }
 
-h1 { font-size: 1.6rem; margin: 0 0 6px; }
-h2 { font-size: 1.15rem; margin: 28px 0 10px; }
-.podtytul { color: var(--tekst-szary); margin: 0 0 22px; }
+.menu-lista hr { border: 0; border-top: 1px solid var(--kreska); margin: 6px 4px; }
+
+.menu-lista .osoba { padding: 8px 10px 10px; }
+.menu-lista .osoba b { display: block; font-size: 14px; font-weight: 600; }
+.menu-lista .osoba span { font-size: 12.5px; color: var(--tekst-drugi); word-break: break-all; }
+
+/* =============================================================== treść */
+
+.tresc { padding: 22px 22px 40px; overflow-y: auto; flex: 1; }
+
+h1 {
+    font-family: var(--szeryf);
+    font-size: 25px;
+    font-weight: 600;
+    letter-spacing: -.015em;
+    margin: 0;
+    text-wrap: balance;
+}
+
+h2 { font-family: var(--szeryf); font-size: 18px; font-weight: 600; margin: 26px 0 10px; }
+
+.podtytul { margin: 2px 0 18px; color: var(--tekst-drugi); font-size: 13.5px; }
+
+/* Nagłówek ekranu: tytuł po lewej, przyciski akcji po prawej. */
+.naglowek-ekranu {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.naglowek-ekranu .podtytul { margin-bottom: 0; }
 
 .karta {
     background: var(--karta);
-    border: 1px solid var(--linia);
-    border-radius: 4px;
-    padding: 22px 24px;
-    margin-bottom: 20px;
+    border: 1px solid var(--kreska);
+    border-radius: 11px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
 }
 
-.karta-waska { max-width: 420px; margin: 60px auto; }
+/* Karta z własnym nagłówkiem nie ma marginesu wewnętrznego - treścią bywa
+   tabela, która ma dochodzić do krawędzi. */
+.karta.zwarta { padding: 0; overflow: hidden; }
 
-/* ---------------------------------------------------------------- tabele */
+.karta.zwarta > header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--kreska);
+}
 
-table { width: 100%; border-collapse: collapse; background: var(--karta); }
+.karta.zwarta > header h2 { font-size: 15.5px; margin: 0; }
+
+.karta-waska { max-width: 430px; }
+
+/* ============================================================== tabele */
+
+.przewijak { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 
 th {
     text-align: left;
-    background: var(--granat);
-    color: #fff;
-    font-weight: 600;
-    font-size: 0.85rem;
-    padding: 9px 12px;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--tekst-drugi);
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--kreska);
+    white-space: nowrap;
 }
 
-td { padding: 9px 12px; border-bottom: 1px solid var(--linia); }
-tbody tr:hover { background: #f7fafd; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--kreska); vertical-align: middle; }
+
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: color-mix(in srgb, var(--atrament) 4%, transparent); }
+
 .liczba { text-align: right; font-variant-numeric: tabular-nums; }
+th.liczba { text-align: right; }
 .nowrap { white-space: nowrap; }
 
-.pusto {
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--tekst-szary);
+tfoot td { border-top: 1px solid var(--kreska); border-bottom: 0; font-weight: 600; }
+
+table.waska { max-width: 560px; }
+
+/* Tabela wstawiona wprost w treść, bez karty - dostaje własne obramowanie. */
+.tresc > table,
+.tresc > form > table,
+.tresc > .przewijak > table {
     background: var(--karta);
-    border: 1px dashed var(--linia);
-    border-radius: 4px;
+    border: 1px solid var(--kreska);
+    border-radius: 11px;
+    overflow: hidden;
 }
 
-/* ------------------------------------------------------------ formularze */
+.pusto {
+    padding: 44px 20px;
+    text-align: center;
+    color: var(--tekst-drugi);
+    background: var(--karta);
+    border: 1px dashed var(--kreska);
+    border-radius: 11px;
+}
 
-label { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }
+/* ========================================================== formularze */
+
+label { display: block; font-weight: 600; font-size: 12.5px; margin-bottom: 4px; }
 
 input[type=text], input[type=email], input[type=password],
-input[type=date], input[type=number], select, textarea {
+input[type=date], input[type=number], input[type=file], select, textarea {
     width: 100%;
-    padding: 7px 9px;
-    border: 1px solid var(--linia);
-    border-radius: 3px;
+    padding: 8px 10px;
+    border: 1px solid var(--kreska);
+    border-radius: 8px;
     font: inherit;
-    background: #fff;
+    font-size: 14px;
+    background: var(--karta);
+    color: var(--tekst);
 }
 
 input:focus, select:focus, textarea:focus {
-    outline: 2px solid var(--granat-jasny);
+    outline: 2px solid var(--atrament-jasny);
     outline-offset: -1px;
 }
 
@@ -158,89 +428,282 @@ input:focus, select:focus, textarea:focus {
 .siatka { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 16px; }
 
 button, .przycisk {
-    background: var(--granat);
-    color: #fff;
-    border: none;
-    border-radius: 3px;
-    padding: 8px 18px;
     font: inherit;
+    font-size: 14px;
     font-weight: 600;
+    border-radius: 9px;
+    padding: 9px 15px;
+    border: 1px solid transparent;
+    background: var(--atrament);
+    color: var(--na-atramencie);
     cursor: pointer;
     text-decoration: none;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
 }
 
-button:hover, .przycisk:hover { background: var(--granat-jasny); }
+button:hover, .przycisk:hover { background: var(--atrament-jasny); }
 
-.przycisk-drugi {
-    background: #fff;
-    color: var(--granat);
-    border: 1px solid var(--granat);
+.przycisk-drugi, button.przycisk-drugi {
+    background: var(--karta);
+    color: var(--tekst);
+    border-color: var(--kreska);
 }
 
-.przycisk-drugi:hover { background: #eef4fa; }
+.przycisk-drugi:hover, button.przycisk-drugi:hover { background: var(--papier); }
 
-.paskiem { display: flex; gap: 10px; align-items: center; margin-top: 18px; }
+.przycisk-maly { padding: 5px 11px; font-size: 12.5px; }
 
-/* ---------------------------------------------------------- powiadomienia */
+/* Przycisk dzielony: po lewej najczęstsza czynność, po prawej lista
+   pozostałych rodzajów. Jeden przycisk zamiast pięciu obok siebie. */
+.dzielony { display: inline-flex; }
+.dzielony > .przycisk:first-child { border-radius: 9px 0 0 9px; }
+
+.dzielony .strzalka {
+    border-radius: 0 9px 9px 0;
+    padding: 9px 10px;
+    border-left: 1px solid rgba(255, 255, 255, .22);
+}
+
+.dzielony .menu-lista { left: 0; right: auto; min-width: 250px; }
+
+.paskiem { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 18px; }
+
+/* ======================================================= powiadomienia */
 
 .powiadomienie {
-    padding: 11px 16px;
-    border-radius: 3px;
-    margin-bottom: 18px;
+    padding: 11px 15px;
+    border-radius: 9px;
+    margin-bottom: 16px;
     border: 1px solid transparent;
 }
 
-.powodzenie { background: var(--zielen-tlo); border-color: #a9dcb6; color: var(--zielen); }
-.niepowodzenie { background: var(--czerwien-tlo); border-color: #f0b6c0; color: var(--czerwien); }
+.powodzenie { background: var(--dobrze-tlo); border-color: color-mix(in srgb, var(--dobrze) 35%, transparent); color: var(--dobrze); }
+.niepowodzenie { background: var(--zle-tlo); border-color: color-mix(in srgb, var(--zle) 35%, transparent); color: var(--zle); }
+.ostrzezenie { background: var(--uwaga-tlo); border-color: color-mix(in srgb, var(--uwaga) 35%, transparent); color: var(--uwaga); }
+
+/* Podpowiedź, a nie ostrzeżenie - np. dane konta demonstracyjnego. */
+.podpowiedz {
+    background: color-mix(in srgb, var(--atrament) 7%, transparent);
+    border-color: color-mix(in srgb, var(--atrament) 22%, transparent);
+    margin: 22px 0 0;
+}
 
 .bledy { margin: 0; padding-left: 20px; }
 
-/* -------------------------------------------------------------- znaczniki */
+/* =========================================================== znaczniki */
 
 .znacznik {
-    display: inline-block;
-    padding: 2px 9px;
-    border-radius: 10px;
-    font-size: 0.78rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 650;
+    padding: 3px 9px 3px 7px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.znacznik::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.znacznik-robocza { background: color-mix(in srgb, var(--tekst-drugi) 13%, transparent); color: var(--tekst-drugi); }
+.znacznik-wyslana { background: var(--uwaga-tlo); color: var(--uwaga); }
+.znacznik-przyjeta { background: var(--dobrze-tlo); color: var(--dobrze); }
+.znacznik-odrzucona { background: var(--zle-tlo); color: var(--zle); }
+.znacznik-ok { background: var(--dobrze-tlo); color: var(--dobrze); }
+
+.numer-ksef { font-family: var(--jednostajna); font-size: 12px; }
+
+/* ============================================================= kafelki */
+
+.kafelki {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+}
+
+.kafelek {
+    background: var(--karta);
+    border: 1px solid var(--kreska);
+    border-radius: 11px;
+    padding: 13px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Pionowy pasek przy krawędzi niesie stan kafelka - widać go kątem oka,
+   bez czytania liczby. */
+.kafelek::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: var(--kreska);
+}
+
+.kafelek.pilny::before { background: var(--zle); }
+.kafelek.blisko::before { background: var(--uwaga); }
+.kafelek.spokojny::before { background: var(--dobrze); }
+.kafelek.wyroznik::before { background: var(--atrament); }
+
+.kafelek .etykieta,
+.podsumowanie-kwot .etykieta {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--tekst-drugi);
+}
+
+.kafelek .kwota {
+    font-family: var(--szeryf);
+    font-size: 25px;
     font-weight: 600;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
 }
 
-.znacznik-robocza { background: #eceff2; color: var(--tekst-szary); }
-.znacznik-wyslana { background: var(--zolty-tlo); color: var(--zolty); }
-.znacznik-przyjeta { background: var(--zielen-tlo); color: var(--zielen); }
-.znacznik-odrzucona { background: var(--czerwien-tlo); color: var(--czerwien); }
+.kafelek.pilny .kwota { color: var(--bursztyn); }
+.kafelek.wyroznik .kwota { color: var(--atrament); }
 
-.numer-ksef {
-    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 0.82rem;
+.drobne { display: block; font-size: 12.5px; color: var(--tekst-drugi); }
+
+/* ============================================================== pulpit */
+
+/* Szeroka kolumna z wykresem i listą, wąska z zadaniami na dziś. */
+.dwie { display: grid; grid-template-columns: 1.85fr 1fr; gap: 14px; align-items: start; }
+
+@media (max-width: 1100px) {
+    .dwie { grid-template-columns: 1fr; }
 }
 
-/* --------------------------------------------------------------- pozycje */
+.wykres { padding: 14px 16px 12px; }
+.slupki { display: flex; align-items: flex-end; gap: 10px; height: 110px; }
+.slupek { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 
-.pozycje th { font-size: 0.8rem; }
-.pozycje td { padding: 6px 8px; }
-.pozycje input, .pozycje select { padding: 5px 7px; }
+.slupek .pion {
+    display: block;
+    width: 100%;
+    background: color-mix(in srgb, var(--atrament) 22%, transparent);
+    border-radius: 4px 4px 0 0;
+}
+
+.slupek.teraz .pion { background: var(--atrament); }
+.slupek b { font-size: 11px; font-weight: 600; color: var(--tekst-drugi); }
+.slupek.teraz b { color: var(--tekst); }
+
+.wykres-stopka {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: var(--tekst-drugi);
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid var(--kreska);
+}
+
+.uwagi { list-style: none; margin: 0; padding: 0; }
+
+.uwagi li {
+    display: flex;
+    gap: 11px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--kreska);
+}
+
+.uwagi li:last-child { border-bottom: 0; }
+.uwagi b { display: block; font-size: 13.5px; font-weight: 600; }
+.uwagi a { text-decoration: none; }
+.uwagi a:hover b { text-decoration: underline; }
+.uwagi li > span:last-child > span { font-size: 12.5px; color: var(--tekst-drugi); }
+
+.znaczek {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    flex: none;
+}
+
+.znaczek.pilny { background: var(--zle-tlo); color: var(--zle); }
+.znaczek.blisko { background: var(--uwaga-tlo); color: var(--uwaga); }
+.znaczek.spokojny { background: var(--dobrze-tlo); color: var(--dobrze); }
+
+/* =========================================== zakładki wewnątrz ekranu */
+
+.zakladki {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--kreska);
+    margin-bottom: 14px;
+}
+
+.zakladki a, .zakladki button {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: var(--tekst-drugi);
+    padding: 9px 14px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 0;
+}
+
+.zakladki a:hover, .zakladki button:hover { background: none; color: var(--tekst); }
+
+.zakladki a.tu, .zakladki button[aria-selected="true"] {
+    color: var(--atrament);
+    border-bottom-color: var(--atrament);
+    font-weight: 700;
+}
+
+.pasek-narzedzi {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.zakladki .ile {
+    font-size: 11.5px;
+    background: color-mix(in srgb, var(--tekst-drugi) 14%, transparent);
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-weight: 650;
+}
+
+/* ============================================================ pozycje */
+
+.pozycje th { font-size: 10.5px; padding: 8px 10px; }
+.pozycje td { padding: 6px 10px; }
+.pozycje input, .pozycje select { padding: 6px 8px; border-radius: 7px; }
 
 .usun-wiersz {
     background: none;
-    color: var(--czerwien);
+    color: var(--zle);
     border: none;
     cursor: pointer;
     font-size: 1.1rem;
     padding: 0 6px;
 }
 
-.usun-wiersz:hover { background: none; color: #7a0016; }
-
-.stopka {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 18px 20px 40px;
-    color: var(--tekst-szary);
-    font-size: 0.85rem;
-    border-top: 1px solid var(--linia);
-}
+.usun-wiersz:hover { background: none; color: var(--zle); opacity: .7; }
 
 .podsumowanie-kwot {
     display: flex;
@@ -251,43 +714,36 @@ button:hover, .przycisk:hover { background: var(--granat-jasny); }
 }
 
 .podsumowanie-kwot div { text-align: right; }
-.podsumowanie-kwot .etykieta { color: var(--tekst-szary); font-size: 0.82rem; }
 .podsumowanie-kwot .kwota { font-size: 1.05rem; font-weight: 600; }
-.podsumowanie-kwot .razem .kwota { color: var(--granat); font-size: 1.3rem; }
 
-/* ------------------------------------------------------------- ustawienia */
+.podsumowanie-kwot .razem .kwota {
+    font-family: var(--szeryf);
+    color: var(--atrament);
+    font-size: 1.4rem;
+}
+
+/* ========================================================== ustawienia */
 
 .naglowek-sekcji {
-    font-size: 0.95rem;
+    font-size: 11px;
+    font-weight: 650;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--tekst-szary);
+    letter-spacing: .07em;
+    color: var(--tekst-drugi);
     margin: 26px 0 14px;
     padding-bottom: 6px;
-    border-bottom: 1px solid var(--linia);
+    border-bottom: 1px solid var(--kreska);
 }
 
 .karta > form > .naglowek-sekcji:first-child { margin-top: 0; }
 
-.wskazowka {
-    margin: 6px 0 0;
-    color: var(--tekst-szary);
-    font-size: 0.84rem;
-}
+.wskazowka { margin: 6px 0 0; color: var(--tekst-drugi); font-size: 12.5px; }
 
-.znacznik-ok { background: var(--zielen-tlo); color: var(--zielen); }
-
-.pole-wyboru {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
-}
-
+.pole-wyboru { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .pole-wyboru input { width: auto; margin: 0; }
-.pole-wyboru label { margin: 0; font-weight: 400; }
+.pole-wyboru label { margin: 0; font-weight: 400; font-size: 14px; }
 
-/* --------------------------------------------------------- rejestr VAT */
+/* ========================================================= rejestr VAT */
 
 .naglowek-z-wyborem {
     display: flex;
@@ -298,58 +754,19 @@ button:hover, .przycisk:hover { background: var(--granat-jasny); }
 }
 
 .wybor-okresu { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
-.wybor-okresu label { margin: 0; font-size: 0.85rem; color: var(--tekst-szary); }
+.wybor-okresu label { margin: 0; font-size: 12.5px; color: var(--tekst-drugi); }
 .wybor-okresu select { width: auto; min-width: 190px; }
 
-.kafelki {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 14px;
-    margin: 6px 0 10px;
-}
+.naglowek-podsekcji { font-size: 13px; color: var(--tekst-drugi); margin: 22px 0 10px; }
 
-.kafelek {
-    background: var(--karta);
-    border: 1px solid var(--linia);
-    border-radius: 6px;
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.kafelek .etykieta { color: var(--tekst-szary); font-size: 0.82rem; }
-.kafelek .kwota { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.kafelek.wyroznik { border-color: var(--granat); }
-.kafelek.wyroznik .kwota { color: var(--granat); }
-
-.naglowek-podsekcji {
-    font-size: 0.9rem;
-    color: var(--tekst-szary);
-    margin: 22px 0 10px;
-}
-
-table.waska { max-width: 560px; }
-
-tfoot td { border-top: 2px solid var(--linia); background: #fbfcfd; }
-
-.ostrzezenie { background: var(--zolty-tlo); border-color: #e6cf95; color: var(--zolty); }
-
-/* ------------------------------------------------ pobieranie faktur z KSeF */
-
-/* Dane drugorzędne pod główną treścią komórki - NIP pod nazwą sprzedawcy. */
-.drobne {
-    display: block;
-    font-size: 0.82rem;
-    color: var(--tekst-szary);
-}
+/* ============================================ pobieranie faktur z KSeF */
 
 /* Nazwy rodzajów nabycia są długie; w tabeli lista rozwijana ma się
    rozciągnąć do treści, a nie ucinać ją na szerokości kolumny. */
 .pobieranie select { width: auto; min-width: 150px; }
 .pobieranie td { vertical-align: middle; }
 
-/* ------------------------------------------------------- dostęp do firmy */
+/* ====================================================== dostęp do firmy */
 
 /* Odnośnik zaproszenia bywa długi i trzeba go skopiować w całości -
    ma się łamać, a nie znikać za krawędzią. */
@@ -357,40 +774,79 @@ tfoot td { border-top: 2px solid var(--linia); background: #fbfcfd; }
     display: inline-block;
     max-width: 100%;
     padding: 4px 8px;
-    background: #eef2f6;
-    border-radius: 3px;
-    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 0.8rem;
+    background: var(--papier);
+    border-radius: 6px;
+    font-family: var(--jednostajna);
+    font-size: 12px;
     word-break: break-all;
 }
 
-.wiersz-roli select { width: auto; min-width: 130px; padding: 4px 8px; }
-
-.wybor-firmy select {
-    width: auto;
-    min-width: 170px;
-    padding: 3px 8px;
-    font-size: 0.9rem;
-    background: #17436b;
-    color: #fff;
-    border-color: #2e6da4;
-}
-
-/* Długie imię i nazwisko nie może rozpychać paska tak, żeby zawijała się
-   nawigacja - w razie czego skracamy je wielokropkiem. */
-.konto-odnosnik {
-    color: #cfe0ee;
-    text-decoration: none;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.konto-odnosnik:hover { color: #fff; text-decoration: underline; }
+.wiersz-roli select { width: auto; min-width: 130px; padding: 5px 9px; }
 
 .dzialania-wiersza { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
-.przycisk-maly { padding: 4px 10px; font-size: 0.82rem; }
 
 /* Wiersz należności po terminie - tło subtelne, bo takich wierszy bywa
    na liście wiele, a krzyczące czerwone tło przestaje cokolwiek znaczyć. */
-tr.po-terminie td { background: var(--czerwien-tlo); }
+tr.po-terminie td { background: var(--zle-tlo); }
+
+/* ============================================================== brama */
+
+/* Logowanie, rejestracja i odzyskiwanie hasła - bez menu, bo nie ma
+   jeszcze do czego nawigować. */
+.brama {
+    min-height: 100%;
+    display: grid;
+    place-items: center;
+    padding: 40px 20px;
+    background:
+        radial-gradient(1100px 520px at 50% -10%,
+            color-mix(in srgb, var(--atrament) 12%, transparent), transparent),
+        var(--papier);
+}
+
+.brama-srodek { width: 100%; max-width: 430px; }
+
+.brama-znak {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    margin-bottom: 18px;
+    color: var(--tekst);
+    text-decoration: none;
+}
+
+.brama-znak .znak-nazwa { font-size: 22px; }
+.brama-znak .znak-nazwa i { color: var(--tekst-drugi); }
+.brama-znak .znak-podpis { color: var(--tekst-drugi); text-align: left; }
+
+.brama .karta { box-shadow: var(--cien); margin-bottom: 14px; }
+.brama .karta-waska { max-width: none; }
+
+.brama-stopka { text-align: center; color: var(--tekst-drugi); font-size: 12.5px; }
+
+a { color: var(--atrament); }
+
+a:focus-visible, button:focus-visible, select:focus-visible {
+    outline: 2px solid var(--atrament-jasny);
+    outline-offset: 2px;
+}
+
+/* ============================================================== wąsko */
+
+@media (max-width: 900px) {
+    .program { grid-template-columns: 1fr; height: auto; }
+
+    .bok { flex-direction: row; flex-wrap: wrap; align-items: center; overflow: visible; }
+    .bok .grupa, .bok-stopka { display: none; }
+    .bok nav { flex-direction: row; flex-wrap: wrap; padding: 0 8px 10px; }
+    .bok nav.nav-szczyt { padding-top: 0; }
+    .znak { padding: 12px 14px; }
+
+    .tresc { padding: 16px 14px 30px; overflow: visible; }
+    .gora { flex-wrap: wrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}

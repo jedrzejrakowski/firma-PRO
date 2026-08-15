@@ -94,9 +94,9 @@
                         <td>@pozycja.Nazwa</td>
                         <td>@pozycja.Jednostka</td>
                         <td class="liczba">@pozycja.Ilosc.ToString("0.######")</td>
-                        <td class="liczba">@pozycja.CenaNetto.ToString("N2")</td>
+                        <td class="liczba">@Kwoty.NaTekst(pozycja.CenaNetto)</td>
                         <td>@SzczegolyModel.OpisStawki(pozycja.KodStawki)</td>
-                        <td class="liczba">@pozycja.WartoscNetto.ToString("N2")</td>
+                        <td class="liczba">@Kwoty.NaTekst(pozycja.WartoscNetto)</td>
                     </tr>
                 }
             </tbody>

@@ -119,7 +119,7 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
 
         string html = await AplikacjaTestowa.TrescAsync(szczegoly);
         // 2 x 100 zł netto przy stawce 23% daje 246 zł brutto.
-        Assert.Contains("246.00", html, StringComparison.Ordinal);
+        Assert.Contains("246,00", html, StringComparison.Ordinal);
 
         string idFaktury = adresSzczegolow["/Faktury/Szczegoly/".Length..];
         using HttpResponseMessage plik = await klient.GetAsync(
@@ -347,10 +347,10 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
                 adresFormularza: "/Zakupy/Import");
 
             Assert.Equal(HttpStatusCode.Redirect, import.StatusCode);
-            Assert.Equal("/Zakupy", Sciezka(import));
+            Assert.Equal("/Faktury?widok=koszty", Sciezka(import));
 
             using HttpResponseMessage rejestr =
-                await klient.GetAsync(new Uri("/Zakupy", UriKind.Relative));
+                await klient.GetAsync(new Uri("/Faktury?widok=koszty", UriKind.Relative));
 
             string zakupy = await AplikacjaTestowa.TrescAsync(rejestr);
             Assert.Contains("FS/7/2026", zakupy, StringComparison.Ordinal);
@@ -524,13 +524,13 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
         Assert.Contains("Dostawca sp. z o.o.", html, StringComparison.Ordinal);
 
         // 1 000,00 netto sprzedaży i 400,00 netto zakupu
-        Assert.Contains("1,000.00", html, StringComparison.Ordinal);
-        Assert.Contains("400.00", html, StringComparison.Ordinal);
+        Assert.Contains("1 000,00", html, StringComparison.Ordinal);
+        Assert.Contains("400,00", html, StringComparison.Ordinal);
 
         // 230 - 92 = 138 zł do zapłaty
-        Assert.Contains("230.00", html, StringComparison.Ordinal);
-        Assert.Contains("92.00", html, StringComparison.Ordinal);
-        Assert.Contains("138.00", html, StringComparison.Ordinal);
+        Assert.Contains("230,00", html, StringComparison.Ordinal);
+        Assert.Contains("92,00", html, StringComparison.Ordinal);
+        Assert.Contains("138,00", html, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -578,7 +578,7 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
 
         // Kwota 69,00 nadal widnieje w kolumnie VAT - taka jest na dokumencie.
         // Chodzi o to, żeby nie weszła do podatku naliczonego.
-        Assert.Equal("0.00", KwotaKafelka(html, "Podatek naliczony"));
+        Assert.Equal("0,00", KwotaKafelka(html, "Podatek naliczony"));
     }
 
     /// <summary>
@@ -766,8 +766,8 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
         string html = await AplikacjaTestowa.TrescAsync(rejestr);
 
         // 230 z faktury minus 46 z korekty daje 184 zł podatku należnego
-        Assert.Equal("184.00", KwotaKafelka(html, "Podatek należny"));
-        Assert.Contains("-200.00", html, StringComparison.Ordinal);
+        Assert.Equal("184,00", KwotaKafelka(html, "Podatek należny"));
+        Assert.Contains("-200,00", html, StringComparison.Ordinal);
     }
 
     /// <summary>Korekta wstecz trafia do okresu faktury pierwotnej.</summary>
@@ -824,7 +824,7 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
         using (HttpResponseMessage listopad = await klient.GetAsync(
             new Uri("/Rejestry/Vat?okres=2025-11", UriKind.Relative)))
         {
-            Assert.Equal("92.00",
+            Assert.Equal("92,00",
                 KwotaKafelka(await AplikacjaTestowa.TrescAsync(listopad), "Podatek należny"));
         }
 
@@ -832,7 +832,7 @@ public sealed class TestyAplikacjiWebowej(AplikacjaTestowa aplikacja)
         using (HttpResponseMessage grudzien = await klient.GetAsync(
             new Uri("/Rejestry/Vat?okres=2025-12", UriKind.Relative)))
         {
-            Assert.Equal("0.00",
+            Assert.Equal("0,00",
                 KwotaKafelka(await AplikacjaTestowa.TrescAsync(grudzien), "Podatek należny"));
         }
     }

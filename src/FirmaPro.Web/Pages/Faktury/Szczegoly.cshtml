@@ -70,10 +70,10 @@
                     </td>
                     <td>@pozycja.Jednostka</td>
                     <td class="liczba">@pozycja.Ilosc.ToString("0.######")</td>
-                    <td class="liczba">@pozycja.CenaNetto.ToString("N2")</td>
+                    <td class="liczba">@Kwoty.NaTekst(pozycja.CenaNetto)</td>
                     <td>@SzczegolyModel.OpisStawki(pozycja.KodStawki)</td>
-                    <td class="liczba">@pozycja.WartoscNetto.ToString("N2")</td>
-                    <td class="liczba">@pozycja.KwotaVat.ToString("N2")</td>
+                    <td class="liczba">@Kwoty.NaTekst(pozycja.WartoscNetto)</td>
+                    <td class="liczba">@Kwoty.NaTekst(pozycja.KwotaVat)</td>
                 </tr>
             }
         </tbody>
@@ -82,11 +82,11 @@
     <div class="podsumowanie-kwot">
         <div>
             <div class="etykieta">Netto</div>
-            <div class="kwota">@Model.Faktura.RazemNetto.ToString("N2")</div>
+            <div class="kwota">@Kwoty.NaTekst(Model.Faktura.RazemNetto)</div>
         </div>
         <div>
             <div class="etykieta">VAT</div>
-            <div class="kwota">@Model.Faktura.RazemVat.ToString("N2")</div>
+            <div class="kwota">@Kwoty.NaTekst(Model.Faktura.RazemVat)</div>
         </div>
         <div class="razem">
             <div class="etykieta">@(Model.Faktura.RozliczoneZaliczki.Count > 0 ? "Wartość dostawy" : "Do zapłaty")</div>
@@ -163,7 +163,10 @@
            asp-route-id="@Model.Faktura.Id">Wystaw fakturę końcową</a>
     }
 
-    <a class="przycisk" asp-page-handler="Pdf"
+    @* Wyróżniony kolorem jest tylko jeden przycisk w rzędzie - ten, który
+       coś wysyła. Pobranie pliku nie jest nieodwracalne, więc nie musi
+       przyciągać wzroku tak samo mocno. *@
+    <a class="przycisk przycisk-drugi" asp-page-handler="Pdf"
        asp-route-id="@Model.Faktura.Id">Pobierz PDF</a>
     <a class="przycisk przycisk-drugi" asp-page-handler="Xml"
        asp-route-id="@Model.Faktura.Id">Pobierz XML</a>

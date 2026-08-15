@@ -4,8 +4,12 @@
     ViewData["Tytul"] = "Należności";
 }
 
-<h1>Należności</h1>
-<p class="podtytul">Faktury, za które pieniądze jeszcze nie wpłynęły.</p>
+<div class="naglowek-ekranu">
+    <div>
+        <h1>Należności</h1>
+        <p class="podtytul">Faktury, za które pieniądze jeszcze nie wpłynęły.</p>
+    </div>
+</div>
 
 <div class="kafelki">
     <div class="kafelek wyroznik">
@@ -73,7 +77,10 @@ else
                         }
                         else
                         {
-                            <span class="drobne">@pozycja.Rozliczenie.Opis</span>
+                            <span class="znacznik @(pozycja.Rozliczenie.Zaplacono > 0
+                                ? "znacznik-wyslana" : "znacznik-robocza")">
+                                @pozycja.Rozliczenie.Opis
+                            </span>
                         }
                     </td>
                 </tr>

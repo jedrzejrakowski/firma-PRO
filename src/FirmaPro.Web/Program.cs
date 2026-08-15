@@ -131,6 +131,7 @@ budowniczy.Services.AddScoped<UslugaNumeracji>();
 budowniczy.Services.AddScoped<UslugaFaktur>();
 budowniczy.Services.AddScoped<UslugaWysylkiFaktur>();
 budowniczy.Services.AddScoped<UslugaPlatnosci>();
+budowniczy.Services.AddScoped<UslugaPulpitu>();
 budowniczy.Services.AddScoped<UslugaZakladania>();
 budowniczy.Services.AddScoped<UslugaKont>();
 

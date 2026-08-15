@@ -1,0 +1,164 @@
+@page
+@model PulpitModel
+@{
+    ViewData["Tytul"] = "Pulpit";
+
+    DanePulpitu dane = Model.Dane;
+    DateOnly dzisiaj = DateOnly.FromDateTime(DateTime.UtcNow);
+    var polski = System.Globalization.CultureInfo.GetCultureInfo("pl-PL");
+
+    // Wykres bez skali kłamie: przy jednym wysokim miesiącu reszta wygląda
+    // na zero. Skalujemy do najwyższego słupka i zostawiamy minimalną
+    // wysokość, żeby miesiąc z małą sprzedażą był widoczny.
+    decimal szczyt = dane.Szczyt;
+    Func<decimal, int> wysokosc = kwota =>
+        szczyt <= 0 ? 2 : Math.Max(2, (int)Math.Round(kwota / szczyt * 92m));
+}
+
+<div class="naglowek-ekranu">
+    <div>
+        <h1>@polski.TextInfo.ToTitleCase(dzisiaj.ToString("MMMM yyyy", polski))</h1>
+        <p class="podtytul">Wszystko, co wymaga dziś Twojej uwagi.</p>
+    </div>
+</div>
+
+<div class="kafelki">
+    <div class="kafelek @(dane.IlePoTerminie > 0 ? "pilny" : "spokojny")">
+        <span class="etykieta">Po terminie</span>
+        <span class="kwota">@Kwoty.NaTekst(dane.PoTerminie) zł</span>
+        <span class="drobne">
+            @if (dane.IlePoTerminie > 0)
+            {
+                @($"{dane.IlePoTerminie} faktur - wyślij przypomnienie")
+            }
+            else
+            {
+                @:Nikt nie zalega z zapłatą
+            }
+        </span>
+    </div>
+
+    <div class="kafelek">
+        <span class="etykieta">Czeka na zapłatę</span>
+        <span class="kwota">@Kwoty.NaTekst(dane.DoZaplaty) zł</span>
+        <span class="drobne">Razem z fakturami przed terminem</span>
+    </div>
+
+    <div class="kafelek wyroznik">
+        <span class="etykieta">Sprzedaż w tym miesiącu</span>
+        <span class="kwota">@Kwoty.NaTekst(dane.SprzedazMiesiaca) zł</span>
+        <span class="drobne">Wartość netto wystawionych faktur</span>
+    </div>
+
+    <div class="kafelek">
+        <span class="etykieta">Koszty w tym miesiącu</span>
+        <span class="kwota">@Kwoty.NaTekst(dane.KosztyMiesiaca) zł</span>
+        <span class="drobne">
+            Wynik: @Kwoty.NaTekst(dane.SprzedazMiesiaca - dane.KosztyMiesiaca) zł
+        </span>
+    </div>
+</div>
+
+<div class="dwie">
+    <div>
+        <div class="karta zwarta">
+            <header>
+                <h2>Sprzedaż miesiąc po miesiącu</h2>
+                <a asp-page="/Rejestry/Vat">Rejestr VAT</a>
+            </header>
+            <div class="wykres">
+                <div class="slupki">
+                    @foreach (ObrotMiesiaca miesiac in dane.Miesiace)
+                    {
+                        bool teraz = miesiac.Rok == dzisiaj.Year && miesiac.Miesiac == dzisiaj.Month;
+                        <div class="slupek @(teraz ? "teraz" : "")"
+                             title="@miesiac.Skrot @miesiac.Rok: @Kwoty.NaTekst(miesiac.Sprzedaz) zł netto">
+                            <span class="pion" style="height:@(wysokosc(miesiac.Sprzedaz))px"></span>
+                            <b>@miesiac.Skrot</b>
+                        </div>
+                    }
+                </div>
+                <div class="wykres-stopka">
+                    <span>Ostatnie @UslugaPulpitu.IleMiesiecy miesięcy, wartość netto</span>
+                    <span>Najwyższy słupek: @Kwoty.NaTekst(dane.Szczyt) zł</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="karta zwarta">
+            <header>
+                <h2>Ostatnie faktury</h2>
+                <a asp-page="/Faktury/Index">Wszystkie faktury</a>
+            </header>
+            @if (dane.Ostatnie.Count == 0)
+            {
+                <div class="pusto" style="border:0">
+                    Nie wystawiono jeszcze żadnej faktury.<br />
+                    Zacznij od przycisku „Wystaw fakturę” na górze.
+                </div>
+            }
+            else
+            {
+                <div class="przewijak">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Numer</th>
+                                <th>Nabywca</th>
+                                <th class="liczba">Brutto</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (FakturaSprzedazy faktura in dane.Ostatnie)
+                            {
+                                <tr>
+                                    <td class="nowrap">
+                                        <a asp-page="/Faktury/Szczegoly" asp-route-id="@faktura.Id">
+                                            <strong>@faktura.Numer</strong>
+                                        </a>
+                                        <span class="drobne">@faktura.DataWystawienia.ToString("yyyy-MM-dd")</span>
+                                    </td>
+                                    <td>@faktura.NabywcaNazwa</td>
+                                    <td class="liczba">@Kwoty.NaTekst(faktura.RazemBrutto)</td>
+                                    <td>
+                                        <span class="znacznik znacznik-@faktura.Status.ToString().ToLowerInvariant()">
+                                            @Faktury.IndexModel.OpisStatusu(faktura.Status)
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="karta zwarta">
+        <header>
+            <h2>Na dziś</h2>
+        </header>
+        <ul class="uwagi">
+            @foreach (SprawaNaDzis sprawa in dane.Sprawy)
+            {
+                <li>
+                    <span class="znaczek @sprawa.Waga">
+                        @if (sprawa.Waga == "spokojny")
+                        {
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7" /></svg>
+                        }
+                        else
+                        {
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v6" /><path d="M12 16.5v.01" /></svg>
+                        }
+                    </span>
+                    <span>
+                        <a asp-page="@sprawa.Strona"><b>@sprawa.Tresc</b></a>
+                        <span>@sprawa.Szczegol</span>
+                    </span>
+                </li>
+            }
+        </ul>
+    </div>
+</div>

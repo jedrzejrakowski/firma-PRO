@@ -17,7 +17,7 @@ namespace FirmaPro.Web.Pages;
 /// </remarks>
 public sealed class PrzelaczFirmeModel(FirmaProDbContext baza) : PageModel
 {
-    public IActionResult OnGet() => RedirectToPage("/Faktury/Index");
+    public IActionResult OnGet() => RedirectToPage("/Pulpit");
 
     public async Task<IActionResult> OnPostAsync(Guid firmaId, CancellationToken anulowanie)
     {
@@ -37,12 +37,12 @@ public sealed class PrzelaczFirmeModel(FirmaProDbContext baza) : PageModel
         if (czlonkostwo?.Uzytkownik is null)
         {
             TempData["Ostrzezenie"] = "Nie masz dostępu do wskazanej firmy.";
-            return RedirectToPage("/Faktury/Index");
+            return RedirectToPage("/Pulpit");
         }
 
         await Tozsamosc.ZalogujAsync(HttpContext, czlonkostwo.Uzytkownik, czlonkostwo);
 
         TempData["Komunikat"] = $"Pracujesz teraz w firmie {czlonkostwo.Firma?.Nazwa}.";
-        return RedirectToPage("/Faktury/Index");
+        return RedirectToPage("/Pulpit");
     }
 }

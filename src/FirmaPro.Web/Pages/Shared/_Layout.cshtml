@@ -2,6 +2,7 @@
 @using FirmaPro.Dane.Encje
 @using FirmaPro.Web.Uslugi
 @inject UslugaKont UslugaKont
+@inject UslugaPulpitu UslugaPulpitu
 @{
     string? nazwaFirmy = User.FindFirstValue(Tozsamosc.NazwaFirmy);
     bool zalogowany = User.Identity?.IsAuthenticated == true;
@@ -14,6 +15,36 @@
         zalogowany && Tozsamosc.UzytkownikId(User) is Guid ktoZalogowany
             ? await UslugaKont.FirmyUzytkownikaAsync(ktoZalogowany)
             : [];
+
+    // Znacznik przy „Należnościach” ma być widoczny z każdego ekranu - to
+    // jedyna liczba, o której właściciel firmy chce wiedzieć bez klikania.
+    int poTerminie = zalogowany ? await UslugaPulpitu.IlePoTerminieAsync() : 0;
+
+    string strona = ViewContext.RouteData.Values["page"] as string ?? string.Empty;
+}
+@functions {
+    /// <summary>
+    /// Zaznacza pozycję menu odpowiadającą otwartemu ekranowi.
+    /// </summary>
+    /// <remarks>
+    /// Porównujemy po początku ścieżki, bo jedna pozycja menu obejmuje kilka
+    /// stron - „Faktury” świecą się także na formularzu nowej faktury.
+    /// </remarks>
+    private string Tu(string strona, params string[] poczatki) =>
+        poczatki.Any(p => strona.StartsWith(p, StringComparison.OrdinalIgnoreCase)) ? "tu" : string.Empty;
+
+    private static string Inicjaly(string? nazwa)
+    {
+        string[] slowa = (nazwa ?? string.Empty)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return slowa.Length switch
+        {
+            0 => "?",
+            1 => slowa[0][..Math.Min(2, slowa[0].Length)].ToUpperInvariant(),
+            _ => $"{slowa[0][0]}{slowa[1][0]}".ToUpperInvariant()
+        };
+    }
 }
 <!DOCTYPE html>
 <html lang="pl">
@@ -24,75 +55,179 @@
     <link rel="stylesheet" href="~/css/firmapro.css" asp-append-version="true" />
 </head>
 <body>
-    <header class="pasek">
-        <div class="pasek-tresc">
-            <a class="znak" asp-page="/Index">Firma&nbsp;PRO</a>
+@if (!zalogowany)
+{
+    @* Logowanie i rejestracja - bez menu, bo nie ma jeszcze do czego nawigować. *@
+    <div class="brama">
+        <div class="brama-srodek">
+            <a class="brama-znak" asp-page="/Index">
+                <partial name="_Znak" />
+                <span>
+                    <span class="znak-nazwa">Firma&nbsp;<i>PRO</i></span>
+                    <span class="znak-podpis">Faktury i KSeF</span>
+                </span>
+            </a>
 
-            @if (zalogowany)
-            {
-                <nav class="nawigacja">
-                    <a asp-page="/Faktury/Index">Faktury</a>
-                    <a asp-page="/Zakupy/Index">Zakupy</a>
-                    <a asp-page="/Naleznosci">Należności</a>
-                    <a asp-page="/Kontrahenci/Index">Kontrahenci</a>
-                    <a asp-page="/Rejestry/Vat">Rejestr VAT</a>
-                    <a asp-page="/Rejestry/Jpk">JPK_V7</a>
-                    @if (wlasciciel)
-                    {
-                        <a asp-page="/Ustawienia">Ustawienia</a>
-                        <a asp-page="/Uzytkownicy/Index">Dostęp</a>
-                    }
-                </nav>
-                <div class="konto">
-                    @if (mojeFirmy.Count > 1)
-                    {
-                        <form method="post" asp-page="/PrzelaczFirme" class="wybor-firmy">
-                            <select name="firmaId" onchange="this.form.submit()"
-                                    title="Firma, w której kontekście pracujesz">
-                                @foreach (CzlonkostwoWFirmie czlonkostwo in mojeFirmy)
-                                {
-                                    <option value="@czlonkostwo.FirmaId"
-                                            selected="@(czlonkostwo.Firma?.Nazwa == nazwaFirmy)">
-                                        @czlonkostwo.Firma?.Nazwa
-                                    </option>
-                                }
-                            </select>
-                            <noscript><button type="submit">Przejdź</button></noscript>
-                        </form>
-                    }
-                    else
-                    {
-                        <span class="firma" title="Firma, w której kontekście pracujesz">
-                            @nazwaFirmy
-                        </span>
-                    }
-                    <a class="konto-odnosnik" asp-page="/Konto"
-                       title="Moje konto i hasło">@User.Identity?.Name</a>
-                    <form method="post" asp-page="/Wyloguj">
-                        <button type="submit" class="odnosnik-przycisk">Wyloguj</button>
-                    </form>
-                </div>
-            }
+            @RenderBody()
+
+            <p class="brama-stopka">Faktury zgodne z KSeF · wzór FA(3)</p>
         </div>
-    </header>
+    </div>
+}
+else
+{
+    <div class="program">
+        <aside class="bok">
+            <a class="znak" asp-page="/Pulpit">
+                <partial name="_Znak" />
+                <span>
+                    <span class="znak-nazwa">Firma&nbsp;<i>PRO</i></span>
+                    <span class="znak-podpis">Faktury i KSeF</span>
+                </span>
+            </a>
 
-    <main class="tresc">
-        @if (TempData["Komunikat"] is string komunikat)
-        {
-            <div class="powiadomienie powodzenie">@komunikat</div>
-        }
-        @if (TempData["Ostrzezenie"] is string ostrzezenie)
-        {
-            <div class="powiadomienie niepowodzenie">@ostrzezenie</div>
-        }
+            <nav class="nav-szczyt">
+                <a class="@Tu(strona, "/Pulpit")" asp-page="/Pulpit">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg>
+                    Pulpit
+                </a>
+            </nav>
 
-        @RenderBody()
-    </main>
+            <div class="grupa">Sprzedaż i zakupy</div>
+            <nav>
+                <a class="@Tu(strona, "/Faktury", "/Zakupy")" asp-page="/Faktury/Index">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h8l4 4v16l-3-2-3 2-3-2-3 2z" /><path d="M14 2v4h4" /><path d="M9 11h6M9 15h4" /></svg>
+                    Faktury
+                </a>
+                <a class="@Tu(strona, "/Naleznosci")" asp-page="/Naleznosci">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                    Należności
+                    @if (poTerminie > 0)
+                    {
+                        <span class="licznik" title="Faktury po terminie zapłaty">@poTerminie</span>
+                    }
+                </a>
+                <a class="@Tu(strona, "/Kontrahenci")" asp-page="/Kontrahenci/Index">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20" /><circle cx="9" cy="7" r="3.5" /><path d="M22 20v-1.5a4 4 0 0 0-3-3.9" /><path d="M16.5 3.6a4 4 0 0 1 0 7" /></svg>
+                    Kontrahenci
+                </a>
+            </nav>
 
-    <footer class="stopka">
-        Firma PRO · faktury zgodne z KSeF (wzór FA(3))
-    </footer>
+            <div class="grupa">Księgowość</div>
+            <nav>
+                <a class="@Tu(strona, "/Rejestry/Vat")" asp-page="/Rejestry/Vat">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5" /><path d="M8 8.5h8M8 12h8M8 15.5h5" /></svg>
+                    Rejestr VAT
+                </a>
+                <a class="@Tu(strona, "/Rejestry/Jpk")" asp-page="/Rejestry/Jpk">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12" /><path d="m7.5 10.5 4.5 4.5 4.5-4.5" /><path d="M4 18.5h16" /></svg>
+                    JPK_V7
+                </a>
+            </nav>
 
+            <div class="bok-stopka">
+                <span class="kropka-ok"></span>
+                Wzór FA(3)
+            </div>
+        </aside>
+
+        <div class="glowna">
+            <div class="gora">
+                @if (mojeFirmy.Count > 1)
+                {
+                    <form method="post" asp-page="/PrzelaczFirme" class="wybor-firmy">
+                        <span class="odznaka">@Inicjaly(nazwaFirmy)</span>
+                        <select name="firmaId" onchange="this.form.submit()"
+                                title="Firma, w której kontekście pracujesz">
+                            @foreach (CzlonkostwoWFirmie czlonkostwo in mojeFirmy)
+                            {
+                                <option value="@czlonkostwo.FirmaId"
+                                        selected="@(czlonkostwo.Firma?.Nazwa == nazwaFirmy)">
+                                    @czlonkostwo.Firma?.Nazwa
+                                </option>
+                            }
+                        </select>
+                        <noscript><button type="submit" class="przycisk-maly">Przejdź</button></noscript>
+                    </form>
+                }
+                else
+                {
+                    <span class="wybor-firmy" title="Firma, w której kontekście pracujesz">
+                        <span class="odznaka">@Inicjaly(nazwaFirmy)</span>
+                        <span class="nazwa-firmy">@nazwaFirmy</span>
+                    </span>
+                }
+
+                <div class="narzedzia">
+                    @* Jeden przycisk zamiast osobnego na każdy rodzaj faktury -
+                       rodzaj wybiera się z listy, więc dołożenie kolejnego
+                       nie rozpycha paska. *@
+                    <div class="rozwijak">
+                        <div class="dzielony">
+                            <a class="przycisk" asp-page="/Faktury/Nowa">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                                Wystaw fakturę
+                            </a>
+                            <button type="button" class="przycisk strzalka" data-rozwija="menu-rodzaje"
+                                    aria-expanded="false" aria-haspopup="true" title="Wybierz rodzaj faktury">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                            </button>
+                        </div>
+                        <div class="menu-lista" id="menu-rodzaje" hidden>
+                            <a asp-page="/Faktury/Nowa"><span><b>Podstawowa</b><small>zwykła sprzedaż towaru lub usługi</small></span></a>
+                            <a asp-page="/Faktury/Zaliczkowa"><span><b>Zaliczkowa</b><small>wpłata na poczet zamówienia</small></span></a>
+                            <a asp-page="/Faktury/Index"><span><b>Końcowa</b><small>rozlicza wcześniejsze zaliczki - z faktury zaliczkowej</small></span></a>
+                            <a asp-page="/Faktury/Index"><span><b>Korygująca</b><small>poprawia wystawiony dokument - z listy faktur</small></span></a>
+                            <hr />
+                            <a asp-page="/Zakupy/Nowa"><span><b>Faktura kosztowa</b><small>dokument otrzymany od dostawcy</small></span></a>
+                            <a asp-page="/Zakupy/Import"><span><b>Pobierz koszty z KSeF</b><small>faktury wystawione na Twój NIP</small></span></a>
+                        </div>
+                    </div>
+
+                    <div class="rozwijak">
+                        <button type="button" class="ikonka" data-rozwija="menu-trybik"
+                                aria-expanded="false" aria-haspopup="true" title="Ustawienia i konto">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 5 8.9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9.5a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1" /></svg>
+                        </button>
+
+                        <div class="menu-lista" id="menu-trybik" hidden>
+                            <div class="osoba">
+                                <b>@User.Identity?.Name</b>
+                                <span>@nazwaFirmy</span>
+                            </div>
+                            <hr />
+                            <a asp-page="/Konto"><span><b>Moje konto</b><small>hasło i dane logowania</small></span></a>
+                            @if (wlasciciel)
+                            {
+                                <a asp-page="/Ustawienia"><span><b>Ustawienia firmy</b><small>dane na fakturze, numeracja, KSeF</small></span></a>
+                                <a asp-page="/Uzytkownicy/Index"><span><b>Użytkownicy i role</b><small>kto ma dostęp do firmy</small></span></a>
+                            }
+                            <hr />
+                            <form method="post" asp-page="/Wyloguj">
+                                <button type="submit"><span><b>Wyloguj</b></span></button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <main class="tresc">
+                @if (TempData["Komunikat"] is string komunikat)
+                {
+                    <div class="powiadomienie powodzenie">@komunikat</div>
+                }
+                @if (TempData["Ostrzezenie"] is string ostrzezenie)
+                {
+                    <div class="powiadomienie niepowodzenie">@ostrzezenie</div>
+                }
+
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+}
+
+    <script src="~/js/firmapro.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Skrypty", required: false)
 </body>
 </html>

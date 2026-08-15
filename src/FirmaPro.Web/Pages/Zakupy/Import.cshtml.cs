@@ -140,7 +140,8 @@ public sealed class ImportModel(
             ? $"Pobrano faktur: {wynik.Zaimportowano}."
             : $"Pobrano faktur: {wynik.Zaimportowano}, pominięto już wpisane: {wynik.Pominieto}.";
 
-        return RedirectToPage("Index");
+        return RedirectToPage("/Faktury/Index",
+            new { widok = Pages.Faktury.IndexModel.WidokKoszty });
     }
 
     /// <summary>Domyślnie pytamy o bieżący miesiąc - najczęstszy przypadek.</summary>

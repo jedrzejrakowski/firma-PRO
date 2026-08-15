@@ -109,7 +109,7 @@ public sealed partial class AplikacjaTestowa : WebApplicationFactory<Program>, I
             });
 
         Assert.Equal(HttpStatusCode.Redirect, odpowiedz.StatusCode);
-        Assert.Equal("/Faktury", odpowiedz.Headers.Location?.OriginalString);
+        Assert.Equal("/Pulpit", odpowiedz.Headers.Location?.OriginalString);
 
         return klient;
     }

@@ -8,6 +8,6 @@ public sealed class IndexModel : PageModel
 {
     public IActionResult OnGet() =>
         User.Identity?.IsAuthenticated == true
-            ? RedirectToPage("/Faktury/Index")
+            ? RedirectToPage("/Pulpit")
             : RedirectToPage("/Logowanie");
 }

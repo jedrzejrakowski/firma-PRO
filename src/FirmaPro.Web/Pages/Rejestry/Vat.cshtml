@@ -27,24 +27,24 @@
 <div class="kafelki">
     <div class="kafelek">
         <span class="etykieta">Podatek należny</span>
-        <span class="kwota">@rozliczenie.PodatekNalezny.ToString("N2")</span>
+        <span class="kwota">@Kwoty.NaTekst(rozliczenie.PodatekNalezny)</span>
     </div>
     <div class="kafelek">
         <span class="etykieta">Podatek naliczony</span>
-        <span class="kwota">@rozliczenie.PodatekNaliczony.ToString("N2")</span>
+        <span class="kwota">@Kwoty.NaTekst(rozliczenie.PodatekNaliczony)</span>
     </div>
     @if (rozliczenie.Nadwyzka > 0)
     {
         <div class="kafelek wyroznik">
             <span class="etykieta">Nadwyżka do przeniesienia</span>
-            <span class="kwota">@rozliczenie.Nadwyzka.ToString("N2")</span>
+            <span class="kwota">@Kwoty.NaTekst(rozliczenie.Nadwyzka)</span>
         </div>
     }
     else
     {
         <div class="kafelek wyroznik">
             <span class="etykieta">Podatek do zapłaty</span>
-            <span class="kwota">@rozliczenie.DoZaplaty.ToString("N2")</span>
+            <span class="kwota">@Kwoty.NaTekst(rozliczenie.DoZaplaty)</span>
         </div>
     }
 </div>
@@ -82,18 +82,18 @@ else
                     <td class="nowrap"><strong>@wpis.Numer</strong></td>
                     <td>@wpis.NabywcaNazwa</td>
                     <td class="nowrap numer-ksef">@(wpis.NabywcaNip ?? "—")</td>
-                    <td class="liczba">@wpis.RazemNetto.ToString("N2")</td>
-                    <td class="liczba">@wpis.RazemVat.ToString("N2")</td>
-                    <td class="liczba">@wpis.RazemBrutto.ToString("N2")</td>
+                    <td class="liczba">@Kwoty.NaTekst(wpis.RazemNetto)</td>
+                    <td class="liczba">@Kwoty.NaTekst(wpis.RazemVat)</td>
+                    <td class="liczba">@Kwoty.NaTekst(wpis.RazemBrutto)</td>
                 </tr>
             }
         </tbody>
         <tfoot>
             <tr>
                 <td colspan="4"><strong>Razem</strong></td>
-                <td class="liczba"><strong>@Model.Rejestr.Sprzedaz.RazemNetto.ToString("N2")</strong></td>
-                <td class="liczba"><strong>@Model.Rejestr.Sprzedaz.PodatekNalezny.ToString("N2")</strong></td>
-                <td class="liczba"><strong>@Model.Rejestr.Sprzedaz.RazemBrutto.ToString("N2")</strong></td>
+                <td class="liczba"><strong>@Kwoty.NaTekst(Model.Rejestr.Sprzedaz.RazemNetto)</strong></td>
+                <td class="liczba"><strong>@Kwoty.NaTekst(Model.Rejestr.Sprzedaz.PodatekNalezny)</strong></td>
+                <td class="liczba"><strong>@Kwoty.NaTekst(Model.Rejestr.Sprzedaz.RazemBrutto)</strong></td>
             </tr>
         </tfoot>
     </table>
@@ -113,9 +113,9 @@ else
             {
                 <tr>
                     <td>@kwoty.Stawka.Opis</td>
-                    <td class="liczba">@kwoty.Netto.ToString("N2")</td>
-                    <td class="liczba">@kwoty.Vat.ToString("N2")</td>
-                    <td class="liczba">@kwoty.Brutto.ToString("N2")</td>
+                    <td class="liczba">@Kwoty.NaTekst(kwoty.Netto)</td>
+                    <td class="liczba">@Kwoty.NaTekst(kwoty.Vat)</td>
+                    <td class="liczba">@Kwoty.NaTekst(kwoty.Brutto)</td>
                 </tr>
             }
         </tbody>
@@ -156,12 +156,12 @@ else
                     <td class="nowrap">
                         @(wpis.Rodzaj == RodzajZakupu.SrodkiTrwale ? "środki trwałe" : "towary i usługi")
                     </td>
-                    <td class="liczba">@wpis.Netto.ToString("N2")</td>
-                    <td class="liczba">@wpis.Vat.ToString("N2")</td>
+                    <td class="liczba">@Kwoty.NaTekst(wpis.Netto)</td>
+                    <td class="liczba">@Kwoty.NaTekst(wpis.Vat)</td>
                     <td class="liczba">
                         @if (wpis.Odliczany)
                         {
-                            @wpis.VatDoOdliczenia.ToString("N2")
+                            @Kwoty.NaTekst(wpis.VatDoOdliczenia)
                         }
                         else
                         {
@@ -174,9 +174,9 @@ else
         <tfoot>
             <tr>
                 <td colspan="6"><strong>Razem</strong></td>
-                <td class="liczba"><strong>@Model.Rejestr.Zakupy.RazemNetto.ToString("N2")</strong></td>
-                <td class="liczba"><strong>@Model.Rejestr.Zakupy.RazemVat.ToString("N2")</strong></td>
-                <td class="liczba"><strong>@Model.Rejestr.Zakupy.PodatekNaliczony.ToString("N2")</strong></td>
+                <td class="liczba"><strong>@Kwoty.NaTekst(Model.Rejestr.Zakupy.RazemNetto)</strong></td>
+                <td class="liczba"><strong>@Kwoty.NaTekst(Model.Rejestr.Zakupy.RazemVat)</strong></td>
+                <td class="liczba"><strong>@Kwoty.NaTekst(Model.Rejestr.Zakupy.PodatekNaliczony)</strong></td>
             </tr>
         </tfoot>
     </table>
@@ -193,18 +193,19 @@ else
         <tbody>
             <tr>
                 <td>Środki trwałe</td>
-                <td class="liczba">@Model.Rejestr.Zakupy.NettoSrodkiTrwale.ToString("N2")</td>
-                <td class="liczba">@Model.Rejestr.Zakupy.VatSrodkiTrwale.ToString("N2")</td>
+                <td class="liczba">@Kwoty.NaTekst(Model.Rejestr.Zakupy.NettoSrodkiTrwale)</td>
+                <td class="liczba">@Kwoty.NaTekst(Model.Rejestr.Zakupy.VatSrodkiTrwale)</td>
             </tr>
             <tr>
                 <td>Pozostałe towary i usługi</td>
-                <td class="liczba">@Model.Rejestr.Zakupy.NettoPozostale.ToString("N2")</td>
-                <td class="liczba">@Model.Rejestr.Zakupy.VatPozostale.ToString("N2")</td>
+                <td class="liczba">@Kwoty.NaTekst(Model.Rejestr.Zakupy.NettoPozostale)</td>
+                <td class="liczba">@Kwoty.NaTekst(Model.Rejestr.Zakupy.VatPozostale)</td>
             </tr>
         </tbody>
     </table>
 }
 
 <div class="paskiem" style="margin-top:26px">
-    <a class="przycisk przycisk-drugi" asp-page="/Zakupy/Index">Faktury zakupu</a>
+    <a class="przycisk przycisk-drugi" asp-page="/Faktury/Index"
+       asp-route-widok="koszty">Faktury zakupu</a>
 </div>

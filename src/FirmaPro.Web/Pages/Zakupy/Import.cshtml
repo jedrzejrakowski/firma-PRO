@@ -38,7 +38,8 @@
 
         <div class="paskiem">
             <button type="submit">Szukaj w KSeF</button>
-            <a class="przycisk przycisk-drugi" asp-page="Index">Wróć do rejestru</a>
+            <a class="przycisk przycisk-drugi" asp-page="/Faktury/Index"
+               asp-route-widok="koszty">Wróć do rejestru</a>
         </div>
     </div>
 </form>
@@ -104,9 +105,9 @@
                             }
                         </td>
                         <td class="nowrap">@dane.DataWystawienia?.ToString("yyyy-MM-dd")</td>
-                        <td class="liczba">@dane.Netto.ToString("N2")</td>
-                        <td class="liczba">@dane.Vat.ToString("N2")</td>
-                        <td class="liczba"><strong>@dane.Brutto.ToString("N2")</strong></td>
+                        <td class="liczba">@Kwoty.NaTekst(dane.Netto)</td>
+                        <td class="liczba">@Kwoty.NaTekst(dane.Vat)</td>
+                        <td class="liczba"><strong>@Kwoty.NaTekst(dane.Brutto)</strong></td>
                         <td class="nowrap">@Model.OpisOkresu(dane)</td>
                         <td>
                             @if (!znaleziona.JuzWRejestrze)

@@ -115,7 +115,8 @@ public sealed class NowaModel(
         }
 
         TempData["Komunikat"] = komunikat;
-        return RedirectToPage("Index");
+        return RedirectToPage("/Faktury/Index",
+            new { widok = Pages.Faktury.IndexModel.WidokKoszty });
     }
 
     private async Task WczytajListyAsync(CancellationToken anulowanie) =>
