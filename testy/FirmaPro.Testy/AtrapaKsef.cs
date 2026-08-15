@@ -2,7 +2,9 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Security.Cryptography.Xml;
 using System.Text.Json;
+using System.Xml;
 using FirmaPro.Ksef;
 
 namespace FirmaPro.Testy;
@@ -55,6 +57,15 @@ public sealed class AtrapaKsef : HttpMessageHandler
 
     /// <summary>Udaje brak łączności - żądanie nie dochodzi do serwera.</summary>
     public bool ZrywajPolaczenie { get; set; }
+
+    /// <summary>Wyzwanie wydawane przez atrapę - stałe, żeby test mógł je porównać.</summary>
+    public const string Wyzwanie = "20260808-CR-ABC";
+
+    // Ślady uwierzytelnienia certyfikatem.
+    public XmlDocument? PodpisanyDokument { get; private set; }
+    public bool PodpisPoprawny { get; private set; }
+    public string? PodpisaneWyzwanie { get; private set; }
+    public string? PodpisanyNip { get; private set; }
     public string? OdszyfrowanyToken { get; private set; }
     public byte[]? KluczSesji { get; private set; }
     public byte[]? WektorSesji { get; private set; }
@@ -143,12 +154,14 @@ public sealed class AtrapaKsef : HttpMessageHandler
 
             "auth/challenge" => Json(HttpStatusCode.OK, new
             {
-                challenge = "20260808-CR-ABC",
+                challenge = Wyzwanie,
                 timestamp = "2026-08-08T10:00:00+00:00",
                 timestampMs = ZnacznikMs
             }),
 
             "auth/ksef-token" => ObsluzUwierzytelnienie(tresc),
+
+            "auth/xades-signature" => ObsluzPodpis(tresc),
 
             "auth/token/redeem" => Json(HttpStatusCode.OK, new
             {
@@ -187,6 +200,65 @@ public sealed class AtrapaKsef : HttpMessageHandler
         return Json(HttpStatusCode.Accepted, new
         {
             referenceNumber = "20260808-AU-0001",
+            authenticationToken = new
+            {
+                token = "tymczasowy.token.operacji",
+                validUntil = "2026-08-08T11:00:00+00:00"
+            }
+        });
+    }
+
+    /// <summary>
+    /// Sprawdza podpisany dokument uwierzytelniający.
+    /// </summary>
+    /// <remarks>
+    /// Atrapa nie wierzy na słowo: weryfikuje podpis kluczem publicznym
+    /// z certyfikatu dołączonego do dokumentu i porównuje wyzwanie. Dzięki
+    /// temu test wychwyci zepsuty podpis, a nie tylko literówkę w nazwie pola.
+    /// </remarks>
+    private HttpResponseMessage ObsluzPodpis(string tresc)
+    {
+        var dokument = new XmlDocument { PreserveWhitespace = true };
+        dokument.LoadXml(tresc);
+
+        PodpisanyDokument = dokument;
+
+        if (dokument.GetElementsByTagName("Signature", SignedXml.XmlDsigNamespaceUrl)
+                is not { Count: > 0 } podpisy)
+        {
+            return Json(HttpStatusCode.BadRequest, new { title = "Dokument nie jest podpisany" });
+        }
+
+        var podpis = new SignedXml(dokument);
+        podpis.LoadXml((XmlElement)podpisy[0]!);
+
+        PodpisPoprawny = podpis.CheckSignature();
+
+        if (!PodpisPoprawny)
+        {
+            return Json(HttpStatusCode.Unauthorized, new
+            {
+                status = new { code = 401, description = "Podpis nie zgadza się z treścią" }
+            });
+        }
+
+        XmlNamespaceManager przestrzenie = new(dokument.NameTable);
+        przestrzenie.AddNamespace("a", ZadanieUwierzytelnienia.Przestrzen);
+
+        PodpisaneWyzwanie = dokument.SelectSingleNode("//a:Challenge", przestrzenie)?.InnerText;
+        PodpisanyNip = dokument.SelectSingleNode("//a:ContextIdentifier/a:Nip", przestrzenie)?.InnerText;
+
+        if (PodpisaneWyzwanie != Wyzwanie)
+        {
+            return Json(HttpStatusCode.Unauthorized, new
+            {
+                status = new { code = 401, description = "Podpisano nieaktualne wyzwanie" }
+            });
+        }
+
+        return Json(HttpStatusCode.Accepted, new
+        {
+            referenceNumber = "20260808-AU-0002",
             authenticationToken = new
             {
                 token = "tymczasowy.token.operacji",

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using FirmaPro.Domena;
@@ -148,6 +149,47 @@ public sealed class KlientKsef : IKlientKsef
             await PostAsync<ZadanieTokenem, OdpowiedzUwierzytelnienia>(
                 "auth/ksef-token", zadanie, null, anulowanie);
 
+        await OdbierzTokenDostepuAsync(rozpoczete, anulowanie);
+    }
+
+    /// <summary>
+    /// Uwierzytelnia się podpisem certyfikatu.
+    /// </summary>
+    /// <remarks>
+    /// Droga docelowa: od 2027 roku tokeny przestają działać i pozostaje
+    /// wyłącznie certyfikat. Przebieg jest ten sam co przy tokenie - wyzwanie,
+    /// potwierdzenie, wymiana na token dostępowy - różni się środek: zamiast
+    /// zaszyfrować token kluczem publicznym systemu, podpisujemy wyzwanie
+    /// kluczem prywatnym certyfikatu.
+    /// </remarks>
+    public async Task UwierzytelnijCertyfikatemAsync(
+        string nip, X509Certificate2 certyfikat, CancellationToken anulowanie = default)
+    {
+        ArgumentNullException.ThrowIfNull(certyfikat);
+
+        OdpowiedzWyzwania wyzwanie =
+            await PostAsync<object, OdpowiedzWyzwania>("auth/challenge", null, null, anulowanie);
+
+        string dokument = ZadanieUwierzytelnienia.Zbuduj(wyzwanie.Wyzwanie, OczyscNip(nip));
+        string podpisany = PodpisXades.Zloz(dokument, certyfikat, _czas);
+
+        OdpowiedzUwierzytelnienia rozpoczete =
+            await WyslijPodpisanyDokumentAsync(podpisany, anulowanie);
+
+        await OdbierzTokenDostepuAsync(rozpoczete, anulowanie);
+    }
+
+    /// <summary>
+    /// Czeka na potwierdzenie i wymienia je na token dostępowy.
+    /// </summary>
+    /// <remarks>
+    /// Wspólne zakończenie obu dróg uwierzytelnienia - od tego miejsca
+    /// system nie rozróżnia już, czy przedstawiliśmy się tokenem,
+    /// czy podpisem.
+    /// </remarks>
+    private async Task OdbierzTokenDostepuAsync(OdpowiedzUwierzytelnienia rozpoczete,
+                                                CancellationToken anulowanie)
+    {
         await PoczekajNaUwierzytelnienieAsync(
             rozpoczete.NumerReferencyjny, rozpoczete.TokenOperacji.Token, anulowanie);
 
@@ -156,6 +198,28 @@ public sealed class KlientKsef : IKlientKsef
                 "auth/token/redeem", null, rozpoczete.TokenOperacji.Token, anulowanie);
 
         _tokenDostepu = tokeny.TokenDostepu.Token;
+    }
+
+    /// <summary>
+    /// Wysyła podpisany dokument uwierzytelniający.
+    /// </summary>
+    /// <remarks>
+    /// W odróżnieniu od reszty wywołań treścią jest tu XML, a nie JSON -
+    /// przesyłany dosłownie, bo każda zmiana bajtów unieważniłaby podpis.
+    /// Sprawdzanie ścieżki certyfikatu jest wyłączone: w środowisku testowym
+    /// używa się certyfikatów samopodpisanych, a certyfikat wydany przez KSeF
+    /// system i tak rozpoznaje po swojemu.
+    /// </remarks>
+    private async Task<OdpowiedzUwierzytelnienia> WyslijPodpisanyDokumentAsync(
+        string podpisanyXml, CancellationToken anulowanie)
+    {
+        using var zadanie = new HttpRequestMessage(
+            HttpMethod.Post, "auth/xades-signature?verifyCertificateChain=false")
+        {
+            Content = new StringContent(podpisanyXml, Encoding.UTF8, "application/xml")
+        };
+
+        return await WyslijAsync<OdpowiedzUwierzytelnienia>(zadanie, null, anulowanie);
     }
 
     private async Task PoczekajNaUwierzytelnienieAsync(

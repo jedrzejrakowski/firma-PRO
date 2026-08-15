@@ -14,6 +14,10 @@
     <!-- IHttpClientFactory - klient KSeF korzysta z puli połączeń zamiast
          tworzyć własne, co przy dłuższej pracy wyczerpywałoby gniazda. -->
     <PackageReference Include="Microsoft.Extensions.Http" />
+
+    <!-- Podpis XAdES przy uwierzytelnianiu certyfikatem. Klasy SignedXml nie
+         ma w bibliotece podstawowej .NET - trzeba ją dołożyć osobno. -->
+    <PackageReference Include="System.Security.Cryptography.Xml" />
   </ItemGroup>
 
 </Project>

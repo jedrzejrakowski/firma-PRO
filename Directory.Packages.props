@@ -24,6 +24,7 @@
     <PackageVersion Include="PDFsharp" Version="6.2.4" />
     <PackageVersion Include="QRCoder" Version="1.8.0" />
     <PackageVersion Include="MailKit" Version="4.17.0" />
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.11" />
   </ItemGroup>
 
   <ItemGroup Label="Komunikacja HTTP">

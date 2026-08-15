@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using FirmaPro.Domena;
 
 namespace FirmaPro.Ksef;
@@ -123,6 +124,19 @@ public interface IKlientKsef
     /// <param name="tokenKsef">Token wygenerowany w aplikacji webowej KSeF.</param>
     Task UwierzytelnijAsync(string nip, string tokenKsef,
                             CancellationToken anulowanie = default);
+
+    /// <summary>
+    /// Uwierzytelnia się podpisem certyfikatu KSeF.
+    /// </summary>
+    /// <remarks>
+    /// Droga docelowa - od 2027 roku tokeny przestają działać. Certyfikat
+    /// sam z siebie nie nadaje uprawnień: potwierdza tożsamość, a to, co wolno
+    /// zrobić, wynika z uprawnień nadanych wcześniej w systemie.
+    /// </remarks>
+    /// <param name="nip">NIP firmy, w imieniu której działa program.</param>
+    /// <param name="certyfikat">Certyfikat wraz z kluczem prywatnym.</param>
+    Task UwierzytelnijCertyfikatemAsync(string nip, X509Certificate2 certyfikat,
+                                        CancellationToken anulowanie = default);
 
     /// <summary>Otwiera sesję interaktywną i zwraca jej numer referencyjny.</summary>
     Task<string> OtworzSesjeAsync(CancellationToken anulowanie = default);
