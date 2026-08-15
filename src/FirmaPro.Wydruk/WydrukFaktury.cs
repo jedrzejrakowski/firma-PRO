@@ -46,6 +46,7 @@ public static class WydrukFaktury
         private readonly List<XGraphics> _strony = [];
 
         private XGraphics _rysik = null!;
+        private PdfPage _strona = null!;
         private double _y;
 
         public byte[] Buduj()
@@ -91,6 +92,7 @@ public static class WydrukFaktury
             strona.Width = XUnit.FromPoint(Styl.SzerokoscStrony);
             strona.Height = XUnit.FromPoint(Styl.WysokoscStrony);
 
+            _strona = strona;
             _rysik = XGraphics.FromPdfPage(strona);
             _strony.Add(_rysik);
             _y = Styl.MarginesGorny;
@@ -718,7 +720,51 @@ public static class WydrukFaktury
                 "znajduje się w systemie i czy jej treść nie została zmieniona.",
                 Styl.Mala, Styl.TekstSzary, xOpisu, _y + Styl.Mm(13.6));
 
+            // Na papierze działa kod QR, ale fakturę częściej ogląda się na
+            // ekranie - a wtedy skanowanie własnego monitora telefonem jest
+            // drogą naokoło. Ten sam adres jest więc do kliknięcia.
+            const string opisOdnosnika = "Otwórz fakturę w KSeF";
+            double yOdnosnika = _y + Styl.Mm(18);
+
+            _rysik.DrawString(opisOdnosnika, Styl.MalaWyrozniona, Styl.Granat,
+                xOpisu, yOdnosnika);
+
+            double szerokosc = _rysik.MeasureString(opisOdnosnika, Styl.MalaWyrozniona).Width;
+
+            // Podkreślenie: bez niego nic nie sugeruje, że to odnośnik.
+            _rysik.DrawLine(Styl.Linia, xOpisu, yOdnosnika + Styl.Mm(0.8),
+                xOpisu + szerokosc, yOdnosnika + Styl.Mm(0.8));
+
+            DodajOdnosnik(xOpisu, yOdnosnika - Styl.Mm(3), szerokosc, Styl.Mm(4),
+                opcje.LinkWeryfikacyjny!);
+
+            // Sam kod też jest klikalny - to najbardziej naturalne miejsce,
+            // w które czytelnik celuje myszą.
+            DodajOdnosnik(Styl.Lewa, _y, bok, bok, opcje.LinkWeryfikacyjny!);
+
             _y += bok + Styl.Mm(4);
+        }
+
+        /// <summary>
+        /// Zaznacza obszar strony jako odnośnik do wskazanego adresu.
+        /// </summary>
+        /// <remarks>
+        /// Odnośniki w PDF liczone są względem lewego dolnego rogu strony,
+        /// a rysowanie prowadzimy od lewego górnego - przeliczenie robi
+        /// przekształcenie z biblioteki, żeby nie powielać tu jej arytmetyki.
+        /// </remarks>
+        private void DodajOdnosnik(double x, double y, double szerokosc, double wysokosc,
+                                   string adres)
+        {
+            XPoint lewyGorny = _rysik.Transformer.WorldToDefaultPage(new XPoint(x, y));
+            XPoint prawyDolny = _rysik.Transformer.WorldToDefaultPage(
+                new XPoint(x + szerokosc, y + wysokosc));
+
+            _strona.AddWebLink(
+                new PdfRectangle(
+                    new XPoint(lewyGorny.X, _strona.Height.Point - prawyDolny.Y),
+                    new XPoint(prawyDolny.X, _strona.Height.Point - lewyGorny.Y)),
+                adres);
         }
 
         /// <summary>

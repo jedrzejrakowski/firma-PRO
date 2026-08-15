@@ -222,7 +222,62 @@ public sealed class TestyWydruku
         Assert.Equal(1, dokument.PageCount);
     }
 
+    /// <summary>
+    /// Kod QR jest zarazem odnośnikiem, który da się kliknąć.
+    /// </summary>
+    /// <remarks>
+    /// Na papierze działa sam kod, ale fakturę częściej ogląda się na ekranie
+    /// - a wtedy skanowanie własnego monitora telefonem jest drogą naokoło.
+    /// </remarks>
+    [Fact]
+    public void KodWeryfikacyjnyJestKlikalnymOdnosnikiem()
+    {
+        Faktura faktura = Fabryka.PrzykladowaFaktura();
+        byte[] xml = Fa3Generator.ZbudujXml(faktura);
+
+        OpcjeWydruku opcje = OpcjeWydruku.DlaPrzyjetej(
+            "5252248481-20260808-010080DD2B5E-26", "5252248481",
+            faktura.DataWystawienia, xml, SrodowiskoKsef.Test);
+
+        using PdfDocument dokument = Otworz(WydrukFaktury.Utworz(faktura, opcje));
+
+        List<string> adresy = [.. Odnosniki(dokument.Pages[^1])];
+
+        // Dwa obszary prowadzą pod ten sam adres: sam kod i podpis obok niego.
+        Assert.Equal(2, adresy.Count);
+        Assert.All(adresy, a => Assert.Equal(opcje.LinkWeryfikacyjny, a));
+    }
+
+    [Fact]
+    public void ProjektNieMaZadnegoOdnosnika()
+    {
+        using PdfDocument dokument =
+            Otworz(WydrukFaktury.Utworz(Fabryka.PrzykladowaFaktura()));
+
+        Assert.Empty(Odnosniki(dokument.Pages[^1]));
+    }
+
     // ------------------------------------------------------------ pomocnicze
+
+    /// <summary>Adresy, pod które prowadzą odnośniki umieszczone na stronie.</summary>
+    private static IEnumerable<string> Odnosniki(PdfPage strona)
+    {
+        PdfArray? adnotacje = strona.Elements.GetArray("/Annots");
+
+        for (int i = 0; i < (adnotacje?.Elements.Count ?? 0); i++)
+        {
+            if (adnotacje!.Elements.GetDictionary(i) is not { } adnotacja)
+            {
+                continue;
+            }
+
+            if (adnotacja.Elements.GetDictionary("/A") is { } akcja
+                && akcja.Elements.GetString("/URI") is { Length: > 0 } adres)
+            {
+                yield return adres;
+            }
+        }
+    }
 
     /// <summary>Skrót o poprawnej długości - treść nie ma tu znaczenia.</summary>
     private static string PrzykladowySkrot { get; } =
