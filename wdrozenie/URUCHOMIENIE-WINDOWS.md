@@ -202,6 +202,22 @@ I dopiero wtedy włącz Docker Desktop.
 > jest już częściowo obecny, `wsl --install` potrafi wypisać samą pomoc
 > i nie zrobić nic. Wtedy nie wiadomo, czy polecenie zadziałało.
 
+**Skąd wiadomo, że się udało.** Szukaj w wypisanym tekście linii:
+
+```
+The operation completed successfully.
+Żądana operacja powiodła się. Zmiany nie odniosą skutku aż do ponownego
+uruchomienia systemu.
+```
+
+Druga linia brzmi jak ostrzeżenie, a jest potwierdzeniem: składnik został
+włączony i czeka na restart. Bywa też, że samo `wsl --update` włączy przy
+okazji **VirtualMachinePlatform** — wtedy polecenia `dism` nie mają już nic
+do zrobienia i to też jest w porządku.
+
+Dopóki nie uruchomisz komputera ponownie, Docker będzie pokazywał ten sam
+błąd, mimo że wszystko jest już włączone.
+
 > Na komputerze służbowym wejście do BIOS-u bywa zablokowane przez dział
 > informatyczny. Gdyby tak było, program da się uruchomić bez Dockera —
 > patrz [Uruchomienie](../README.md#uruchomienie) — ale wymaga to
