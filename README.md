@@ -882,12 +882,29 @@ a właśnie taki błąd zdarzył się przy tworzeniu klienta KSeF.
 
 ## Czego jeszcze nie sprawdzono
 
-**Połączenia z żywym KSeF nie da się zweryfikować w środowisku budowy** —
-dostęp do `ksef.mf.gov.pl` jest tam zablokowany. Sprawdzenie należy wykonać
-u siebie, przeciwko bezpłatnemu środowisku testowemu Ministerstwa: zapisać
-token w Ustawieniach i kliknąć **Sprawdź połączenie z KSeF** — instrukcja
-krok po kroku jest wyżej, w części
-[Pierwsze uruchomienie](#pierwsze-uruchomienie-próba-na-testowym-ksef).
+**Połączenie z żywym KSeF zostało potwierdzone** 15 sierpnia 2026 roku,
+przeciwko środowisku testowemu Ministerstwa (`api-test.ksef.mf.gov.pl/v2`).
+Sprawdzenie przeszło wszystkie osiem kroków, co potwierdza rzeczy, których
+nie da się sprawdzić atrapą:
+
+- program odczytuje **prawdziwe certyfikaty** publikowane przez KSeF —
+  nazwy pól wzięte ze specyfikacji zgadzają się z tym, co system zwraca;
+- **koperta kryptograficzna działa**: KSeF odszyfrował token przesłany
+  algorytmem RSA-OAEP wraz ze znacznikiem czasu i wydał token dostępowy;
+- KSeF przyjął deklarację wzoru **FA(3)** i klucz sesji, po czym pozwolił
+  sesję otworzyć i zamknąć — czyli wysyłanie faktur zadziała;
+- zapytanie o **faktury zakupu** zwróciło dane z systemu.
+
+Sprawdzenia dokonano w środowisku budowy niedostępnym z sieci Ministerstwa,
+więc wykonał je zamawiający u siebie. Zostaje ono właściwym sposobem
+sprawdzenia każdej nowej instalacji — instrukcja krok po kroku jest wyżej,
+w części [Pierwsze uruchomienie](#pierwsze-uruchomienie-próba-na-testowym-ksef).
+
+Czego to sprawdzenie **nie** potwierdza: że każde pole metadanych faktury
+zakupowej trafia we właściwe miejsce. Zapytanie zwróciło faktury i program
+je policzył, ale zgodność poszczególnych nazw pól potwierdzi dopiero ekran
+importu z prawdziwymi danymi. Nie potwierdza też przebiegu samej wysyłki
+faktury - do numeru KSeF, UPO i kodu QR włącznie.
 
 Sam ekran sprawdzenia jest przetestowany przeciwko atrapie serwera we
 wszystkich rodzajach niepowodzenia, które ma rozróżniać: brak tokena, zerwana
@@ -924,12 +941,18 @@ połączenia **szyfrowanego z uwierzytelnieniem** - do tego trzeba prawdziwego
 dostawcy poczty. Pierwsze wysłanie faktury u siebie warto potraktować jako
 sprawdzenie ustawień serwera poczty.
 
-Nie udało się natomiast uruchomić **całego zestawu z docker-compose naraz** -
-w środowisku budowy zablokowane jest pobieranie obrazów `postgres` i `caddy`
-z Docker Hub. Sam plik `docker-compose.yml` przechodzi sprawdzenie składni
-(`docker compose config`), ale pierwsze `docker compose up` u siebie warto
-potraktować jako pierwsze prawdziwe uruchomienie - i od razu zajrzeć do
-`dziennik.txt` na woluminie kopii, czy pierwsza kopia się odtworzyła.
+**Cały zestaw z docker-compose został uruchomiony** u zamawiającego,
+na Windows 11 z Docker Desktop - baza, program, pośrednik z HTTPS i usługa
+kopii wstały razem, a program założył konto właściciela z ustawień. Do tego
+czasu w środowisku budowy nie dało się tego sprawdzić, bo zablokowane jest
+pobieranie obrazów `postgres` i `caddy` z Docker Huba.
+
+Pierwsze uruchomienie od razu ujawniło usterkę: baza zakładana była
+z lokalizacją `pl_PL.utf8`, której obraz `postgres:16` nie ma wygenerowanej,
+więc kontener nigdy nie stawał się sprawny i całe wdrożenie nie ruszało.
+Polskie sortowanie idzie teraz przez ICU wbudowane w PostgreSQL. Warto to
+zapamiętać jako miarę wartości pierwszego prawdziwego uruchomienia -
+sprawdzenie składni pliku (`docker compose config`) przechodziło bez uwag.
 
 Kod QR na wydruku został odczytany z gotowego pliku PDF czytnikiem kodów
 i porównany ze skrótem SHA-256 wysłanego dokumentu — link prowadzi dokładnie
