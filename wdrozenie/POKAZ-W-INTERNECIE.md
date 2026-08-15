@@ -46,6 +46,9 @@ Gdzie:
   więc kilkudniowy pokaz kosztuje grosze. Na stronie wybiera się najpierw
   rodzinę pakietów: **Cost-Optimized** albo **Regular Performance**;
   *General Purpose* to dedykowane rdzenie i jest tu niepotrzebny.
+  W sierpniu 2026 parametrom z tabeli odpowiadał pakiet **CPX22**.
+  Uwaga na pakiety o numerach kończących się jedynką (CPX11, CPX21) —
+  to starsza seria, droższa za te same parametry.
 - [OVH](https://www.ovhcloud.com/pl/vps/) — polska obsługa i faktura,
   rozliczanie miesięczne.
 - [Mikr.us](https://mikr.us/) — polski i tani, ale pakiety są ciasne:
