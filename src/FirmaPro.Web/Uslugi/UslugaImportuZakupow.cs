@@ -52,11 +52,11 @@ public sealed class UslugaImportuZakupow(
     public async Task<IReadOnlyList<ZnalezionaFaktura>> SzukajAsync(
         DateOnly dataOd, DateOnly dataDo, CancellationToken anulowanie = default)
     {
-        (IKlientKsef klient, Firma firma, string token) = await PrzygotujAsync(anulowanie);
+        (IKlientKsef klient, Firma firma) = await PrzygotujAsync(anulowanie);
 
         try
         {
-            await klient.UwierzytelnijAsync(firma.Nip, token, anulowanie);
+            await UwierzytelnienieKsef.ZalogujAsync(klient, firma, ochronaTokena, anulowanie);
 
             IReadOnlyList<FakturaZakupowa> znalezione =
                 await klient.PobierzFakturyZakupoweAsync(dataOd, dataDo, anulowanie);
@@ -176,26 +176,12 @@ public sealed class UslugaImportuZakupow(
     private Task<Firma> WczytajFirmeAsync(CancellationToken anulowanie) =>
         baza.Firmy.SingleAsync(f => f.Id == baza.AktualnaFirmaId, anulowanie);
 
-    private async Task<(IKlientKsef Klient, Firma Firma, string Token)> PrzygotujAsync(
+    private async Task<(IKlientKsef Klient, Firma Firma)> PrzygotujAsync(
         CancellationToken anulowanie)
     {
         Firma firma = await WczytajFirmeAsync(anulowanie);
 
-        string? token = Environment.GetEnvironmentVariable("KSEF_TOKEN");
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            token = firma.TokenKsefZaszyfrowany is { Length: > 0 } zaszyfrowany
-                ? ochronaTokena.Odszyfruj(zaszyfrowany)
-                : null;
-        }
-
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            throw new BladKsefException(
-                "Brak tokena KSeF. Uzupełnij go w Ustawieniach firmy.", null, []);
-        }
-
-        return (fabrykaKlientow.Utworz(firma.Srodowisko), firma, token);
+        return (fabrykaKlientow.Utworz(firma.Srodowisko), firma);
     }
 
     private static async Task ZamknijCicho(IKlientKsef klient, CancellationToken anulowanie)

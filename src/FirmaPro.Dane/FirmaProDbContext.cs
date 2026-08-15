@@ -131,6 +131,9 @@ public class FirmaProDbContext : DbContext
             // Nazwy środowisk zapisujemy tekstem - w bazie czyta się je bez
             // zaglądania do kodu, a dodanie nowego nie przesuwa numeracji.
             e.Property(f => f.Srodowisko).HasConversion<string>().HasMaxLength(16);
+            e.Property(f => f.MetodaUwierzytelnienia).HasConversion<string>().HasMaxLength(16);
+            e.Property(f => f.CertyfikatOdcisk).HasMaxLength(128);
+            e.Property(f => f.CertyfikatPodmiot).HasMaxLength(512);
             e.Property(f => f.TypOkresuVat).HasConversion<string>().HasMaxLength(16);
             e.Property(f => f.KodUrzeduSkarbowego).HasMaxLength(8);
             e.HasIndex(f => f.Nip);

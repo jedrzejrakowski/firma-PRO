@@ -489,12 +489,6 @@ public sealed class UslugaFaktur(
         }
 
         Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
-        string? token = OdczytajToken(firma, ochronaTokena);
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return new WynikWysylki(false,
-                "Brak tokena KSeF. Uzupełnij go w Ustawieniach firmy.", null);
-        }
 
         byte[] xml = Fa3Generator.ZbudujXml(NaModel(faktura, firma));
 
@@ -504,7 +498,7 @@ public sealed class UslugaFaktur(
 
         try
         {
-            await klientKsef.UwierzytelnijAsync(firma.Nip, token, anulowanie);
+            await UwierzytelnienieKsef.ZalogujAsync(klientKsef, firma, ochronaTokena, anulowanie);
             await klientKsef.OtworzSesjeAsync(anulowanie);
 
             string numerReferencyjny = await klientKsef.WyslijFaktureAsync(xml, anulowanie);
@@ -840,24 +834,4 @@ public sealed class UslugaFaktur(
             }).ToList()
     };
 
-    /// <summary>
-    /// Odczytuje token KSeF firmy.
-    /// </summary>
-    /// <remarks>
-    /// Na razie token trzymany jest w postaci zaszyfrowanej kluczem aplikacji;
-    /// docelowo trafi do magazynu sekretów. Zmienna środowiskowa ma
-    /// pierwszeństwo, żeby dało się pracować bez zapisywania sekretu w bazie.
-    /// </remarks>
-    private static string? OdczytajToken(Firma firma, IOchronaTokena ochrona)
-    {
-        string? zeSrodowiska = Environment.GetEnvironmentVariable("KSEF_TOKEN");
-        if (!string.IsNullOrWhiteSpace(zeSrodowiska))
-        {
-            return zeSrodowiska;
-        }
-
-        return firma.TokenKsefZaszyfrowany is { Length: > 0 } zaszyfrowany
-            ? ochrona.Odszyfruj(zaszyfrowany)
-            : null;
-    }
 }

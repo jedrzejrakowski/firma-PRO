@@ -26,7 +26,8 @@ namespace FirmaPro.Web.Pages;
 /// </remarks>
 public sealed class UstawieniaModel(
     FirmaProDbContext baza,
-    IOchronaTokena ochronaTokena) : PageModel
+    IOchronaTokena ochronaTokena,
+    UslugaCertyfikatuKsef uslugaCertyfikatu) : PageModel
 {
     [BindProperty] public string Nazwa { get; set; } = string.Empty;
     [BindProperty] public string Nip { get; set; } = string.Empty;
@@ -50,6 +51,16 @@ public sealed class UstawieniaModel(
     /// <summary>Zaznaczone pole usuwa zapisany token.</summary>
     [BindProperty] public bool UsunToken { get; set; }
 
+    [BindProperty] public MetodaUwierzytelnieniaKsef MetodaUwierzytelnienia { get; set; }
+
+    /// <summary>Wgrany plik certyfikatu (PFX / P12).</summary>
+    [BindProperty] public IFormFile? PlikCertyfikatu { get; set; }
+
+    [BindProperty] public string? HasloCertyfikatu { get; set; }
+
+    /// <summary>Opis zapisanego certyfikatu - albo <c>null</c>, gdy go nie ma.</summary>
+    public OpisCertyfikatu? Certyfikat { get; private set; }
+
     public bool TokenZapisany { get; private set; }
 
     /// <summary>
@@ -64,8 +75,61 @@ public sealed class UstawieniaModel(
         // Potwierdzenie zapisu wyświetla wspólny układ strony (TempData).
         Firma firma = await WczytajFirmeAsync(anulowanie);
         Wypelnij(firma);
+        Certyfikat = await uslugaCertyfikatu.OpisAsync(anulowanie);
 
         return Page();
+    }
+
+    /// <summary>Wgrywa certyfikat wskazany przez użytkownika.</summary>
+    public async Task<IActionResult> OnPostCertyfikatAsync(CancellationToken anulowanie)
+    {
+        if (PlikCertyfikatu is not { Length: > 0 })
+        {
+            TempData["Ostrzezenie"] = "Wskaż plik certyfikatu (PFX albo P12).";
+            return RedirectToPage();
+        }
+
+        using var pamiec = new MemoryStream();
+        await PlikCertyfikatu.CopyToAsync(pamiec, anulowanie);
+
+        WynikWalidacji wynik = await uslugaCertyfikatu.ZapiszAsync(
+            pamiec.ToArray(), HasloCertyfikatu, anulowanie);
+
+        if (wynik.SaBledy)
+        {
+            TempData["Ostrzezenie"] = wynik.Opis();
+            return RedirectToPage();
+        }
+
+        TempData["Komunikat"] = "Zapisano certyfikat KSeF.";
+        return RedirectToPage();
+    }
+
+    /// <summary>Wystawia certyfikat samopodpisany do prób na środowisku testowym.</summary>
+    public async Task<IActionResult> OnPostTestowyCertyfikatAsync(CancellationToken anulowanie)
+    {
+        WynikWalidacji wynik = await uslugaCertyfikatu.WystawTestowyAsync(anulowanie);
+
+        if (wynik.SaBledy)
+        {
+            TempData["Ostrzezenie"] = wynik.Opis();
+            return RedirectToPage();
+        }
+
+        TempData["Komunikat"] =
+            "Wystawiono certyfikat testowy. Na produkcji nie zadziała - " +
+            "tam potrzebny jest certyfikat wydany przez KSeF.";
+
+        return RedirectToPage();
+    }
+
+    /// <summary>Usuwa zapisany certyfikat.</summary>
+    public async Task<IActionResult> OnPostUsunCertyfikatAsync(CancellationToken anulowanie)
+    {
+        await uslugaCertyfikatu.UsunAsync(anulowanie);
+
+        TempData["Komunikat"] = "Usunięto certyfikat KSeF.";
+        return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostAsync(CancellationToken anulowanie)
@@ -120,6 +184,7 @@ public sealed class UstawieniaModel(
             // Przy błędzie zostawiamy to, co wpisał użytkownik, ale stan
             // tokena odczytujemy z bazy - token nie pochodzi z formularza.
             OdczytajStanTokena(firma);
+            Certyfikat = await uslugaCertyfikatu.OpisAsync(anulowanie);
             return Page();
         }
 
@@ -136,6 +201,7 @@ public sealed class UstawieniaModel(
         firma.StopkaFaktury = Puste(StopkaFaktury);
         firma.DomyslnyTerminPlatnosciDni = DomyslnyTerminPlatnosciDni;
         firma.Srodowisko = Srodowisko;
+        firma.MetodaUwierzytelnienia = MetodaUwierzytelnienia;
         firma.TypOkresuVat = TypOkresuVat;
         firma.KodUrzeduSkarbowego = Puste(KodUrzeduSkarbowego);
 
@@ -174,6 +240,7 @@ public sealed class UstawieniaModel(
         StopkaFaktury = firma.StopkaFaktury ?? string.Empty;
         DomyslnyTerminPlatnosciDni = firma.DomyslnyTerminPlatnosciDni;
         Srodowisko = firma.Srodowisko;
+        MetodaUwierzytelnienia = firma.MetodaUwierzytelnienia;
         TypOkresuVat = firma.TypOkresuVat;
         KodUrzeduSkarbowego = firma.KodUrzeduSkarbowego ?? string.Empty;
 

@@ -21,6 +21,24 @@ public enum SrodowiskoKsef
     Produkcja
 }
 
+/// <summary>
+/// Sposób, w jaki program przedstawia się systemowi KSeF.
+/// </summary>
+/// <remarks>
+/// Tokeny działają do końca 2026 roku; od stycznia 2027 pozostaje wyłącznie
+/// certyfikat. Obie drogi istnieją więc obok siebie, a firma wybiera, której
+/// używa - dzięki temu przejście jest zmianą ustawienia, a nie awaryjną
+/// aktualizacją programu pod termin.
+/// </remarks>
+public enum MetodaUwierzytelnieniaKsef
+{
+    /// <summary>Token wygenerowany w aplikacji podatnika.</summary>
+    Token,
+
+    /// <summary>Podpis certyfikatem - droga docelowa.</summary>
+    Certyfikat
+}
+
 /// <summary>Adresy usług KSeF dla poszczególnych środowisk.</summary>
 public static class AdresyKsef
 {

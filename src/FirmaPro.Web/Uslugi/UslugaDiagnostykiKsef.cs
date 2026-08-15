@@ -66,6 +66,9 @@ public sealed class UslugaDiagnostykiKsef(
     TimeProvider czas,
     ILogger<UslugaDiagnostykiKsef> dziennik)
 {
+    /// <summary>Nazwa kroku uwierzytelnienia - wspólna dla obu metod.</summary>
+    private const string KrokUwierzytelnienia = "Uwierzytelnienie";
+
     public async Task<WynikDiagnostyki> SprawdzAsync(CancellationToken anulowanie = default)
     {
         Firma firma = await baza.Firmy
@@ -76,8 +79,9 @@ public sealed class UslugaDiagnostykiKsef(
         kroki.Add(SprawdzDaneFirmy(firma));
         kroki.Add(OpiszSrodowisko(firma));
 
-        (KrokDiagnostyki krokTokena, string? token) = SprawdzToken(firma);
-        kroki.Add(krokTokena);
+        kroki.Add(firma.MetodaUwierzytelnienia == MetodaUwierzytelnieniaKsef.Certyfikat
+            ? SprawdzCertyfikat(firma)
+            : SprawdzToken(firma).Krok);
 
         if (kroki.Any(k => k.Stan == StanKroku.Blad))
         {
@@ -85,7 +89,7 @@ public sealed class UslugaDiagnostykiKsef(
             // a nieudane wywołania tylko zaciemniłyby obraz.
             kroki.AddRange(Pominiete(
                 "Połączenie z serwerem", "Klucze szyfrowania",
-                "Uwierzytelnienie tokenem", "Otwarcie sesji wysyłkowej",
+                KrokUwierzytelnienia, "Otwarcie sesji wysyłkowej",
                 "Dostęp do faktur zakupu"));
 
             return Zakoncz(kroki, firma);
@@ -101,7 +105,7 @@ public sealed class UslugaDiagnostykiKsef(
         if (stan is null)
         {
             kroki.AddRange(Pominiete(
-                "Klucze szyfrowania", "Uwierzytelnienie tokenem",
+                "Klucze szyfrowania", KrokUwierzytelnienia,
                 "Otwarcie sesji wysyłkowej", "Dostęp do faktur zakupu"));
 
             return Zakoncz(kroki, firma);
@@ -110,7 +114,7 @@ public sealed class UslugaDiagnostykiKsef(
         kroki.Add(SprawdzKlucze(stan));
 
         KrokDiagnostyki uwierzytelnienie =
-            await SprawdzUwierzytelnienieAsync(klient, firma, token!, anulowanie);
+            await SprawdzUwierzytelnienieAsync(klient, firma, anulowanie);
 
         kroki.Add(uwierzytelnienie);
 
@@ -267,14 +271,18 @@ public sealed class UslugaDiagnostykiKsef(
     }
 
     private async Task<KrokDiagnostyki> SprawdzUwierzytelnienieAsync(
-        IKlientKsef klient, Firma firma, string token, CancellationToken anulowanie)
+        IKlientKsef klient, Firma firma, CancellationToken anulowanie)
     {
+        bool certyfikatem = firma.MetodaUwierzytelnienia == MetodaUwierzytelnieniaKsef.Certyfikat;
+
         try
         {
-            await klient.UwierzytelnijAsync(firma.Nip, token, anulowanie);
+            await UwierzytelnienieKsef.ZalogujAsync(klient, firma, ochronaTokena, anulowanie);
 
-            return new KrokDiagnostyki("Uwierzytelnienie tokenem", StanKroku.Ok,
-                $"KSeF uznał token dla numeru NIP {firma.Nip}.");
+            return new KrokDiagnostyki(KrokUwierzytelnienia, StanKroku.Ok,
+                certyfikatem
+                    ? $"KSeF przyjął podpis certyfikatem dla numeru NIP {firma.Nip}."
+                    : $"KSeF uznał token dla numeru NIP {firma.Nip}.");
         }
         catch (BladKsefException blad)
         {
@@ -282,8 +290,67 @@ public sealed class UslugaDiagnostykiKsef(
 
             (string komunikat, string wskazowka) = Wytlumacz(blad);
 
-            return new KrokDiagnostyki("Uwierzytelnienie tokenem", StanKroku.Blad,
+            // Przy certyfikacie najczęstsza przyczyna jest inna niż przy
+            // tokenie, więc podpowiedź też musi być inna.
+            if (certyfikatem && blad.KodHttp is 401 or 403)
+            {
+                wskazowka =
+                    "Sprawdź, czy certyfikat jest wystawiony na ten sam numer NIP " +
+                    "i czy w KSeF nadano mu uprawnienia. Certyfikat sam z siebie " +
+                    "nie daje żadnych uprawnień - potwierdza wyłącznie tożsamość. " +
+                    "Certyfikat samopodpisany działa tylko na środowisku testowym.";
+            }
+
+            return new KrokDiagnostyki(KrokUwierzytelnienia, StanKroku.Blad,
                 komunikat, wskazowka);
+        }
+    }
+
+    /// <summary>
+    /// Sprawdza certyfikat: czy jest, czy da się odczytać i czy nie wygasa.
+    /// </summary>
+    /// <remarks>
+    /// Token po prostu jest albo go nie ma. Certyfikat przestaje działać
+    /// po cichu w środku miesiąca, więc ostrzeżenie o zbliżającym się końcu
+    /// ważności jest tu ważniejsze niż samo potwierdzenie, że istnieje.
+    /// </remarks>
+    private KrokDiagnostyki SprawdzCertyfikat(Firma firma)
+    {
+        if (UslugaCertyfikatuKsef.Odczytaj(firma, ochronaTokena) is not { } certyfikat)
+        {
+            return firma.CertyfikatKsefZaszyfrowany is { Length: > 0 }
+                ? new KrokDiagnostyki("Certyfikat KSeF", StanKroku.Blad,
+                    "Certyfikat jest zapisany, ale nie daje się odszyfrować.",
+                    "Tak dzieje się po utracie kluczy ochrony danych - najczęściej " +
+                    "gdy program wystartował bez trwałego katalogu kluczy. " +
+                    "Wgraj certyfikat ponownie w Ustawieniach.")
+                : new KrokDiagnostyki("Certyfikat KSeF", StanKroku.Blad,
+                    "Wybrano uwierzytelnianie certyfikatem, ale żadnego nie zapisano.",
+                    "Wgraj plik PFX w Ustawieniach firmy. Na środowisku testowym " +
+                    "wystarczy certyfikat samopodpisany - program potrafi go wystawić.");
+        }
+
+        using (certyfikat)
+        {
+            DateTimeOffset koniec = certyfikat.NotAfter.ToUniversalTime();
+            int dni = (int)(koniec - czas.GetUtcNow()).TotalDays;
+
+            if (dni < 0)
+            {
+                return new KrokDiagnostyki("Certyfikat KSeF", StanKroku.Blad,
+                    $"Certyfikat stracił ważność {koniec:yyyy-MM-dd}.",
+                    "Wgraj nowy certyfikat - tym KSeF już nie przyjmie podpisu.");
+            }
+
+            string opis = $"{certyfikat.Subject}, ważny do " +
+                          koniec.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + ".";
+
+            return dni <= 30
+                ? new KrokDiagnostyki("Certyfikat KSeF", StanKroku.Ostrzezenie,
+                    opis + $" Zostało {dni} dni.",
+                    "Wystąp o nowy certyfikat zawczasu - po tej dacie wysyłka faktur " +
+                    "zatrzyma się bez ostrzeżenia.")
+                : new KrokDiagnostyki("Certyfikat KSeF", StanKroku.Ok, opis);
         }
     }
 

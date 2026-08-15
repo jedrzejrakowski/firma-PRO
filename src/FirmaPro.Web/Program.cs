@@ -150,6 +150,7 @@ budowniczy.Services.AddScoped<UslugaImportuZakupow>();
 budowniczy.Services.AddScoped<UslugaRejestruVat>();
 budowniczy.Services.AddScoped<UslugaDeklaracji>();
 budowniczy.Services.AddScoped<UslugaDiagnostykiKsef>();
+budowniczy.Services.AddScoped<UslugaCertyfikatuKsef>();
 
 // Klient KSeF korzysta z puli połączeń, żeby nie wyczerpywać gniazd
 // sieciowych. Adres bazowy ustawia fabryka - zależy od środowiska firmy.

@@ -278,12 +278,9 @@ Program obsługuje na razie wyłącznie token, więc wybierz token.
 
 > **Termin, o którym trzeba pamiętać.** Według zapowiedzi tokeny działają
 > do końca 2026 r., a od 1 stycznia 2027 r. jedyną metodą uwierzytelniania
-> w API ma być **certyfikat KSeF**. Bez obsługi certyfikatów program
-> przestanie się wtedy logować do systemu — u każdej firmy, która go używa.
-> Różnica nie sprowadza się do sposobu podpisania żądania: token niesie
-> uprawnienia nadane przy jego tworzeniu, a certyfikat tylko potwierdza
-> tożsamość i opiera się na uprawnieniach nadanych wcześniej w systemie.
-> Daty warto potwierdzić w podręczniku Ministerstwa przed planowaniem prac.
+> w API ma być **certyfikat KSeF**. Program obsługuje już obie drogi, więc
+> przejście jest zmianą ustawienia, a nie aktualizacją pod termin — patrz
+> [Uwierzytelnianie certyfikatem](#uwierzytelnianie-certyfikatem) niżej.
 
 NIP w Ustawieniach musi być **ten sam**, dla którego wygenerowano token —
 niezgodność kończy się odpowiedzią 401, a ekran sprawdzenia wymienia ją jako
@@ -333,6 +330,68 @@ co zrobić. Warto znać cztery, które zdarzają się najczęściej:
 Dopiero gdy wszystkie kroki są zielone, warto wystawić pierwszą prawdziwą
 fakturę — i nadal na środowisku testowym, żeby zobaczyć cały obieg: wysyłkę,
 nadanie numeru KSeF, UPO i kod QR na wydruku.
+
+## Uwierzytelnianie certyfikatem
+
+Od 1 stycznia 2027 r. tokeny przestają działać i zostaje wyłącznie certyfikat.
+Obie drogi są w programie równolegle, a wybiera się je w **Ustawieniach firmy**
+(*Sposób uwierzytelnienia*), więc przejście u każdego klienta to zmiana jednego
+pola, a nie awaryjna aktualizacja pod termin.
+
+Różnica sięga głębiej niż sposób podpisania żądania:
+
+| | Token | Certyfikat |
+|---|---|---|
+| Czym jest | ciąg znaków | tożsamość z kluczem prywatnym |
+| Uprawnienia | niesie te nadane przy tworzeniu | **żadnych** — liczą się nadane wcześniej w KSeF |
+| Koniec działania | 31 grudnia 2026 | data ważności certyfikatu |
+| Jak się psuje | odrzucenie od razu | **po cichu, w środku miesiąca** |
+
+Ostatni wiersz jest powodem, dla którego program pilnuje daty ważności:
+ekran ustawień ostrzega na **30 dni** przed końcem, a sprawdzenie połączenia
+pokazuje pozostały czas przy każdym uruchomieniu. Certyfikat, który wygaśnie
+w piątek po południu, zatrzymałby wysyłkę faktur bez jednego komunikatu.
+
+### Jak to działa pod spodem
+
+Przebieg jest ten sam co przy tokenie — wyzwanie, potwierdzenie, wymiana
+na token dostępowy — różni się środek. Zamiast zaszyfrować token kluczem
+publicznym systemu, program buduje dokument `AuthTokenRequest` z wyzwaniem
+i numerem NIP, po czym **podpisuje go w formacie XAdES** kluczem prywatnym
+certyfikatu.
+
+Podpis obejmuje dwie rzeczy: treść dokumentu oraz blok `SignedProperties`
+ze znacznikiem czasu i odciskiem certyfikatu. Ten drugi odsyłacz odróżnia
+XAdES od zwykłego podpisu XML i bez niego KSeF dokument odrzuca; odcisk
+wewnątrz podpisanego bloku wiąże podpis z konkretnym certyfikatem, żeby nie
+dało się podmienić dołączonego klucza.
+
+Obsługiwane są klucze RSA i na krzywych eliptycznych — o rodzaju decyduje
+wystawca certyfikatu, nie my. Tych drugich biblioteka podpisu XML w .NET nie
+zna z pudełka, więc algorytm ECDSA-SHA256 jest dorejestrowany osobno.
+
+### Certyfikat do prób
+
+Środowisko testowe przyjmuje **certyfikaty samopodpisane**, więc całą drogę
+da się sprawdzić bez występowania o prawdziwy certyfikat KSeF. W Ustawieniach,
+poza produkcją, jest przycisk **Wystaw certyfikat testowy** — program tworzy
+certyfikat z numerem NIP firmy zapisanym w polu `serialNumber` w postaci
+`VATPL-0000000000`. To po nim KSeF rozpoznaje podmiot.
+
+Na produkcji taki certyfikat zostanie odrzucony i tak ma być: to nie jest
+obejście, tylko sposób na przejście całej drogi przed pierwszym prawdziwym
+wystawieniem.
+
+### Skąd wzięły się wymagania
+
+Struktura dokumentu i wymagania podpisu pochodzą z dokumentacji Ministerstwa
+oraz z otwartego kodu klienta, który Ministerstwo wydaje dla platformy .NET.
+Kodu **nie kopiowano** — repozytorium nie ma pliku licencji, więc posłużyło
+wyłącznie jako opis protokołu.
+
+Certyfikat trzymany jest tak samo jak token: zaszyfrowany kluczem aplikacji,
+nigdy otwartym tekstem. Klucz prywatny pozwala wystawiać faktury w imieniu
+firmy, więc jest równie wrażliwy.
 
 ## Wydruk faktury
 
@@ -911,6 +970,12 @@ dokumentacji.
 **Import faktur zakupu** pobrał 41 dokumentów wystawionych na ten sam numer
 NIP w środowisku testowym, więc zapytanie o metadane i odwzorowanie pól
 działa na prawdziwych danych, a nie tylko na odpowiedzi atrapy.
+
+Uwierzytelnianie certyfikatem jest sprawdzone przeciwko atrapie serwera,
+która **weryfikuje podpis** kluczem publicznym z dołączonego certyfikatu -
+a nie tylko przyjmuje żądanie. Nie zostało natomiast sprawdzone na żywym
+KSeF: to ta sama przeszkoda co poprzednio, czyli brak dostępu do sieci
+Ministerstwa ze środowiska budowy.
 
 Sam ekran sprawdzenia jest przetestowany przeciwko atrapie serwera we
 wszystkich rodzajach niepowodzenia, które ma rozróżniać: brak tokena, zerwana

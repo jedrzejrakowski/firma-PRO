@@ -63,6 +63,36 @@ public sealed class Firma : EncjaBazowa
     /// Decyduje o podziale rejestru na okresy oraz o tym, ile okresów zostaje
     /// na odliczenie podatku z faktury zakupu (art. 86 ust. 11).
     /// </remarks>
+    /// <summary>Sposób uwierzytelnienia w KSeF.</summary>
+    public MetodaUwierzytelnieniaKsef MetodaUwierzytelnienia { get; set; }
+        = MetodaUwierzytelnieniaKsef.Token;
+
+    /// <summary>
+    /// Certyfikat wraz z kluczem prywatnym, w postaci zaszyfrowanej.
+    /// </summary>
+    /// <remarks>
+    /// Przechowywany tak samo jak token - kluczem aplikacji, nigdy otwartym
+    /// tekstem. Klucz prywatny certyfikatu pozwala wystawiać faktury w imieniu
+    /// firmy, więc jest równie wrażliwy.
+    /// </remarks>
+    public byte[]? CertyfikatKsefZaszyfrowany { get; set; }
+
+    /// <summary>Odcisk certyfikatu - do rozpoznania go na ekranie.</summary>
+    public string? CertyfikatOdcisk { get; set; }
+
+    /// <summary>Nazwa wyróżniona posiadacza certyfikatu.</summary>
+    public string? CertyfikatPodmiot { get; set; }
+
+    /// <summary>
+    /// Koniec ważności certyfikatu.
+    /// </summary>
+    /// <remarks>
+    /// Token po prostu jest albo go nie ma; certyfikat przestaje działać
+    /// po cichu w środku miesiąca. Data trzymana jest osobno, żeby dało się
+    /// ostrzec zawczasu bez odszyfrowywania certyfikatu przy każdym ekranie.
+    /// </remarks>
+    public DateTimeOffset? CertyfikatWaznyDo { get; set; }
+
     public TypOkresu TypOkresuVat { get; set; } = TypOkresu.Miesieczny;
 
     /// <summary>

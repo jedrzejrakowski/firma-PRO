@@ -66,7 +66,7 @@ public sealed class TestyDiagnostykiKsef(BazaTestowa baza)
         Assert.True(wynik.Udalo, string.Join(" | ",
             wynik.Kroki.Select(k => $"{k.Nazwa}: {k.Stan} - {k.Komunikat}")));
 
-        Assert.Equal(StanKroku.Ok, Krok(wynik, "Uwierzytelnienie tokenem").Stan);
+        Assert.Equal(StanKroku.Ok, Krok(wynik, "Uwierzytelnienie").Stan);
         Assert.Equal(StanKroku.Ok, Krok(wynik, "Otwarcie sesji wysyłkowej").Stan);
     }
 
@@ -146,7 +146,7 @@ public sealed class TestyDiagnostykiKsef(BazaTestowa baza)
         Assert.Contains("zaporę", krok.Wskazowka!, StringComparison.Ordinal);
 
         Assert.Equal(StanKroku.Ok, Krok(wynik, "Token KSeF").Stan);
-        Assert.Equal(StanKroku.Pominiety, Krok(wynik, "Uwierzytelnienie tokenem").Stan);
+        Assert.Equal(StanKroku.Pominiety, Krok(wynik, "Uwierzytelnienie").Stan);
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public sealed class TestyDiagnostykiKsef(BazaTestowa baza)
         await using FirmaProDbContext kontekst = baza.UtworzKontekst(firmaId);
         WynikDiagnostyki wynik = await Usluga(kontekst, atrapa).SprawdzAsync();
 
-        KrokDiagnostyki krok = Krok(wynik, "Uwierzytelnienie tokenem");
+        KrokDiagnostyki krok = Krok(wynik, "Uwierzytelnienie");
 
         Assert.Equal(StanKroku.Blad, krok.Stan);
         Assert.Contains("nie uznał tokena", krok.Komunikat, StringComparison.Ordinal);

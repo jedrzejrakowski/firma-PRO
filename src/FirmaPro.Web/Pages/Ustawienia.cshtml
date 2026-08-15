@@ -144,6 +144,25 @@
             </select>
         </div>
 
+        <div class="pole">
+            <label for="metoda">Sposób uwierzytelnienia</label>
+            <select id="metoda" name="MetodaUwierzytelnienia">
+                <option value="@MetodaUwierzytelnieniaKsef.Token"
+                        selected="@(Model.MetodaUwierzytelnienia == MetodaUwierzytelnieniaKsef.Token)">
+                    Token — działa do końca 2026 roku
+                </option>
+                <option value="@MetodaUwierzytelnieniaKsef.Certyfikat"
+                        selected="@(Model.MetodaUwierzytelnienia == MetodaUwierzytelnieniaKsef.Certyfikat)">
+                    Certyfikat KSeF — obowiązkowy od stycznia 2027
+                </option>
+            </select>
+            <p class="wskazowka">
+                Od 1 stycznia 2027 tokeny przestają działać i pozostaje wyłącznie
+                certyfikat. Obie drogi działają dziś równolegle, więc przejście
+                jest zmianą tego ustawienia — nie trzeba czekać na termin.
+            </p>
+        </div>
+
         @if (Model.TokenZeSrodowiska)
         {
             <div class="powiadomienie">
@@ -182,7 +201,7 @@
         }
 
         <p class="wskazowka">
-            Po zapisaniu tokena warto od razu
+            Po zapisaniu ustawień warto od razu
             <a asp-page="Ksef">sprawdzić połączenie z KSeF</a> — sprawdzenie
             przechodzi całą drogę wysyłki, ale niczego nie wystawia.
         </p>
@@ -192,6 +211,100 @@
             <a class="przycisk przycisk-drugi" asp-page="/Faktury/Index">Wróć</a>
         </div>
     </form>
+</div>
+
+<div class="karta" style="max-width:760px">
+    <h2 class="naglowek-sekcji" style="margin-top:0">Certyfikat KSeF</h2>
+
+    @if (Model.Certyfikat is { } certyfikat)
+    {
+        @if (certyfikat.Wygasl)
+        {
+            <div class="powiadomienie niepowodzenie">
+                <strong>Certyfikat stracił ważność.</strong>
+                <span>Program nie zaloguje się nim do KSeF. Wgraj nowy.</span>
+            </div>
+        }
+        else if (certyfikat.WkrotceWygasnie)
+        {
+            <div class="powiadomienie">
+                <strong>Certyfikat wygasa za @certyfikat.DniDoKonca dni.</strong>
+                <span>
+                    Wystąp o nowy zawczasu — po tej dacie wysyłka faktur
+                    zatrzyma się bez ostrzeżenia.
+                </span>
+            </div>
+        }
+
+        <div class="siatka">
+            <div class="pole">
+                <label>Wystawiony dla</label>
+                <p>@certyfikat.Podmiot</p>
+            </div>
+            <div class="pole">
+                <label>Ważny do</label>
+                <p>@certyfikat.WaznyDo.ToString("yyyy-MM-dd")</p>
+            </div>
+        </div>
+
+        <div class="pole">
+            <label>Odcisk (SHA-256)</label>
+            <p class="numer-ksef">@certyfikat.Odcisk</p>
+        </div>
+
+        <form method="post" asp-page-handler="UsunCertyfikat">
+            <button type="submit" class="przycisk przycisk-drugi">Usuń certyfikat</button>
+        </form>
+
+        <hr />
+        <p class="wskazowka">Wgranie nowego pliku zastąpi certyfikat powyżej.</p>
+    }
+    else
+    {
+        <p class="wskazowka">
+            Nie zapisano certyfikatu. Wgraj plik PFX albo P12 — musi zawierać
+            klucz prywatny, bo to nim program podpisuje żądanie logowania.
+        </p>
+    }
+
+    <form method="post" asp-page-handler="Certyfikat" enctype="multipart/form-data">
+        <div class="siatka">
+            <div class="pole">
+                <label for="plikCertyfikatu">Plik certyfikatu</label>
+                <input type="file" id="plikCertyfikatu" name="PlikCertyfikatu"
+                       accept=".pfx,.p12" />
+            </div>
+            <div class="pole">
+                <label for="hasloCertyfikatu">Hasło pliku</label>
+                <input type="password" id="hasloCertyfikatu" name="HasloCertyfikatu"
+                       autocomplete="new-password" placeholder="zostaw puste, gdy plik go nie ma" />
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Certyfikat zapisujemy zaszyfrowany, tak samo jak token. Hasło pliku
+            służy wyłącznie do jego odczytania i nie jest nigdzie zapisywane.
+        </p>
+
+        <button type="submit">Wgraj certyfikat</button>
+    </form>
+
+    @if (Model.Srodowisko != SrodowiskoKsef.Produkcja)
+    {
+        <hr />
+
+        <p class="wskazowka">
+            Środowisko testowe przyjmuje certyfikaty samopodpisane, więc całą
+            drogę można sprawdzić bez występowania o prawdziwy certyfikat.
+            Na produkcji taki certyfikat zostanie odrzucony.
+        </p>
+
+        <form method="post" asp-page-handler="TestowyCertyfikat">
+            <button type="submit" class="przycisk przycisk-drugi">
+                Wystaw certyfikat testowy
+            </button>
+        </form>
+    }
 </div>
 
 @functions {
