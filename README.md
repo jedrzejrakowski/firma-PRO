@@ -55,6 +55,11 @@ Systemie e-Faktur od 1 lutego 2026 r.
 > instalowania narzędzi programistycznych? Zajrzyj do
 > [Uruchomienie na Windows krok po kroku](wdrozenie/URUCHOMIENIE-WINDOWS.md) —
 > potrzebny jest wyłącznie Docker Desktop i jedno polecenie.
+>
+> Chcesz, żeby **inne osoby weszły do programu przeglądarką** — pokazać go
+> współpracownikom albo klientowi? Zajrzyj do
+> [Pokaz w internecie](wdrozenie/POKAZ-W-INTERNECIE.md) — mały serwer,
+> własny adres z HTTPS i konta zakładane samodzielnie przez oglądających.
 
 Poniższy sposób jest dla pracy nad kodem. Wymagany **.NET SDK 10.0**
 lub nowszy oraz PostgreSQL.
