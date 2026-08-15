@@ -15,10 +15,21 @@ danych, sam program i pośrednika podającego stronę po HTTPS. Bez niego
 trzeba by instalować każdą z nich osobno.
 
 1. Wejdź na <https://www.docker.com/products/docker-desktop/> i pobierz
-   **Docker Desktop for Windows**.
-2. Zainstaluj i **uruchom ponownie komputer**, jeśli instalator o to poprosi
+   **Docker Desktop for Windows — AMD64**.
+
+   > „AMD64" to nazwa architektury, a nie producenta procesora — ten sam
+   > plik jest dla Intela i dla AMD. Wariant **ARM64** dotyczy wyłącznie
+   > laptopów na procesorach Snapdragon (Surface Pro X, „Copilot+ PC").
+   > Gdy nie masz pewności: **Win+R** → `msinfo32` → wiersz *Typ systemu*;
+   > `x64-based PC` oznacza AMD64.
+
+2. W oknie **Configuration** zostaw zaznaczone **Per-user installation
+   (Recommended)** — używa WSL 2 i nie wymaga hasła administratora.
+   Skrót na pulpicie warto zostawić: Docker Desktop musi być uruchomiony
+   za każdym razem, gdy chcesz korzystać z programu.
+3. Zainstaluj i **uruchom ponownie komputer**, jeśli instalator o to poprosi
    (dokłada składnik systemu o nazwie WSL 2).
-3. Uruchom Docker Desktop i poczekaj, aż w lewym dolnym rogu okna pojawi się
+4. Uruchom Docker Desktop i poczekaj, aż w lewym dolnym rogu okna pojawi się
    zielony napis **Engine running**.
 
 Docker Desktop musi być uruchomiony za każdym razem, gdy chcesz korzystać
