@@ -25,7 +25,7 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Walidacja przed wysyłką (NIP, NRB, daty, limity schematu) | gotowe |
 | Generator XML FA(3) | gotowe |
 | Warstwa danych (EF Core, PostgreSQL, wielofirmowość) | gotowe |
-| Komunikacja z KSeF (wysyłka, UPO, faktury zakupowe) | gotowe |
+| Komunikacja z KSeF (wysyłka, UPO, faktury zakupowe) | gotowe, **sprawdzone na żywym KSeF** |
 | Sprawdzenie połączenia z KSeF krok po kroku | gotowe |
 | Link weryfikacyjny kodu QR (KOD I) | gotowe |
 | Logowanie i konta użytkowników | gotowe |
@@ -42,7 +42,7 @@ Systemie e-Faktur od 1 lutego 2026 r.
 | Ustawienia firmy wraz z tokenem KSeF | gotowe |
 | Wizualizacja PDF z kodem QR | gotowe |
 | Faktury zakupu | gotowe |
-| Pobieranie faktur zakupu z KSeF | gotowe, **niesprawdzone na żywym KSeF** |
+| Pobieranie faktur zakupu z KSeF | gotowe, **sprawdzone na żywym KSeF** |
 | Rejestr VAT sprzedaży i zakupów | gotowe |
 | Deklaracja i plik JPK_V7M | gotowe, **układ pliku niesprawdzony schematem** |
 | Wysyłka JPK do urzędu | poza zakresem — plik składa się aplikacją MF |
@@ -900,11 +900,17 @@ więc wykonał je zamawiający u siebie. Zostaje ono właściwym sposobem
 sprawdzenia każdej nowej instalacji — instrukcja krok po kroku jest wyżej,
 w części [Pierwsze uruchomienie](#pierwsze-uruchomienie-próba-na-testowym-ksef).
 
-Czego to sprawdzenie **nie** potwierdza: że każde pole metadanych faktury
-zakupowej trafia we właściwe miejsce. Zapytanie zwróciło faktury i program
-je policzył, ale zgodność poszczególnych nazw pól potwierdzi dopiero ekran
-importu z prawdziwymi danymi. Nie potwierdza też przebiegu samej wysyłki
-faktury - do numeru KSeF, UPO i kodu QR włącznie.
+**Pierwsza faktura została wysłana i przyjęta** tego samego dnia, z numerem
+w postaci `8888888888-20260815-572BD7000000-FE`. To potwierdza więcej niż
+sama łączność: plik FA(3) zbudowany przez program przeszedł **walidację po
+stronie Ministerstwa**, która sprawdza także reguły niewyrażone w schemacie
+XSD - zgodność sum, dat i powiązań między polami. Zgodność generatora
+opierała się dotąd wyłącznie na oryginalnym schemacie i na lekturze
+dokumentacji.
+
+**Import faktur zakupu** pobrał 41 dokumentów wystawionych na ten sam numer
+NIP w środowisku testowym, więc zapytanie o metadane i odwzorowanie pól
+działa na prawdziwych danych, a nie tylko na odpowiedzi atrapy.
 
 Sam ekran sprawdzenia jest przetestowany przeciwko atrapie serwera we
 wszystkich rodzajach niepowodzenia, które ma rozróżniać: brak tokena, zerwana
