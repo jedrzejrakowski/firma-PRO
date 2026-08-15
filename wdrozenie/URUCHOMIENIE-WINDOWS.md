@@ -29,8 +29,19 @@ trzeba by instalować każdą z nich osobno.
    za każdym razem, gdy chcesz korzystać z programu.
 3. Zainstaluj i **uruchom ponownie komputer**, jeśli instalator o to poprosi
    (dokłada składnik systemu o nazwie WSL 2).
-4. Uruchom Docker Desktop i poczekaj, aż w lewym dolnym rogu okna pojawi się
-   zielony napis **Engine running**.
+4. Przy pierwszym uruchomieniu Docker pokaże **Docker Subscription Service
+   Agreement** — kliknij **Accept**. Program jest darmowy; płatna
+   subskrypcja zaczyna się dopiero powyżej 250 pracowników albo 10 mln USD
+   przychodu rocznie.
+5. Poczekaj, aż w lewym dolnym rogu okna pojawi się zielony napis
+   **Engine running**.
+
+> **Na marginesie, dla sprzedaży programu.** Powyższy warunek dotyczy
+> *Docker Desktop* — wersji z interfejsem graficznym na Windows i macOS.
+> Wdrożenie serwerowe (`docker compose` na Linuksie) opiera się na
+> *Docker Engine*, który jest na licencji Apache 2.0 i darmowy niezależnie
+> od wielkości firmy. Klient nie potrzebuje więc subskrypcji Dockera,
+> żeby używać Firma PRO.
 
 Docker Desktop musi być uruchomiony za każdym razem, gdy chcesz korzystać
 z programu. Można ustawić, żeby startował razem z Windows.
