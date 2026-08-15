@@ -21,8 +21,17 @@ services:
       POSTGRES_PASSWORD: ${HASLO_BAZY:?ustaw HASLO_BAZY w pliku .env}
       # Polskie sortowanie i porównywanie tekstu - inaczej "Ó" trafiłoby
       # na koniec listy kontrahentów.
-      LANG: pl_PL.utf8
-      POSTGRES_INITDB_ARGS: "--locale=pl_PL.utf8 --encoding=UTF8"
+      #
+      # Sortowanie idzie przez ICU, a nie przez lokalizację systemu: obraz
+      # postgres:16 ma wygenerowaną wyłącznie en_US.utf8, więc "--locale=
+      # pl_PL.utf8" przerywa zakładanie bazy błędem "invalid locale name",
+      # a kontener nigdy nie staje się sprawny. ICU jest wbudowane w sam
+      # PostgreSQL, więc nie zależy od tego, co obraz ma zainstalowane.
+      POSTGRES_INITDB_ARGS: >-
+        --locale-provider=icu
+        --icu-locale=pl-PL
+        --locale=C.UTF-8
+        --encoding=UTF8
     volumes:
       - baza:/var/lib/postgresql/data
     healthcheck:

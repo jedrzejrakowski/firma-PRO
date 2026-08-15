@@ -223,6 +223,34 @@ błąd, mimo że wszystko jest już włączone.
 > patrz [Uruchomienie](../README.md#uruchomienie) — ale wymaga to
 > zainstalowania .NET SDK i PostgreSQL osobno.
 
+## „dependency failed to start: container firmapro-baza-1 is unhealthy"
+
+Program i pośrednik zbudowały się poprawnie, ale baza danych nie wstała.
+Przyczynę pokazuje:
+
+```powershell
+docker compose logs baza
+```
+
+Jeśli w dzienniku widać **`invalid locale name`**, masz starą wersję pliku
+`docker-compose.yml`. Obraz `postgres:16` ma wygenerowaną wyłącznie
+lokalizację `en_US.utf8`, więc zakładanie bazy z `--locale=pl_PL.utf8`
+przerywa się błędem. Obecna wersja pliku używa zamiast tego mechanizmu ICU
+wbudowanego w PostgreSQL.
+
+Naprawa polega na pobraniu aktualnego `docker-compose.yml` i **skasowaniu
+nieudanej bazy** — zwykłe ponowne uruchomienie nie wystarczy, bo katalog
+danych został już częściowo utworzony:
+
+```powershell
+docker compose down -v
+docker compose up -d
+```
+
+> `down -v` kasuje wszystkie dane programu. Przy pierwszym uruchomieniu nie
+> ma jeszcze czego stracić, ale **później to polecenie usuwa faktury** —
+> wtedy używa się samego `docker compose down`.
+
 ## Gdy coś nie zadziała
 
 - **`docker: command not found`** — Docker Desktop nie jest uruchomiony albo
