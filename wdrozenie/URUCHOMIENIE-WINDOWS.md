@@ -170,7 +170,15 @@ Najpierw ustal, na czym stoisz: **Ctrl+Shift+Esc** → **Wydajność** →
 3. Ustaw **Enabled**, zapisz i wyjdź (zwykle **F10**).
 
 **Wirtualizacja: Włączona** — wirtualizacja działa, ale brakuje składników
-Windows, przez które Docker z niej korzysta. Otwórz **PowerShell jako
+Windows, przez które Docker z niej korzysta.
+
+> **Czym jest WSL i po co go włączamy.** WSL (Windows Subsystem for Linux)
+> to składnik samego Windows 11, domyślnie wyłączony — nie osobny program,
+> z którego trzeba by korzystać. Kontenery są technologią linuksową, więc
+> Docker trzyma pod spodem bardzo lekką maszynę wirtualną z Linuksem i to
+> w niej stoi baza danych oraz program. WSL 2 jest mechanizmem, który
+> Windows do tego udostępnia. Poniższe polecenia **włączają wyłącznie
+> funkcje systemu** — nie instalują Ubuntu ani żadnej dystrybucji. Otwórz **PowerShell jako
 administrator** (prawy przycisk na menu Start → *Terminal (Administrator)*)
 i wykonaj:
 
