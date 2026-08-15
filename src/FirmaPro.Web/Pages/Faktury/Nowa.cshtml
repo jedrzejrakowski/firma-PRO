@@ -72,6 +72,31 @@
     <div class="karta">
         <h2 style="margin-top:0">Pozycje</h2>
 
+        @* Podpowiedzi z cennika. Zwykły datalist, więc działa w każdej
+           przeglądarce i nie przeszkadza, gdy ktoś woli wpisać nazwę ręcznie
+           albo cennika w ogóle nie prowadzi. *@
+        @if (Model.Cennik.Count > 0)
+        {
+            <datalist id="cennik">
+                @foreach (PozycjaCennika pozycja in Model.Cennik)
+                {
+                    <option value="@pozycja.Nazwa">@Kwoty.NaTekst(pozycja.CenaNetto) zł / @pozycja.Jednostka</option>
+                }
+            </datalist>
+
+            <script type="application/json" id="daneCennika">
+                @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                    Model.Cennik.Select(p => new
+                    {
+                        nazwa = p.Nazwa,
+                        jednostka = p.Jednostka,
+                        cena = p.CenaNetto,
+                        stawka = p.KodStawki,
+                        gtu = p.Gtu ?? string.Empty
+                    })))
+            </script>
+        }
+
         <table class="pozycje" id="tabelaPozycji">
             <thead>
                 <tr>
@@ -88,7 +113,8 @@
                 @for (int i = 0; i < Model.Pozycje.Count; i++)
                 {
                     <tr>
-                        <td><input type="text" name="Pozycje[@i].Nazwa" value="@Model.Pozycje[i].Nazwa" maxlength="512" /></td>
+                        <td><input type="text" name="Pozycje[@i].Nazwa" value="@Model.Pozycje[i].Nazwa"
+                                   maxlength="512" list="cennik" class="nazwa-pozycji" /></td>
                         <td><input type="text" name="Pozycje[@i].Jednostka" value="@Model.Pozycje[i].Jednostka" /></td>
                         <td><input type="number" step="0.000001" min="0" name="Pozycje[@i].Ilosc" value="@Model.Pozycje[i].Ilosc" /></td>
                         <td><input type="number" step="0.01" min="0" name="Pozycje[@i].CenaNetto" value="@Model.Pozycje[i].CenaNetto" /></td>
@@ -117,11 +143,22 @@
             </tbody>
         </table>
 
-        <p style="margin-top:12px">
+        <div class="paskiem">
             <button type="button" class="przycisk przycisk-drugi" id="dodajWiersz">
                 Dodaj pozycję
             </button>
-        </p>
+            <span class="drobne">
+                @if (Model.Cennik.Count > 0)
+                {
+                    @:Zacznij pisać nazwę — podpowiedzą się pozycje z cennika.
+                }
+                else
+                {
+                    <a asp-page="/Cennik/Index">Załóż cennik</a>
+                    @:, żeby nie wpisywać tych samych pozycji za każdym razem.
+                }
+            </span>
+        </div>
     </div>
 
     <div class="karta" id="kartaZwolnienia" style="display:none">
@@ -186,6 +223,37 @@
 
         cialo.addEventListener('change', pokazZwolnienieGdyTrzeba);
         pokazZwolnienieGdyTrzeba();
+
+        // Wybór pozycji z cennika wypełnia resztę wiersza. Dopasowujemy po
+        // pełnej nazwie, bo tylko taką wstawia lista podpowiedzi - wpisana
+        // ręcznie nazwa własna niczego nie nadpisze.
+        const dane = document.getElementById('daneCennika');
+
+        if (dane) {
+            const cennik = new Map(
+                JSON.parse(dane.textContent).map(p => [p.nazwa, p]));
+
+            cialo.addEventListener('input', zdarzenie => {
+                const pole = zdarzenie.target;
+                if (!pole.classList.contains('nazwa-pozycji')) return;
+
+                const pozycja = cennik.get(pole.value);
+                if (!pozycja) return;
+
+                const wiersz = pole.closest('tr');
+                const ustaw = (koncowka, wartosc) => {
+                    const cel = wiersz.querySelector('[name$="' + koncowka + '"]');
+                    if (cel) cel.value = wartosc;
+                };
+
+                ustaw('.Jednostka', pozycja.jednostka);
+                ustaw('.CenaNetto', pozycja.cena);
+                ustaw('.KodStawki', pozycja.stawka);
+                ustaw('.Gtu', pozycja.gtu);
+
+                pokazZwolnienieGdyTrzeba();
+            });
+        }
     })();
 </script>
 }

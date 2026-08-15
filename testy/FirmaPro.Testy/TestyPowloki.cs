@@ -216,6 +216,43 @@ public sealed class TestyPowloki(AplikacjaTestowa aplikacja)
     }
 
     /// <summary>
+    /// Pozycja dopisana do cennika podpowiada się przy wystawianiu faktury.
+    /// </summary>
+    /// <remarks>
+    /// Cała wartość kartoteki siedzi w tym połączeniu - sama lista pozycji
+    /// bez podpowiedzi na formularzu nikomu nie oszczędza pracy.
+    /// </remarks>
+    [Fact]
+    public async Task PozycjaZCennikaPodpowiadaSiePrzyWystawianiu()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        using HttpResponseMessage zapis = await AplikacjaTestowa.WyslijFormularzAsync(
+            klient, "/Cennik", new Dictionary<string, string>
+            {
+                ["Nazwa"] = "Konserwacja kotłowni",
+                ["Jednostka"] = "usł.",
+                ["CenaNetto"] = "480.00",
+                ["KodStawki"] = "23",
+                ["Aktywna"] = "true"
+            });
+
+        Assert.Equal(HttpStatusCode.Redirect, zapis.StatusCode);
+
+        using HttpResponseMessage formularz =
+            await klient.GetAsync(new Uri("/Faktury/Nowa", UriKind.Relative));
+
+        string html = await AplikacjaTestowa.TrescAsync(formularz);
+
+        Assert.Contains("<datalist id=\"cennik\"", html, StringComparison.Ordinal);
+        Assert.Contains("Konserwacja kotłowni", html, StringComparison.Ordinal);
+
+        // Wartości potrzebne do wypełnienia wiersza jadą razem z listą.
+        Assert.Contains("daneCennika", html, StringComparison.Ordinal);
+        Assert.Contains("480.00", html, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Dawny adres listy zakupów prowadzi do zakładki kosztów.
     /// </summary>
     [Fact]

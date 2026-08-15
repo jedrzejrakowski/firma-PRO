@@ -84,6 +84,7 @@ public class FirmaProDbContext : DbContext
     public DbSet<PozycjaZamowieniaFaktury> PozycjeZamowien => Set<PozycjaZamowieniaFaktury>();
     public DbSet<RozliczonaZaliczka> RozliczoneZaliczki => Set<RozliczonaZaliczka>();
     public DbSet<Kontrahent> Kontrahenci => Set<Kontrahent>();
+    public DbSet<PozycjaCennika> Cennik => Set<PozycjaCennika>();
     public DbSet<FakturaSprzedazy> FakturySprzedazy => Set<FakturaSprzedazy>();
     public DbSet<PozycjaFakturySprzedazy> PozycjeFaktur => Set<PozycjaFakturySprzedazy>();
     public DbSet<FakturaZakupu> FakturyZakupu => Set<FakturaZakupu>();
@@ -226,6 +227,24 @@ public class FirmaProDbContext : DbContext
             // zapytanie w kartotece.
             e.HasIndex(k => new { k.FirmaId, k.Nip });
             e.HasIndex(k => new { k.FirmaId, k.Nazwa });
+        });
+
+        budowniczy.Entity<PozycjaCennika>(e =>
+        {
+            e.ToTable("cennik");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Nazwa).HasMaxLength(512).IsRequired();
+            e.Property(p => p.Jednostka).HasMaxLength(32).IsRequired();
+            e.Property(p => p.CenaNetto).HasPrecision(18, 2);
+            e.Property(p => p.KodStawki).HasMaxLength(16).IsRequired();
+            e.Property(p => p.Gtu).HasMaxLength(8);
+            e.Property(p => p.Pkwiu).HasMaxLength(32);
+            e.Property(p => p.Cn).HasMaxLength(32);
+            e.Property(p => p.Indeks).HasMaxLength(64);
+
+            // Lista pozycji zawsze wyświetla się nazwami po kolei, a wycofane
+            // pomija - stąd oba pola w jednym indeksie.
+            e.HasIndex(p => new { p.FirmaId, p.Aktywna, p.Nazwa });
         });
     }
 
@@ -493,6 +512,8 @@ public class FirmaProDbContext : DbContext
     {
         budowniczy.Entity<Kontrahent>()
             .HasQueryFilter(k => k.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<PozycjaCennika>()
+            .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<FakturaSprzedazy>()
             .HasQueryFilter(f => f.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<PozycjaFakturySprzedazy>()

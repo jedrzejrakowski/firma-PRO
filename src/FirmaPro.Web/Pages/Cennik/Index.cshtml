@@ -1,0 +1,161 @@
+@page
+@model FirmaPro.Web.Pages.Cennik.IndexModel
+@{
+    ViewData["Tytul"] = "Cennik";
+}
+
+<div class="naglowek-ekranu">
+    <div>
+        <h1>Towary i usługi</h1>
+        <p class="podtytul">
+            Pozycje, które wracają na fakturach — wybierasz z listy zamiast wpisywać.
+        </p>
+    </div>
+</div>
+
+@if (Model.Walidacja.SaBledy)
+{
+    <div class="powiadomienie niepowodzenie">
+        <ul class="bledy">
+            @foreach (Problem problem in Model.Walidacja.Problemy
+                          .Where(p => p.Poziom == PoziomProblemu.Blad))
+            {
+                <li>@problem.Komunikat</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="karta">
+    <form method="post">
+        <div class="naglowek-sekcji">
+            @(Model.Poprawianie ? "Popraw pozycję" : "Nowa pozycja")
+        </div>
+
+        <input type="hidden" asp-for="Id" />
+
+        <div class="pole">
+            <label for="nazwa">Nazwa towaru lub usługi</label>
+            <input type="text" id="nazwa" asp-for="Nazwa" required maxlength="512"
+                   placeholder="np. Przegląd instalacji elektrycznej" />
+        </div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="jednostka">Jednostka</label>
+                <input type="text" id="jednostka" asp-for="Jednostka" maxlength="32" />
+            </div>
+            <div class="pole">
+                <label for="cena">Cena netto</label>
+                <input type="number" id="cena" asp-for="CenaNetto" step="0.01" min="0" />
+            </div>
+            <div class="pole">
+                <label for="stawka">Stawka VAT</label>
+                <select id="stawka" asp-for="KodStawki">
+                    @foreach (StawkaVat stawka in FirmaPro.Web.Pages.Cennik.IndexModel.Stawki)
+                    {
+                        <option value="@stawka.Kod">@stawka.Opis</option>
+                    }
+                </select>
+            </div>
+            <div class="pole">
+                <label for="indeks">Indeks (opcjonalnie)</label>
+                <input type="text" id="indeks" asp-for="Indeks" maxlength="64"
+                       placeholder="własny symbol" />
+            </div>
+        </div>
+
+        @* Oznaczenia sprawozdawcze dotyczą części towarów, więc siedzą niżej
+           i nie zaśmiecają pól, które wypełnia się zawsze. *@
+        <div class="siatka">
+            <div class="pole">
+                <label for="gtu">GTU (opcjonalnie)</label>
+                <input type="text" id="gtu" asp-for="Gtu" maxlength="8"
+                       placeholder="np. GTU_06" />
+            </div>
+            <div class="pole">
+                <label for="pkwiu">PKWiU (opcjonalnie)</label>
+                <input type="text" id="pkwiu" asp-for="Pkwiu" maxlength="32" />
+            </div>
+            <div class="pole">
+                <label for="cn">CN (opcjonalnie)</label>
+                <input type="text" id="cn" asp-for="Cn" maxlength="32" />
+            </div>
+        </div>
+
+        <div class="pole-wyboru">
+            <input type="checkbox" id="aktywna" asp-for="Aktywna" />
+            <label for="aktywna">Podpowiadaj przy wystawianiu faktury</label>
+        </div>
+
+        <div class="paskiem">
+            <button type="submit">@(Model.Poprawianie ? "Zapisz zmiany" : "Dodaj do cennika")</button>
+            @if (Model.Poprawianie)
+            {
+                <a class="przycisk przycisk-drugi" asp-page="Index">Anuluj</a>
+            }
+        </div>
+    </form>
+</div>
+
+@if (Model.Pozycje.Count == 0)
+{
+    <div class="pusto">
+        Cennik jest pusty.<br />
+        Dodaj pierwszą pozycję — potem wystawisz fakturę w kilka kliknięć.
+    </div>
+}
+else
+{
+    <div class="przewijak">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nazwa</th>
+                    <th>Indeks</th>
+                    <th>J.m.</th>
+                    <th class="liczba">Cena netto</th>
+                    <th>Stawka</th>
+                    <th>Oznaczenia</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (PozycjaCennika pozycja in Model.Pozycje)
+                {
+                    <tr>
+                        <td>
+                            @pozycja.Nazwa
+                            @if (!pozycja.Aktywna)
+                            {
+                                <span class="znacznik znacznik-robocza">wycofana</span>
+                            }
+                        </td>
+                        <td>@pozycja.Indeks</td>
+                        <td class="nowrap">@pozycja.Jednostka</td>
+                        <td class="liczba">@Kwoty.NaTekst(pozycja.CenaNetto)</td>
+                        <td class="nowrap">
+                            @(StawkaVat.TryZKodu(pozycja.KodStawki, out StawkaVat? stawka)
+                                ? stawka!.Opis
+                                : pozycja.KodStawki)
+                        </td>
+                        <td class="nowrap">
+                            <span class="drobne">@pozycja.Gtu @pozycja.Pkwiu @pozycja.Cn</span>
+                        </td>
+                        <td class="nowrap">
+                            <div class="dzialania-wiersza">
+                                <a asp-page="Index" asp-route-id="@pozycja.Id">Popraw</a>
+                                <form method="post" asp-page-handler="Przelacz"
+                                      asp-route-id="@pozycja.Id">
+                                    <button type="submit" class="przycisk-drugi przycisk-maly">
+                                        @(pozycja.Aktywna ? "Wycofaj" : "Przywróć")
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

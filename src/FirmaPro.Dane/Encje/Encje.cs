@@ -337,6 +337,51 @@ public sealed class WyslanieFaktury : EncjaBazowa, INalezyDoFirmy
     public RodzajWysylki Rodzaj { get; set; } = RodzajWysylki.Faktura;
 }
 
+/// <summary>
+/// Powtarzalna pozycja faktury - towar albo usługa z cennika.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Kartoteka istnieje po to, żeby nie przepisywać przy każdej fakturze tego
+/// samego: nazwy, jednostki, ceny i stawki. Przy jednej fakturze to drobiazg,
+/// przy dwudziestu miesięcznie decyduje o tym, czy programu chce się używać.
+/// </para>
+/// <para>
+/// Pozycja z kartoteki jest wzorcem, a nie źródłem prawdy o wystawionym
+/// dokumencie. Wiersz faktury dostaje kopię wartości w chwili wystawienia -
+/// późniejsza podwyżka ceny w cenniku nie może zmienić faktury sprzed roku.
+/// </para>
+/// </remarks>
+public sealed class PozycjaCennika : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    public string Nazwa { get; set; } = string.Empty;
+    public string Jednostka { get; set; } = "szt.";
+    public decimal CenaNetto { get; set; }
+
+    /// <summary>Kod stawki zgodny ze schematem FA(3), np. "23" albo "zw".</summary>
+    public string KodStawki { get; set; } = "23";
+
+    /// <summary>Oznaczenie GTU, gdy towar albo usługa go wymaga.</summary>
+    public string? Gtu { get; set; }
+
+    public string? Pkwiu { get; set; }
+    public string? Cn { get; set; }
+
+    /// <summary>Własny symbol pozycji - katalogowy albo magazynowy.</summary>
+    public string? Indeks { get; set; }
+
+    /// <summary>
+    /// Czy pozycja ma się pokazywać przy wystawianiu faktury.
+    /// </summary>
+    /// <remarks>
+    /// Wycofanego towaru nie kasujemy, tylko chowamy - inaczej zniknąłby
+    /// z podpowiedzi razem z historią tego, co i po ile sprzedawano.
+    /// </remarks>
+    public bool Aktywna { get; set; } = true;
+}
+
 /// <summary>Kontrahent - nabywca na fakturze.</summary>
 public sealed class Kontrahent : EncjaBazowa, INalezyDoFirmy
 {

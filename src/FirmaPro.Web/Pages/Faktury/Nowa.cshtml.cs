@@ -23,7 +23,10 @@ public sealed class WierszPozycji
 }
 
 /// <summary>Wystawianie nowej faktury sprzedaży.</summary>
-public sealed class NowaModel(FirmaProDbContext baza, UslugaFaktur uslugaFaktur) : PageModel
+public sealed class NowaModel(
+    FirmaProDbContext baza,
+    UslugaFaktur uslugaFaktur,
+    UslugaCennika uslugaCennika) : PageModel
 {
     /// <summary>Kody GTU do wyboru na liście.</summary>
     public static IReadOnlyList<string> KodyGtu { get; } =
@@ -38,6 +41,17 @@ public sealed class NowaModel(FirmaProDbContext baza, UslugaFaktur uslugaFaktur)
     [BindProperty] public List<WierszPozycji> Pozycje { get; set; } = [];
 
     public IReadOnlyList<Kontrahent> Kontrahenci { get; private set; } = [];
+
+    /// <summary>
+    /// Pozycje cennika podpowiadane przy wypełnianiu wierszy.
+    /// </summary>
+    /// <remarks>
+    /// Cennik podaje wartości początkowe, a nie wiążące - po wybraniu pozycji
+    /// wszystkie pola wiersza dalej można poprawić. Rabat dla stałego klienta
+    /// nie może wymagać zakładania drugiej pozycji w kartotece.
+    /// </remarks>
+    public IReadOnlyList<PozycjaCennika> Cennik { get; private set; } = [];
+
     public List<string> Bledy { get; } = [];
 
     public async Task<IActionResult> OnGetAsync(CancellationToken anulowanie)
@@ -109,6 +123,8 @@ public sealed class NowaModel(FirmaProDbContext baza, UslugaFaktur uslugaFaktur)
             .Where(k => k.Aktywny)
             .OrderBy(k => k.Nazwa)
             .ToListAsync(anulowanie);
+
+        Cennik = await uslugaCennika.DoWyboruAsync(anulowanie);
     }
 
     private void ZapewnijWiersz()
