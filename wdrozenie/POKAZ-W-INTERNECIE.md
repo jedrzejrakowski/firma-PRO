@@ -49,10 +49,21 @@ Gdzie:
   W sierpniu 2026 parametrom z tabeli odpowiadał pakiet **CPX22**.
   Uwaga na pakiety o numerach kończących się jedynką (CPX11, CPX21) —
   to starsza seria, droższa za te same parametry.
-- [OVH](https://www.ovhcloud.com/pl/vps/) — polska obsługa i faktura,
-  rozliczanie miesięczne.
-- [Mikr.us](https://mikr.us/) — polski i tani, ale pakiety są ciasne:
-  sprawdź, czy wybrany ma 4 GB pamięci.
+- [OVHcloud](https://www.ovhcloud.com/pl/vps/) — ośrodek w Warszawie,
+  polska faktura i obsługa, rozliczanie miesięczne.
+- [e24cloud](https://www.e24cloud.com/) (Beyond.pl) — polska firma, ośrodek
+  w Poznaniu, rozliczanie godzinowe jak u Hetznera.
+- [Mikr.us](https://mikr.us/) — polski i najtańszy, ale pakiety bywają
+  ciasne i **koniecznie sprawdź rodzaj wirtualizacji** (patrz niżej).
+
+> **Zanim zapłacisz, sprawdź trzy rzeczy w opisie usługi:**
+>
+> 1. **Wirtualizacja KVM**, a nie OpenVZ ani LXC. Tańsze oferty bywają
+>    kontenerowe i wtedy Docker albo nie ruszy, albo wymaga zabiegów,
+>    których ta instrukcja nie opisuje.
+> 2. **Pełny dostęp administratora** (root) — bez niego nie zainstalujesz
+>    Dockera.
+> 3. **Ubuntu 24.04** na liście systemów do wyboru.
 
 > **Ceny sprawdź na stronie, nie tutaj.** Hetzner podnosił je w czerwcu
 > 2026 i część pakietów bywa chwilowo niedostępna. Zwróć też uwagę, czy
