@@ -26,6 +26,13 @@ internal static partial class Dziennik
     internal static partial void NieudanaWysylka(ILogger dziennik, Exception przyczyna, string numer);
 
     [LoggerMessage(
+        EventId = 1009,
+        Level = LogLevel.Warning,
+        Message = "Nie udało się pobrać poświadczenia odbioru faktury {numer}")]
+    internal static partial void NieudanePobranieUpo(ILogger dziennik, Exception przyczyna,
+                                                     string numer);
+
+    [LoggerMessage(
         EventId = 1002,
         Level = LogLevel.Information,
         Message = "Założono dane demonstracyjne. Logowanie: {email}")]

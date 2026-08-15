@@ -472,6 +472,35 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
     /// <summary>Skrót SHA-256 wysłanego pliku - potrzebny do kodu QR.</summary>
     public string? SkrotXml { get; set; }
 
+    // --- urzędowe poświadczenie odbioru -----------------------------------
+
+    /// <summary>
+    /// Numer sesji, w której faktura poszła do KSeF.
+    /// </summary>
+    /// <remarks>
+    /// Zapisany wyłącznie po to, żeby dało się później pobrać UPO: adres
+    /// poświadczenia zawiera numer sesji, a ta jest już wtedy zamknięta.
+    /// Bez tej kolumny dowód doręczenia byłby nie do odzyskania.
+    /// </remarks>
+    public string? NumerSesjiKsef { get; set; }
+
+    /// <summary>
+    /// Urzędowe poświadczenie odbioru w postaci, w jakiej wydał je KSeF.
+    /// </summary>
+    /// <remarks>
+    /// To jedyny dowód, że faktura weszła do obiegu prawnego - przy sporze
+    /// albo kontroli liczy się ono, a nie wpis w naszej bazie. Trzymamy je
+    /// nieprzerobione, bo poświadczenie jest podpisane i każda zmiana treści
+    /// unieważniłaby podpis.
+    /// </remarks>
+    public string? UpoXml { get; set; }
+
+    /// <summary>Kiedy program pobrał poświadczenie.</summary>
+    public DateTimeOffset? DataUpoUtc { get; set; }
+
+    /// <summary>Czy poświadczenie zostało już pobrane.</summary>
+    public bool MaUpo => UpoXml is { Length: > 0 };
+
     // --- korekta ---------------------------------------------------------
 
     /// <summary>Faktura, którą ten dokument koryguje.</summary>

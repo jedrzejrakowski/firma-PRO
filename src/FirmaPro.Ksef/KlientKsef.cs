@@ -399,16 +399,23 @@ public sealed class KlientKsef : IKlientKsef
         _kluczSesji = null;
     }
 
-    public async Task<string> PobierzUpoAsync(string numerKsef,
+    /// <summary>
+    /// Pobiera urzędowe poświadczenie odbioru faktury.
+    /// </summary>
+    /// <remarks>
+    /// Nie wymaga otwartej sesji - przeciwnie, UPO powstaje dopiero po jej
+    /// zamknięciu. Numer sesji jest tu zwykłym elementem adresu, a nie stanem
+    /// klienta, więc poświadczenie da się pobrać także nazajutrz, po ponownym
+    /// zalogowaniu.
+    /// </remarks>
+    public async Task<string> PobierzUpoAsync(string numerSesji, string numerKsef,
                                               CancellationToken anulowanie = default)
     {
-        if (_numerSesji is null)
-        {
-            throw new BladKsefException("Sesja nie została otwarta.");
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(numerSesji);
+        ArgumentException.ThrowIfNullOrWhiteSpace(numerKsef);
 
         return await GetTekstAsync(
-            $"sessions/{_numerSesji}/invoices/ksef/{numerKsef}/upo",
+            $"sessions/{numerSesji}/invoices/ksef/{numerKsef}/upo",
             TokenDostepu(), anulowanie);
     }
 

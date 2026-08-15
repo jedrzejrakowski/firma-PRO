@@ -17,6 +17,9 @@ public sealed record WynikWystawienia(FakturaSprzedazy? Faktura, WynikWalidacji 
 /// <summary>Wynik próby wysłania faktury do KSeF.</summary>
 public sealed record WynikWysylki(bool Udalo, string Komunikat, string? NumerKsef);
 
+/// <summary>Wynik próby pobrania urzędowego poświadczenia odbioru.</summary>
+public sealed record WynikUpo(bool Udalo, string Komunikat);
+
 /// <summary>
 /// Wystawianie faktur i wysyłanie ich do KSeF.
 /// </summary>
@@ -30,6 +33,7 @@ public sealed class UslugaFaktur(
     UslugaNumeracji numeracja,
     IFabrykaKlientowKsef fabrykaKlientow,
     IOchronaTokena ochronaTokena,
+    TimeProvider czas,
     ILogger<UslugaFaktur> dziennik)
 {
     /// <summary>
@@ -496,10 +500,15 @@ public sealed class UslugaFaktur(
         // jeszcze testować integrację, druga wystawiać faktury produkcyjne.
         IKlientKsef klientKsef = fabrykaKlientow.Utworz(firma.Srodowisko);
 
+        WynikWysylki wynikWysylki;
+
         try
         {
             await UwierzytelnienieKsef.ZalogujAsync(klientKsef, firma, ochronaTokena, anulowanie);
-            await klientKsef.OtworzSesjeAsync(anulowanie);
+
+            // Numer sesji zapisujemy od razu: adres urzędowego poświadczenia
+            // odbioru zawiera go, a sesja będzie już wtedy zamknięta.
+            faktura.NumerSesjiKsef = await klientKsef.OtworzSesjeAsync(anulowanie);
 
             string numerReferencyjny = await klientKsef.WyslijFaktureAsync(xml, anulowanie);
             faktura.Status = StatusKsef.Wyslana;
@@ -517,15 +526,19 @@ public sealed class UslugaFaktur(
                 faktura.UwagiKsef = wynik.Opis;
                 await baza.SaveChangesAsync(anulowanie);
 
-                return new WynikWysylki(true,
+                wynikWysylki = new WynikWysylki(true,
                     $"Faktura przyjęta. Numer KSeF: {wynik.NumerKsef}", wynik.NumerKsef);
             }
+            else
+            {
+                faktura.Status = StatusKsef.Odrzucona;
+                faktura.UwagiKsef = string.Join("; ",
+                    new[] { wynik.Opis }.Concat(wynik.Szczegoly));
+                await baza.SaveChangesAsync(anulowanie);
 
-            faktura.Status = StatusKsef.Odrzucona;
-            faktura.UwagiKsef = string.Join("; ", new[] { wynik.Opis }.Concat(wynik.Szczegoly));
-            await baza.SaveChangesAsync(anulowanie);
-
-            return new WynikWysylki(false, "KSeF odrzucił fakturę: " + faktura.UwagiKsef, null);
+                wynikWysylki = new WynikWysylki(false,
+                    "KSeF odrzucił fakturę: " + faktura.UwagiKsef, null);
+            }
         }
         catch (BladKsefException blad)
         {
@@ -550,6 +563,109 @@ public sealed class UslugaFaktur(
                 // Zamknięcie sesji to sprzątanie - błąd na tym etapie nie może
                 // przesłonić właściwego wyniku wysyłki.
             }
+        }
+
+        // Poświadczenie powstaje dopiero po zamknięciu sesji, więc próbujemy
+        // dopiero teraz - i tylko raz. Gdy KSeF jeszcze go nie wystawił, nic
+        // się nie dzieje: faktura jest przyjęta, a UPO da się pobrać później
+        // przyciskiem na ekranie faktury.
+        if (wynikWysylki.Udalo)
+        {
+            await SprobujPobracUpoAsync(faktura, klientKsef, anulowanie);
+        }
+
+        return wynikWysylki;
+    }
+
+    /// <summary>
+    /// Pobiera urzędowe poświadczenie odbioru faktury przyjętej przez KSeF.
+    /// </summary>
+    /// <remarks>
+    /// UPO jest jedynym dowodem, że faktura weszła do obiegu prawnego - przy
+    /// kontroli albo sporze liczy się ono, a nie wpis w naszej bazie. Powstaje
+    /// jednak z opóźnieniem po zamknięciu sesji, więc pobranie przy wysyłce
+    /// czasem się nie udaje i trzeba je powtórzyć.
+    /// </remarks>
+    public async Task<WynikUpo> PobierzUpoAsync(Guid fakturaId,
+                                                CancellationToken anulowanie = default)
+    {
+        FakturaSprzedazy? faktura = await baza.FakturySprzedazy
+            .FirstOrDefaultAsync(f => f.Id == fakturaId, anulowanie);
+
+        if (faktura is null)
+        {
+            return new WynikUpo(false, "Nie znaleziono faktury.");
+        }
+
+        if (faktura.MaUpo)
+        {
+            return new WynikUpo(true, "Poświadczenie jest już pobrane.");
+        }
+
+        if (faktura.Status != StatusKsef.Przyjeta || faktura.NumerKsef is null)
+        {
+            return new WynikUpo(false,
+                "Poświadczenie wydawane jest dopiero dla faktury przyjętej przez KSeF.");
+        }
+
+        if (faktura.NumerSesjiKsef is null)
+        {
+            // Dotyczy faktur wysłanych zanim program zaczął zapisywać numer
+            // sesji. Poświadczenie takiej faktury trzeba pobrać z portalu KSeF.
+            return new WynikUpo(false,
+                "Ta faktura została wysłana bez zapisanego numeru sesji, " +
+                "więc programowi brakuje adresu poświadczenia. Pobierz je " +
+                "z portalu KSeF.");
+        }
+
+        Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
+        IKlientKsef klientKsef = fabrykaKlientow.Utworz(firma.Srodowisko);
+
+        try
+        {
+            await UwierzytelnienieKsef.ZalogujAsync(klientKsef, firma, ochronaTokena, anulowanie);
+        }
+        catch (BladKsefException blad)
+        {
+            return new WynikUpo(false, blad.PelnyOpis());
+        }
+
+        return await SprobujPobracUpoAsync(faktura, klientKsef, anulowanie);
+    }
+
+    /// <summary>
+    /// Pobiera i zapisuje poświadczenie, gdy KSeF ma je już gotowe.
+    /// </summary>
+    /// <remarks>
+    /// Nieudane pobranie nie jest błędem wysyłki - faktura jest przyjęta
+    /// niezależnie od tego, czy poświadczenie zdążyło powstać. Dlatego błąd
+    /// trafia do dziennika i do komunikatu, ale nie zmienia stanu faktury.
+    /// </remarks>
+    private async Task<WynikUpo> SprobujPobracUpoAsync(
+        FakturaSprzedazy faktura, IKlientKsef klientKsef, CancellationToken anulowanie)
+    {
+        try
+        {
+            string upo = await klientKsef.PobierzUpoAsync(
+                faktura.NumerSesjiKsef!, faktura.NumerKsef!, anulowanie);
+
+            if (string.IsNullOrWhiteSpace(upo))
+            {
+                return new WynikUpo(false, "KSeF nie wydał jeszcze poświadczenia.");
+            }
+
+            faktura.UpoXml = upo;
+            faktura.DataUpoUtc = czas.GetUtcNow();
+            await baza.SaveChangesAsync(anulowanie);
+
+            return new WynikUpo(true, "Pobrano urzędowe poświadczenie odbioru.");
+        }
+        catch (BladKsefException blad)
+        {
+            Dziennik.NieudanePobranieUpo(dziennik, blad, faktura.Numer);
+
+            return new WynikUpo(false,
+                "Nie udało się pobrać poświadczenia: " + blad.PelnyOpis());
         }
     }
 

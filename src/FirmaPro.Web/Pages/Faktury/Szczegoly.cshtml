@@ -31,6 +31,31 @@
             <div class="etykieta" style="color:var(--tekst-szary);font-size:0.82rem">Termin płatności</div>
             <p>@(Model.Faktura.TerminPlatnosci?.ToString("yyyy-MM-dd") ?? "—")</p>
         </div>
+        @* Urzędowe poświadczenie odbioru pokazujemy tylko dla faktur, które
+           w ogóle mogą je mieć - przy roboczej byłaby to pusta obietnica. *@
+        @if (Model.Faktura.Status == StatusKsef.Przyjeta)
+        {
+            <div>
+                <div class="etykieta" style="color:var(--tekst-szary);font-size:0.82rem">
+                    Poświadczenie odbioru
+                </div>
+                <p>
+                    @if (Model.Faktura.MaUpo)
+                    {
+                        <a asp-page-handler="Upo" asp-route-id="@Model.Faktura.Id">
+                            Pobierz UPO
+                        </a>
+                        <span class="drobne">
+                            pobrane @Model.Faktura.DataUpoUtc?.ToString("yyyy-MM-dd HH:mm")
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="znacznik znacznik-wyslana">jeszcze nie pobrane</span>
+                    }
+                </p>
+            </div>
+        }
     </div>
 
     @if (!Model.SwiezyKomunikat && !string.IsNullOrWhiteSpace(Model.Faktura.UwagiKsef))
@@ -147,6 +172,16 @@
     {
         <form method="post" asp-page-handler="Wyslij">
             <button type="submit">Wyślij do KSeF</button>
+        </form>
+    }
+
+    @* Poświadczenie powstaje z opóźnieniem po zamknięciu sesji, więc próba
+       przy wysyłce bywa za wczesna. Przycisk pojawia się tylko wtedy, gdy
+       naprawdę jest co pobierać. *@
+    @if (Model.Faktura.Status == StatusKsef.Przyjeta && !Model.Faktura.MaUpo)
+    {
+        <form method="post" asp-page-handler="Upo" asp-route-id="@Model.Faktura.Id">
+            <button type="submit" class="przycisk-drugi">Pobierz UPO</button>
         </form>
     }
 

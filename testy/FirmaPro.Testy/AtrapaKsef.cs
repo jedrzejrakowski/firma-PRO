@@ -58,6 +58,17 @@ public sealed class AtrapaKsef : HttpMessageHandler
     /// <summary>Udaje brak łączności - żądanie nie dochodzi do serwera.</summary>
     public bool ZrywajPolaczenie { get; set; }
 
+    /// <summary>
+    /// Czy KSeF wydał już urzędowe poświadczenie odbioru.
+    /// </summary>
+    /// <remarks>
+    /// Poświadczenie powstaje z opóźnieniem po zamknięciu sesji, więc pobranie
+    /// zaraz po wysłaniu faktury bywa za wczesne. Ustawienie na „false"
+    /// odtwarza tę chwilę - program ma sobie z nią poradzić bez psucia stanu
+    /// przyjętej już faktury.
+    /// </remarks>
+    public bool UpoGotowe { get; set; } = true;
+
     /// <summary>Wyzwanie wydawane przez atrapę - stałe, żeby test mógł je porównać.</summary>
     public const string Wyzwanie = "20260808-CR-ABC";
 
@@ -323,7 +334,12 @@ public sealed class AtrapaKsef : HttpMessageHandler
 
         if (sciezka.EndsWith("/upo", StringComparison.Ordinal))
         {
-            return Tekst("<UPO>potwierdzenie odbioru</UPO>");
+            return UpoGotowe
+                ? Tekst("<UPO>potwierdzenie odbioru</UPO>")
+                : new HttpResponseMessage(HttpStatusCode.NotFound)
+                {
+                    Content = new StringContent("UPO jeszcze nie zostało wygenerowane")
+                };
         }
 
         if (sciezka.StartsWith($"sessions/{NumerSesji}/invoices/", StringComparison.Ordinal))

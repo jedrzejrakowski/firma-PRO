@@ -202,6 +202,56 @@ public sealed class SzczegolyModel(
         return RedirectToPage("Szczegoly", new { id });
     }
 
+    /// <summary>
+    /// Pobiera urzędowe poświadczenie odbioru, gdy nie udało się przy wysyłce.
+    /// </summary>
+    /// <remarks>
+    /// Poświadczenie powstaje z opóźnieniem po zamknięciu sesji, więc pierwsza
+    /// próba - ta zaraz po wysłaniu faktury - bywa za wczesna. Przycisk pozwala
+    /// spróbować ponownie, zamiast zostawiać użytkownika bez dowodu doręczenia.
+    /// </remarks>
+    public async Task<IActionResult> OnPostUpoAsync(Guid id, CancellationToken anulowanie)
+    {
+        WynikUpo wynik = await uslugaFaktur.PobierzUpoAsync(id, anulowanie);
+
+        if (wynik.Udalo)
+        {
+            TempData["Komunikat"] = wynik.Komunikat;
+        }
+        else
+        {
+            TempData["Ostrzezenie"] = wynik.Komunikat;
+        }
+
+        return RedirectToPage("Szczegoly", new { id });
+    }
+
+    /// <summary>
+    /// Udostępnia zapisane poświadczenie odbioru jako plik.
+    /// </summary>
+    /// <remarks>
+    /// Oddajemy dokładnie to, co wydał KSeF. Poświadczenie jest podpisane
+    /// elektronicznie, więc każda zmiana treści - choćby zmiana wcięć -
+    /// unieważniłaby podpis i dokument przestałby być dowodem.
+    /// </remarks>
+    public async Task<IActionResult> OnGetUpoAsync(Guid id, CancellationToken anulowanie)
+    {
+        FakturaSprzedazy? faktura = await WczytajAsync(id, anulowanie);
+
+        if (faktura is null)
+        {
+            return NotFound();
+        }
+
+        if (faktura.UpoXml is not { Length: > 0 } upo)
+        {
+            return NotFound();
+        }
+
+        return File(System.Text.Encoding.UTF8.GetBytes(upo), "application/xml",
+            "UPO_" + BezpiecznaNazwa(faktura.Numer) + ".xml");
+    }
+
     /// <summary>Udostępnia plik XML faktury - do kontroli i archiwum.</summary>
     public async Task<IActionResult> OnGetXmlAsync(Guid id, CancellationToken anulowanie)
     {

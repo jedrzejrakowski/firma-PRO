@@ -177,16 +177,25 @@ public class TestyKlientaKsef
         Assert.True(atrapa.SesjaZamknieta);
     }
 
+    /// <summary>
+    /// Poświadczenie pobiera się po zamknięciu sesji - wtedy dopiero powstaje.
+    /// </summary>
+    /// <remarks>
+    /// Numer sesji jest tu zwykłym parametrem, a nie stanem klienta. Gdyby
+    /// pobranie wymagało otwartej sesji, UPO byłoby nie do odzyskania nazajutrz.
+    /// </remarks>
     [Fact]
-    public async Task PobranieUpo()
+    public async Task PobranieUpoPoZamknieciuSesji()
     {
         using var atrapa = new AtrapaKsef();
         KlientKsef klient = atrapa.UtworzKlienta();
 
         await klient.UwierzytelnijAsync("5252248481", "TOKEN-KSEF-123");
-        await klient.OtworzSesjeAsync();
+        string numerSesji = await klient.OtworzSesjeAsync();
+        await klient.ZamknijSesjeAsync();
 
-        Assert.Contains("UPO", await klient.PobierzUpoAsync(AtrapaKsef.NumerKsef),
+        Assert.Contains("UPO",
+            await klient.PobierzUpoAsync(numerSesji, AtrapaKsef.NumerKsef),
             StringComparison.Ordinal);
     }
 

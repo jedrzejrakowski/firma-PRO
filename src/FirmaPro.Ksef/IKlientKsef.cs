@@ -162,8 +162,18 @@ public interface IKlientKsef
     /// <summary>Zamyka sesję, co uruchamia generowanie zbiorczego UPO.</summary>
     Task ZamknijSesjeAsync(CancellationToken anulowanie = default);
 
-    /// <summary>Pobiera urzędowe poświadczenie odbioru faktury.</summary>
-    Task<string> PobierzUpoAsync(string numerKsef, CancellationToken anulowanie = default);
+    /// <summary>
+    /// Pobiera urzędowe poświadczenie odbioru faktury.
+    /// </summary>
+    /// <remarks>
+    /// Numer sesji podaje się osobno, bo UPO powstaje dopiero po jej
+    /// zamknięciu - a wtedy klient nie pamięta już, w której sesji faktura
+    /// poszła. Numer trzeba więc zachować przy wysyłce i podać tutaj.
+    /// </remarks>
+    /// <param name="numerSesji">Numer referencyjny sesji, w której wysłano fakturę.</param>
+    /// <param name="numerKsef">Numer nadany fakturze przez KSeF.</param>
+    Task<string> PobierzUpoAsync(string numerSesji, string numerKsef,
+                                 CancellationToken anulowanie = default);
 
     /// <summary>Pobiera listę faktur wystawionych na nasz NIP w danym okresie.</summary>
     Task<IReadOnlyList<FakturaZakupowa>> PobierzFakturyZakupoweAsync(

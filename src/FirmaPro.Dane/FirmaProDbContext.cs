@@ -634,6 +634,13 @@ public class FirmaProDbContext : DbContext
             nameof(FakturaSprzedazy.DataPrzyjeciaKsef),
             nameof(FakturaSprzedazy.UwagiKsef),
             nameof(FakturaSprzedazy.SkrotXml),
+            // Poświadczenie odbioru i numer sesji opisują drogę dokumentu do
+            // KSeF, a nie jego treść. Co więcej, poświadczenie z definicji
+            // powstaje dopiero po wysłaniu - gdyby dopisanie go było zabronione,
+            // dowodu doręczenia nie dałoby się w ogóle zapisać.
+            nameof(FakturaSprzedazy.NumerSesjiKsef),
+            nameof(FakturaSprzedazy.UpoXml),
+            nameof(FakturaSprzedazy.DataUpoUtc),
             nameof(FakturaSprzedazy.Zaplacono),
             nameof(FakturaSprzedazy.DataZaplaty),
             // Okres rejestru VAT to kwalifikacja księgowa, a nie treść
