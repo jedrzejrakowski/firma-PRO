@@ -150,6 +150,39 @@ przeprowadzi sprawdzenie krok po kroku.
 Dane zostają w Dockerze między uruchomieniami — zatrzymanie programu
 niczego nie kasuje.
 
+## „Virtualization support not detected"
+
+Docker Desktop nie wystartuje, dopóki komputer nie pozwala uruchamiać
+maszyn wirtualnych. To najczęstszy problem przy pierwszej instalacji.
+Przycisk *Sign in* w tym okienku niczego nie naprawia — konto Docker
+nie ma z tym związku.
+
+Najpierw ustal, na czym stoisz: **Ctrl+Shift+Esc** → **Wydajność** →
+**Procesor** → wiersz **Wirtualizacja**.
+
+**Wirtualizacja: Wyłączona** — włącz ją w BIOS-ie:
+
+1. Uruchom komputer ponownie i naciskaj **Del** albo **F2** (podpowiedź
+   zwykle widać na pierwszym ekranie).
+2. Znajdź **Intel Virtualization Technology**, **VT-x**, **SVM Mode**
+   albo **AMD-V** — najczęściej w *Advanced*, *CPU Configuration*
+   lub *Security*.
+3. Ustaw **Enabled**, zapisz i wyjdź (zwykle **F10**).
+
+**Wirtualizacja: Włączona** — brakuje składników Windows. W PowerShellu
+uruchomionym **jako administrator**:
+
+```powershell
+wsl --install
+```
+
+Potem uruchom komputer ponownie i włącz Docker Desktop.
+
+> Na komputerze służbowym wejście do BIOS-u bywa zablokowane przez dział
+> informatyczny. Gdyby tak było, program da się uruchomić bez Dockera —
+> patrz [Uruchomienie](../README.md#uruchomienie) — ale wymaga to
+> zainstalowania .NET SDK i PostgreSQL osobno.
+
 ## Gdy coś nie zadziała
 
 - **`docker: command not found`** — Docker Desktop nie jest uruchomiony albo
