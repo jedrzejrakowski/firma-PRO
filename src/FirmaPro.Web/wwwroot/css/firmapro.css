@@ -230,6 +230,112 @@ svg { display: block; }
 
 .narzedzia { margin-left: auto; display: flex; align-items: center; gap: 4px; }
 
+/* ----------------------------------------------------------- szukanie */
+
+.szukajka {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--kreska);
+    background: var(--papier);
+    border-radius: 9px;
+    padding: 0 10px;
+    color: var(--tekst-drugi);
+    flex: 1;
+    max-width: 420px;
+    min-width: 180px;
+}
+
+.szukajka:focus-within {
+    border-color: var(--atrament-jasny);
+    background: var(--karta);
+}
+
+.szukajka svg { flex: none; }
+
+/* Pole ma udawać część paska, a nie osobną ramkę w ramce. */
+.szukajka input {
+    width: 100%;
+    border: 0;
+    background: none;
+    padding: 8px 0;
+    font: inherit;
+    font-size: 13.5px;
+    color: var(--tekst);
+}
+
+.szukajka input:focus { outline: none; }
+
+.skrot {
+    flex: none;
+    font-size: 11px;
+    border: 1px solid var(--kreska);
+    border-radius: 5px;
+    padding: 1px 5px;
+    color: var(--tekst-drugi);
+}
+
+/* Podpowiedzi wychodzą spod pola i mają jego szerokość, a nie szerokość
+   najdłuższej nazwy kontrahenta. */
+.podpowiedzi {
+    left: 0;
+    right: 0;
+    min-width: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.podpowiedzi-grupa {
+    padding: 8px 10px 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--tekst-drugi);
+}
+
+.podpowiedzi a.podpowiedz {
+    display: block;
+    padding: 7px 10px;
+    border-radius: 7px;
+    color: var(--tekst);
+    text-decoration: none;
+}
+
+.podpowiedzi a.podpowiedz b { display: block; font-size: 13.5px; font-weight: 600; }
+.podpowiedzi a.podpowiedz small { display: block; font-size: 12px; color: var(--tekst-drugi); }
+.podpowiedzi a.podpowiedz:hover, .podpowiedzi a.podpowiedz.wybrana { background: var(--papier); }
+
+.podpowiedzi-pusto { padding: 14px 12px; font-size: 13px; color: var(--tekst-drugi); }
+
+.podpowiedzi a.podpowiedzi-wszystko {
+    display: block;
+    margin-top: 4px;
+    padding: 9px 10px;
+    border-top: 1px solid var(--kreska);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--atrament);
+    text-decoration: none;
+}
+
+.podpowiedzi a.podpowiedzi-wszystko:hover, .podpowiedzi a.podpowiedzi-wszystko.wybrana { background: var(--papier); }
+
+/* Trafienia na pełnym ekranie wyników. */
+.wynik {
+    display: block;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--kreska);
+    color: var(--tekst);
+    text-decoration: none;
+}
+
+.wyniki .wynik:last-child { border-bottom: 0; }
+.wynik:hover { background: color-mix(in srgb, var(--atrament) 4%, transparent); }
+.wynik b { display: block; font-size: 14px; font-weight: 600; }
+.wynik span { font-size: 12.5px; color: var(--tekst-drugi); }
+
 .ikonka {
     width: 34px;
     height: 34px;

@@ -158,6 +158,21 @@ else
                     </span>
                 }
 
+                @* Szukanie jest zwykłym formularzem GET - działa bez skryptów
+                   i daje adres, który można komuś wysłać. Podpowiedzi pod
+                   polem to tylko skrót do tego samego ekranu. *@
+                <form class="szukajka" method="get" action="/Szukaj" role="search"
+                      autocomplete="off">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                    <input type="search" name="q" id="szukaj"
+                           placeholder="Szukaj faktury, kontrahenta, numeru KSeF"
+                           value="@ViewContext.HttpContext.Request.Query["q"]"
+                           aria-label="Szukaj w całym programie"
+                           aria-expanded="false" aria-controls="podpowiedzi" />
+                    <span class="skrot" aria-hidden="true">Ctrl K</span>
+                    <div class="menu-lista podpowiedzi" id="podpowiedzi" role="listbox" hidden></div>
+                </form>
+
                 <div class="narzedzia">
                     @* Jeden przycisk zamiast osobnego na każdy rodzaj faktury -
                        rodzaj wybiera się z listy, więc dołożenie kolejnego

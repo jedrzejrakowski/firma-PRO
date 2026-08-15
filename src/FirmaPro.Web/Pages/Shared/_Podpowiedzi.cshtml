@@ -1,0 +1,33 @@
+@model FirmaPro.Web.Uslugi.WynikiSzukania
+@*
+    Lista podpowiedzi pod polem szukania.
+
+    Doczytywana bez przeładowania strony, ale zbudowana z tych samych danych
+    co pełny ekran wyników - to ma być skrót do niego, nie druga prawda.
+*@
+@if (Model.Ile == 0)
+{
+    <div class="podpowiedzi-pusto">
+        Nic nie znaleziono dla „@Model.Szukane”.
+    </div>
+}
+else
+{
+    @foreach (IGrouping<RodzajWyniku, Wynik> grupa in
+        Model.Wszystkie.GroupBy(w => w.Rodzaj))
+    {
+        <div class="podpowiedzi-grupa">@OdnosnikWyniku.Nazwa(grupa.Key)</div>
+
+        @foreach (Wynik wynik in grupa)
+        {
+            <a class="podpowiedz" href="@OdnosnikWyniku.Dla(wynik)">
+                <b>@wynik.Tytul</b>
+                <small>@wynik.Opis</small>
+            </a>
+        }
+    }
+
+    <a class="podpowiedzi-wszystko" href="/Szukaj?q=@Uri.EscapeDataString(Model.Szukane)">
+        Pokaż wszystkie wyniki dla „@Model.Szukane”
+    </a>
+}

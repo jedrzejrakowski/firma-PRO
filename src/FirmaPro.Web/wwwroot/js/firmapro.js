@@ -60,6 +60,138 @@
         }
     });
 
+    // ------------------------------------------------------------ szukanie
+    //
+    // Pole samo w sobie jest zwykłym formularzem i działa bez tego kodu -
+    // Enter otwiera pełny ekran wyników. Poniższe dokłada tylko podpowiedzi
+    // pod polem, żeby najczęstszy przypadek („znajdź tę jedną fakturę”)
+    // kończył się jednym kliknięciem zamiast przeładowaniem strony.
+
+    var pole = document.getElementById('szukaj');
+    var lista = document.getElementById('podpowiedzi');
+
+    if (pole && lista) {
+        var czekanie = null;
+        var ostatnie = '';
+        var przerwij = null;
+        var wybrany = -1;
+
+        function pozycje() {
+            return Array.prototype.slice.call(
+                lista.querySelectorAll('.podpowiedz, .podpowiedzi-wszystko'));
+        }
+
+        function zaznacz(nowy) {
+            var lp = pozycje();
+
+            if (lp.length === 0) {
+                return;
+            }
+
+            // Zawijamy listę: strzałka w górę z pierwszej pozycji wraca na
+            // ostatnią, bo tak zachowuje się każde inne menu w systemie.
+            wybrany = (nowy + lp.length) % lp.length;
+
+            lp.forEach(function (element, numer) {
+                element.classList.toggle('wybrana', numer === wybrany);
+            });
+
+            lp[wybrany].scrollIntoView({ block: 'nearest' });
+        }
+
+        function schowaj() {
+            lista.hidden = true;
+            pole.setAttribute('aria-expanded', 'false');
+            wybrany = -1;
+        }
+
+        function pokaz() {
+            if (lista.innerHTML.trim() !== '') {
+                lista.hidden = false;
+                pole.setAttribute('aria-expanded', 'true');
+            }
+        }
+
+        function doczytaj() {
+            var fraza = pole.value.trim();
+
+            if (fraza === ostatnie) {
+                pokaz();
+                return;
+            }
+
+            ostatnie = fraza;
+
+            if (fraza.length < 2) {
+                lista.innerHTML = '';
+                schowaj();
+                return;
+            }
+
+            // Każde nowe wciśnięcie klawisza unieważnia poprzednie zapytanie -
+            // inaczej wolniejsza odpowiedź sprzed dwóch liter potrafiłaby
+            // nadpisać świeższą.
+            if (przerwij) {
+                przerwij.abort();
+            }
+
+            przerwij = new AbortController();
+
+            fetch('/Szukaj?handler=Podpowiedzi&q=' + encodeURIComponent(fraza),
+                  { signal: przerwij.signal, headers: { 'X-Requested-With': 'fetch' } })
+                .then(function (odpowiedz) {
+                    return odpowiedz.ok ? odpowiedz.text() : '';
+                })
+                .then(function (html) {
+                    lista.innerHTML = html;
+                    wybrany = -1;
+                    pokaz();
+                })
+                .catch(function () {
+                    // Zerwane połączenie nie jest błędem, o którym warto
+                    // krzyczeć - pole dalej działa Enterem.
+                });
+        }
+
+        pole.addEventListener('input', function () {
+            window.clearTimeout(czekanie);
+            czekanie = window.setTimeout(doczytaj, 180);
+        });
+
+        pole.addEventListener('focus', pokaz);
+
+        pole.addEventListener('keydown', function (zdarzenie) {
+            if (zdarzenie.key === 'ArrowDown') {
+                zdarzenie.preventDefault();
+                pokaz();
+                zaznacz(wybrany + 1);
+            } else if (zdarzenie.key === 'ArrowUp') {
+                zdarzenie.preventDefault();
+                zaznacz(wybrany - 1);
+            } else if (zdarzenie.key === 'Enter' && wybrany >= 0 && !lista.hidden) {
+                zdarzenie.preventDefault();
+                pozycje()[wybrany].click();
+            } else if (zdarzenie.key === 'Escape') {
+                schowaj();
+            }
+        });
+
+        document.addEventListener('click', function (zdarzenie) {
+            if (!zdarzenie.target.closest('.szukajka')) {
+                schowaj();
+            }
+        });
+
+        // Ctrl+K (na Macu Cmd+K) - ten sam skrót, co w większości programów.
+        document.addEventListener('keydown', function (zdarzenie) {
+            if ((zdarzenie.ctrlKey || zdarzenie.metaKey) && zdarzenie.key === 'k') {
+                zdarzenie.preventDefault();
+                pole.focus();
+                pole.select();
+            }
+        });
+    }
+
     // Zakładki wewnątrz ekranu: przełączają widoczne panele bez odpytywania
     // serwera. Dane obu zakładek są już na stronie, więc przełączenie jest
     // natychmiastowe i nie gubi pozycji przewijania.

@@ -144,6 +144,77 @@ public sealed class TestyPowloki(AplikacjaTestowa aplikacja)
             html, StringComparison.Ordinal);
     }
 
+    /// <summary>Pole szukania stoi w pasku górnym na każdym ekranie.</summary>
+    [Fact]
+    public async Task PoleSzukaniaJestWPaskuGornym()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        using HttpResponseMessage odpowiedz =
+            await klient.GetAsync(new Uri("/Naleznosci", UriKind.Relative));
+
+        string html = await AplikacjaTestowa.TrescAsync(odpowiedz);
+
+        Assert.Contains("action=\"/Szukaj\"", html, StringComparison.Ordinal);
+        Assert.Contains("id=\"szukaj\"", html, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Szukanie ma działać także bez skryptów - zwykłym formularzem.
+    /// </summary>
+    [Fact]
+    public async Task EkranWynikowZnajdujeFaktureIKontrahenta()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        using HttpResponseMessage odpowiedz =
+            await klient.GetAsync(new Uri("/Szukaj?q=Auto-Serwis", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, odpowiedz.StatusCode);
+
+        string html = await AplikacjaTestowa.TrescAsync(odpowiedz);
+
+        Assert.Contains("Wyniki szukania", html, StringComparison.Ordinal);
+        Assert.Contains("Auto-Serwis", html, StringComparison.Ordinal);
+        Assert.Contains("Kontrahenci", html, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Podpowiedzi wracają jako gotowy kawałek strony, bez powłoki programu.
+    /// </summary>
+    [Fact]
+    public async Task PodpowiedziWracajaJakoKawalekStrony()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        using HttpResponseMessage odpowiedz = await klient.GetAsync(
+            new Uri("/Szukaj?handler=Podpowiedzi&q=Auto-Serwis", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, odpowiedz.StatusCode);
+
+        string html = await AplikacjaTestowa.TrescAsync(odpowiedz);
+
+        Assert.Contains("podpowiedz", html, StringComparison.Ordinal);
+        Assert.Contains("Pokaż wszystkie wyniki", html, StringComparison.Ordinal);
+
+        // Kawałek strony, a nie cała strona - inaczej doczytanie podpowiedzi
+        // ściągałoby przy każdej literze całe menu i pasek górny.
+        Assert.DoesNotContain("<html", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("menu-trybik", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SzukanieBezWynikuMowiWprostZeNicNieMa()
+    {
+        using HttpClient klient = await aplikacja.ZalogujAsync();
+
+        using HttpResponseMessage odpowiedz = await klient.GetAsync(
+            new Uri("/Szukaj?q=nieistniejacydokument", UriKind.Relative));
+
+        Assert.Contains("Nic nie pasuje", await AplikacjaTestowa.TrescAsync(odpowiedz),
+            StringComparison.Ordinal);
+    }
+
     /// <summary>
     /// Dawny adres listy zakupów prowadzi do zakładki kosztów.
     /// </summary>

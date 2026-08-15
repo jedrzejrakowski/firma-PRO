@@ -1,0 +1,60 @@
+@page
+@model SzukajModel
+@{
+    ViewData["Tytul"] = "Szukanie";
+}
+
+<div class="naglowek-ekranu">
+    <div>
+        <h1>Wyniki szukania</h1>
+        <p class="podtytul">
+            @if (Model.Szukane.Trim().Length == 0)
+            {
+                @:Wpisz numer faktury, nazwę kontrahenta, NIP albo numer KSeF.
+            }
+            else if (Model.ZaKrotkie)
+            {
+                @($"Wpisz przynajmniej {UslugaSzukania.NajkrotszeSzukane} znaki.")
+            }
+            else
+            {
+                @($"Znaleziono {Model.Wyniki.Ile} dla „{Model.Szukane}”.")
+            }
+        </p>
+    </div>
+</div>
+
+@if (Model.Wyniki.Ile == 0 && Model.Szukane.Trim().Length >= UslugaSzukania.NajkrotszeSzukane)
+{
+    <div class="pusto">
+        Nic nie pasuje do „@Model.Szukane”.<br />
+        Szukamy po numerze dokumentu, nazwie i NIP kontrahenta oraz numerze KSeF.
+    </div>
+}
+
+@foreach ((RodzajWyniku rodzaj, IReadOnlyList<Wynik> trafienia) in new[]
+{
+    (RodzajWyniku.FakturaSprzedazy, Model.Wyniki.Sprzedaz),
+    (RodzajWyniku.FakturaZakupu, Model.Wyniki.Zakupy),
+    (RodzajWyniku.Kontrahent, Model.Wyniki.Kontrahenci)
+})
+{
+    @if (trafienia.Count > 0)
+    {
+        <div class="karta zwarta">
+            <header>
+                <h2>@OdnosnikWyniku.Nazwa(rodzaj)</h2>
+                <span class="drobne">@trafienia.Count</span>
+            </header>
+            <div class="wyniki">
+                @foreach (Wynik wynik in trafienia)
+                {
+                    <a class="wynik" href="@OdnosnikWyniku.Dla(wynik)">
+                        <b>@wynik.Tytul</b>
+                        <span>@wynik.Opis</span>
+                    </a>
+                }
+            </div>
+        </div>
+    }
+}
