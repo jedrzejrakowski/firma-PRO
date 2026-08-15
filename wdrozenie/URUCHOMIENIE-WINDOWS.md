@@ -33,7 +33,9 @@ trzeba by instalować każdą z nich osobno.
    Agreement** — kliknij **Accept**. Program jest darmowy; płatna
    subskrypcja zaczyna się dopiero powyżej 250 pracowników albo 10 mln USD
    przychodu rocznie.
-5. Poczekaj, aż w lewym dolnym rogu okna pojawi się zielony napis
+5. Na ekranie **Welcome to Docker** kliknij **Skip** (link w prawym górnym
+   rogu okna). Konto Docker nie jest do niczego potrzebne.
+6. Poczekaj, aż w lewym dolnym rogu okna pojawi się zielony napis
    **Engine running**.
 
 > **Na marginesie, dla sprzedaży programu.** Powyższy warunek dotyczy
