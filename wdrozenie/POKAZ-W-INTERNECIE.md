@@ -8,9 +8,9 @@ Nie trzeba znać się na serwerach. Wszystkie polecenia są do przepisania
 jeden do jednego.
 
 **Czas:** około 40 minut, z czego połowa to czekanie.
-**Koszt:** około 20–25 zł miesięcznie za serwer plus ewentualnie 15–60 zł
-rocznie za nazwę domeny. Serwer można skasować zaraz po pokazie i płaci się
-wtedy za same godziny.
+**Koszt:** kilkadziesiąt złotych miesięcznie za serwer plus ewentualnie
+15–60 zł rocznie za nazwę domeny. Serwer rozlicza się godzinowo i można go
+skasować zaraz po pokazie — dwa dni to wtedy kilka złotych.
 
 ---
 
@@ -29,18 +29,38 @@ i wygody.
 
 ## 1. Wykup serwer
 
-Wystarczy najmniejszy. Program z bazą danych mieści się w 2 GB pamięci.
+**Nie sugeruj się nazwami pakietów — patrz na trzy liczby:**
 
-| Dostawca | Pakiet | Cena | Uwagi |
-|---|---|---|---|
-| [Hetzner](https://www.hetzner.com/cloud) | CX22 (2 rdzenie, 4 GB) | ok. 4,5 € / mies. | rozliczanie godzinowe, serwery w Niemczech |
-| [OVH](https://www.ovhcloud.com/pl/vps/) | VPS-1 | ok. 20 zł / mies. | polska obsługa i faktura |
-| [Mikr.us](https://mikr.us/) | Mikrus 3.0 | ok. 100 zł / rok | polski, tani, ale ciasny |
+| Parametr | Ile potrzeba | Uwaga |
+|---|---|---|
+| Rdzenie (vCPU) | 2 | „współdzielone" (*shared*) w zupełności wystarczą |
+| Pamięć (RAM) | 4 GB | 2 GB też zadziała, ale budowanie programu będzie się wlokło |
+| Dysk | 40 GB | zajmiemy około 5 GB |
+
+To najmniejsza półka u każdego dostawcy. **Dedykowanych rdzeni nie
+kupuj** — kosztują kilka razy więcej i na pokazie nic nie dadzą.
+
+Gdzie:
+
+- [Hetzner Cloud](https://www.hetzner.com/cloud) — rozliczanie godzinowe,
+  więc kilkudniowy pokaz kosztuje grosze. Na stronie wybiera się najpierw
+  rodzinę pakietów: **Cost-Optimized** albo **Regular Performance**;
+  *General Purpose* to dedykowane rdzenie i jest tu niepotrzebny.
+- [OVH](https://www.ovhcloud.com/pl/vps/) — polska obsługa i faktura,
+  rozliczanie miesięczne.
+- [Mikr.us](https://mikr.us/) — polski i tani, ale pakiety są ciasne:
+  sprawdź, czy wybrany ma 4 GB pamięci.
+
+> **Ceny sprawdź na stronie, nie tutaj.** Hetzner podnosił je w czerwcu
+> 2026 i część pakietów bywa chwilowo niedostępna. Zwróć też uwagę, czy
+> strona nie pokazuje cennika dla innego regionu — serwery w Stanach
+> kosztują więcej niż te w Niemczech.
 
 Przy zakładaniu serwera wybierz:
 
 - **System:** Ubuntu 24.04 LTS.
-- **Lokalizacja:** Niemcy albo Polska — im bliżej, tym szybciej działa.
+- **Lokalizacja:** Niemcy albo Polska — im bliżej, tym szybciej działa
+  i tym taniej.
 - **Dostęp:** jeśli dostawca proponuje klucz SSH, a nie masz go jeszcze,
   wybierz logowanie hasłem. Do pokazu w zupełności wystarczy.
 
