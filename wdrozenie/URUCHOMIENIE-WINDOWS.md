@@ -138,6 +138,38 @@ przeprowadzi sprawdzenie krok po kroku.
 
 ---
 
+## Aktualizacja programu
+
+Poprawki trafiają do repozytorium na GitHubie. Twój folder **nie zmienia się
+sam** — dopóki go nie odświeżysz, `docker compose up -d --build` przebuduje
+obraz z tych samych, starych plików.
+
+Najwygodniej przez Gita, bo aktualizacja to wtedy jedno polecenie.
+Jednorazowo:
+
+1. Zainstaluj <https://git-scm.com/download/win> (wszystko domyślnie).
+2. W PowerShellu, w miejscu, gdzie ma leżeć program:
+
+```powershell
+git clone -b claude/excel-invoicing-ksef-koxjud https://github.com/jedrzejrakowski/firma-PRO.git
+```
+
+3. Skopiuj swój plik `.env` do `firma-PRO\wdrozenie` — nie ma go
+   w repozytorium, bo zawiera hasła.
+
+Od tej pory każda aktualizacja to:
+
+```powershell
+git pull
+docker compose up -d --build
+```
+
+Dane pozostają nietknięte: leżą w woluminach Dockera, a nie w plikach
+programu. Przebudowa wymienia sam program.
+
+> Bez Gita to samo robi się pobraniem świeżego pliku ZIP i rozpakowaniem go
+> do nowego folderu — wtedy trzeba tylko pamiętać o przeniesieniu `.env`.
+
 ## Co dalej
 
 | Chcę… | Polecenie (w folderze `wdrozenie`) |
