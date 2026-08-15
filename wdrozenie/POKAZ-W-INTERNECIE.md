@@ -8,9 +8,9 @@ Nie trzeba znać się na serwerach. Wszystkie polecenia są do przepisania
 jeden do jednego.
 
 **Czas:** około 40 minut, z czego połowa to czekanie.
-**Koszt:** kilkadziesiąt złotych miesięcznie za serwer plus ewentualnie
-15–60 zł rocznie za nazwę domeny. Serwer rozlicza się godzinowo i można go
-skasować zaraz po pokazie — dwa dni to wtedy kilka złotych.
+**Koszt:** od kilkunastu do kilkudziesięciu złotych miesięcznie za serwer
+plus ewentualnie 15–60 zł rocznie za nazwę domeny. U dostawców
+rozliczających godzinowo dwudniowy pokaz to kilka złotych.
 
 ---
 
@@ -50,7 +50,12 @@ Gdzie:
   Uwaga na pakiety o numerach kończących się jedynką (CPX11, CPX21) —
   to starsza seria, droższa za te same parametry.
 - [OVHcloud](https://www.ovhcloud.com/pl/vps/) — ośrodek w Warszawie,
-  polska faktura i obsługa, rozliczanie miesięczne.
+  polska faktura i obsługa. Rozliczenie **miesięczne**, więc krótki pokaz
+  kosztuje tyle co cały miesiąc — ale sam miesiąc bywa tu kilka razy tańszy
+  niż u dostawców zagranicznych. W sierpniu 2026 parametrom z tabeli
+  odpowiadał pakiet **VPS-1**. Przy zamówieniu wybierz **„Bez umowy
+  terminowej"** — zniżki za 6 i 12 miesięcy wiążą Cię na cały ten okres
+  z automatycznym odnowieniem.
 - [e24cloud](https://www.e24cloud.com/) (Beyond.pl) — polska firma, ośrodek
   w Poznaniu, rozliczanie godzinowe jak u Hetznera.
 - [Mikr.us](https://mikr.us/) — polski i najtańszy, ale pakiety bywają
@@ -63,7 +68,7 @@ Gdzie:
 >    których ta instrukcja nie opisuje.
 > 2. **Pełny dostęp administratora** (root) — bez niego nie zainstalujesz
 >    Dockera.
-> 3. **Ubuntu 24.04** na liście systemów do wyboru.
+> 3. **Ubuntu** w wersji LTS na liście systemów do wyboru.
 
 > **Ceny sprawdź na stronie, nie tutaj.** Hetzner podnosił je w czerwcu
 > 2026 i część pakietów bywa chwilowo niedostępna. Zwróć też uwagę, czy
@@ -72,7 +77,10 @@ Gdzie:
 
 Przy zakładaniu serwera wybierz:
 
-- **System:** Ubuntu 24.04 LTS.
+- **System:** Ubuntu w wersji **LTS** - 24.04 albo nowsza (26.04).
+  Wersje bez oznaczenia LTS mają pół roku wsparcia i nie ma po co ich
+  brać. Gdy na liście jest kilka LTS-ów, weź 24.04 - jest najlepiej
+  ograna, a Docker ma dla niej pakiety od dawna.
 - **Lokalizacja:** Niemcy albo Polska — im bliżej, tym szybciej działa
   i tym taniej.
 - **Dostęp:** jeśli dostawca proponuje klucz SSH, a nie masz go jeszcze,
