@@ -51,6 +51,16 @@ public sealed partial class AplikacjaTestowa : WebApplicationFactory<Program>, I
     /// </remarks>
     public AtrapaPoczty Poczta { get; } = new();
 
+    /// <summary>
+    /// Kursy walut podstawione na czas testów.
+    /// </summary>
+    /// <remarks>
+    /// Podstawiane zawsze. Test nie może pytać Narodowego Banku Polskiego
+    /// o kurs: wynik zmieniałby się co dzień, a maszyna budująca program
+    /// bywa odcięta od sieci.
+    /// </remarks>
+    public AtrapaKursow Kursy { get; } = new();
+
     public async Task InitializeAsync() => await _baza.InitializeAsync();
 
     async Task IAsyncLifetime.DisposeAsync()
@@ -75,6 +85,7 @@ public sealed partial class AplikacjaTestowa : WebApplicationFactory<Program>, I
         builder.ConfigureTestServices(uslugi =>
         {
             uslugi.AddSingleton<INadawcaPoczty>(Poczta);
+            uslugi.AddSingleton<IKursyWalut>(Kursy);
 
             uslugi.AddScoped<IFabrykaKlientowKsef>(dostawca =>
                 Ksef is { } atrapa

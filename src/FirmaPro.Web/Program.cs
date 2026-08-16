@@ -162,6 +162,17 @@ budowniczy.Services.AddScoped<UslugaCertyfikatuKsef>();
 budowniczy.Services.AddHttpClient(FabrykaKlientowKsef.NazwaKlientaHttp,
     http => http.Timeout = TimeSpan.FromSeconds(60));
 
+// Kursy walut bierzemy z serwisu NBP. Krótki czas oczekiwania, bo wystawienie
+// faktury nie może wisieć minutę na cudzym serwerze - lepiej powiedzieć wprost,
+// że kursu nie udało się pobrać.
+budowniczy.Services.AddHttpClient(KlientNbp.NazwaKlientaHttp, http =>
+{
+    http.BaseAddress = new Uri(KlientNbp.AdresBazowy);
+    http.Timeout = TimeSpan.FromSeconds(15);
+});
+
+budowniczy.Services.AddScoped<IKursyWalut, KlientNbp>();
+
 budowniczy.Services.AddSingleton(TimeProvider.System);
 budowniczy.Services.AddScoped<IFabrykaKlientowKsef, FabrykaKlientowKsef>();
 

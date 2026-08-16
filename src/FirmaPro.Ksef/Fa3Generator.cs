@@ -262,6 +262,10 @@ public static class Fa3Generator
         foreach (string pole in PolaObowiazkowe)
         {
             fa.Add(new XElement(Ns + pole, Kwoty.NaXml(podsumowanie.Pole(pole))));
+
+            // Schemat stawia kwotę w złotych zaraz za kwotą w walucie, a nie
+            // na końcu podsumowania - kolejność elementów jest tu wiążąca.
+            DodajPodatekWZlotych(fa, faktura, podsumowanie, pole);
         }
 
         foreach (string pole in PolaOpcjonalne)
@@ -273,6 +277,35 @@ public static class Fa3Generator
         }
 
         fa.Add(new XElement(Ns + "P_15", Kwoty.NaXml(podsumowanie.RazemBrutto)));
+    }
+
+    /// <summary>
+    /// Kwoty podatku przeliczone na złote - pola P_14_xW.
+    /// </summary>
+    /// <remarks>
+    /// Faktura w walucie obcej musi wykazywać podatek także w złotych
+    /// (art. 106e ust. 11 ustawy). Przy fakturze złotowej pola te w ogóle
+    /// nie występują - powtarzanie tej samej kwoty dwa razy byłoby myleniem
+    /// odbiorcy.
+    /// </remarks>
+    private static void DodajPodatekWZlotych(XElement fa, Faktura faktura,
+                                             PodsumowanieFaktury podsumowanie, string pole)
+    {
+        // Pola z literą W mają wyłącznie kwoty podatku, i tylko cztery
+        // pierwsze stawki - reszta podsumowania ich nie ma.
+        if (!faktura.Walutowa
+            || pole is not ("P_14_1" or "P_14_2" or "P_14_3" or "P_14_4"))
+        {
+            return;
+        }
+
+        decimal wZlotych = Przeliczenie.NaZlote(
+            podsumowanie.Pole(pole), faktura.KursDoPrzeliczen);
+
+        if (wZlotych != 0)
+        {
+            fa.Add(new XElement(Ns + pole + "W", Kwoty.NaXml(wZlotych)));
+        }
     }
 
     /// <summary>
@@ -436,18 +469,21 @@ public static class Fa3Generator
         // Przy korekcie najpierw idą pozycje sprzed zmiany, oznaczone
         // znacznikiem StanPrzed, a dopiero po nich stan po korekcie.
         // Numeracja jest wspólna i ciągła dla obu grup.
+        decimal? kurs = faktura.Walutowa ? faktura.KursDoPrzeliczen : null;
+
         foreach (PozycjaFaktury pozycja in faktura.PozycjePrzedKorekta)
         {
-            fa.Add(Wiersz(pozycja, numerWiersza++, stanPrzed: true));
+            fa.Add(Wiersz(pozycja, numerWiersza++, stanPrzed: true, kurs));
         }
 
         foreach (PozycjaFaktury pozycja in faktura.Pozycje)
         {
-            fa.Add(Wiersz(pozycja, numerWiersza++, stanPrzed: false));
+            fa.Add(Wiersz(pozycja, numerWiersza++, stanPrzed: false, kurs));
         }
     }
 
-    private static XElement Wiersz(PozycjaFaktury pozycja, int numerWiersza, bool stanPrzed)
+    private static XElement Wiersz(PozycjaFaktury pozycja, int numerWiersza, bool stanPrzed,
+                                   decimal? kurs)
     {
         var wiersz = new XElement(Ns + "FaWiersz",
             new XElement(Ns + "NrWierszaFa", numerWiersza.ToString(CultureInfo.InvariantCulture)));
@@ -464,6 +500,13 @@ public static class Fa3Generator
         wiersz.Add(new XElement(Ns + "P_12", pozycja.Stawka.Kod));
 
         DodajGdyJest(wiersz, "GTU", pozycja.Gtu);
+
+        // Kurs powtarza się przy każdym wierszu - schemat FA(3) umieszcza go
+        // w wierszu, nie w nagłówku faktury.
+        if (kurs is decimal wartosc)
+        {
+            wiersz.Add(new XElement(Ns + "KursWaluty", Kwoty.LiczbaNaXml(wartosc, 6)));
+        }
 
         if (stanPrzed)
         {

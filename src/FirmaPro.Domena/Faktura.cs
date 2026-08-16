@@ -198,6 +198,23 @@ public sealed class Faktura
     /// <summary>Trzyliterowy kod waluty.</summary>
     public string Waluta { get; set; } = "PLN";
 
+    /// <summary>
+    /// Kurs przeliczenia na złote; puste przy fakturze w złotówkach.
+    /// </summary>
+    /// <remarks>
+    /// Faktura w walucie obcej musi wykazywać kwotę podatku w złotych
+    /// (art. 106e ust. 11 ustawy), a schemat FA(3) chce dodatkowo samego
+    /// kursu przy każdym wierszu.
+    /// </remarks>
+    public KursWaluty? Kurs { get; set; }
+
+    /// <summary>Kurs do przeliczeń - jeden do jednego dla faktur złotowych.</summary>
+    public decimal KursDoPrzeliczen => Kurs?.Wartosc ?? 1m;
+
+    /// <summary>Czy faktura jest wystawiona w walucie innej niż złoty.</summary>
+    public bool Walutowa =>
+        !string.Equals(Waluta, "PLN", StringComparison.OrdinalIgnoreCase);
+
     public RodzajFaktury Rodzaj { get; set; } = RodzajFaktury.Vat;
 
     public Podmiot Sprzedawca { get; set; } = new();

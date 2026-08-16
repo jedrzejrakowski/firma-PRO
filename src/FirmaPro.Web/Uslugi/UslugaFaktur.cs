@@ -59,6 +59,7 @@ public sealed class UslugaFaktur(
         string? podstawaZwolnienia,
         IReadOnlyList<(string Nazwa, string Jednostka, decimal Ilosc,
                        decimal CenaNetto, string KodStawki, string? Gtu)> pozycje,
+        KursWaluty? kurs = null,
         Action<FakturaSprzedazy>? przedZapisem = null,
         CancellationToken anulowanie = default)
     {
@@ -79,6 +80,14 @@ public sealed class UslugaFaktur(
 
         Faktura model = ZbudujModel(firma, kontrahent, dataWystawienia, dataSprzedazy,
             terminPlatnosci, formaPlatnosci, podstawaZwolnienia, pozycje);
+
+        // Waluta i kurs idą razem: kurs bez waluty niczego nie przelicza,
+        // a waluta bez kursu dałaby fakturę, z której nie wynika podatek.
+        if (kurs is not null && !kurs.Zlotowka)
+        {
+            model.Waluta = kurs.Waluta;
+            model.Kurs = kurs;
+        }
 
         // Numer nadajemy dopiero po sprawdzeniu reszty, żeby nieudana próba
         // nie zużywała kolejnych numerów z serii.
@@ -301,7 +310,8 @@ public sealed class UslugaFaktur(
         {
             return await WystawAsync(kontrahentId, dataWystawienia,
                 dataWystawienia, terminPlatnosci, formaPlatnosci, null, pozycje,
-                koncowa =>
+                kurs: null,
+                przedZapisem: koncowa =>
                 {
                     koncowa.Rodzaj = RodzajFaktury.Rozliczeniowa;
 
@@ -336,7 +346,7 @@ public sealed class UslugaFaktur(
                         koncowa.DataZaplaty = dataWystawienia;
                     }
                 },
-                anulowanie);
+                anulowanie: anulowanie);
         }
         catch (DbUpdateException wyjatek) when (wyjatek.InnerException is PostgresException
         {
@@ -800,6 +810,9 @@ public sealed class UslugaFaktur(
                 model.DataWystawienia, model.DataSprzedazy),
             MiejsceWystawienia = model.MiejsceWystawienia,
             Waluta = model.Waluta,
+            KursWaluty = model.Kurs?.Wartosc,
+            KursZDnia = model.Kurs?.ZDnia,
+            KursTabela = model.Kurs?.Tabela,
             Rodzaj = model.Rodzaj,
             KontrahentId = kontrahent.Id,
             // Dane nabywcy przepisujemy w chwili wystawienia - późniejsza
@@ -869,6 +882,10 @@ public sealed class UslugaFaktur(
         DataSprzedazy = encja.DataSprzedazy,
         MiejsceWystawienia = encja.MiejsceWystawienia,
         Waluta = encja.Waluta,
+        Kurs = encja.KursWaluty is decimal kurs
+            ? new KursWaluty(encja.Waluta, kurs,
+                encja.KursZDnia ?? encja.DataWystawienia, encja.KursTabela)
+            : null,
         Rodzaj = encja.Rodzaj,
         Sprzedawca = NaPodmiot(firma),
         Nabywca = new Podmiot

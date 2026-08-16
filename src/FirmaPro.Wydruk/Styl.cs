@@ -101,6 +101,17 @@ internal static class Styl
     public static string Ilosc(decimal wartosc) =>
         wartosc.ToString("0.######", FormatLiczb);
 
+    /// <summary>
+    /// Kurs waluty - tyle miejsc po przecinku, ile podał bank.
+    /// </summary>
+    /// <remarks>
+    /// NBP notuje zwykle cztery miejsca, ale przy walutach o niskim nominale
+    /// bywa ich więcej. Obcięcie do dwóch zmieniłoby kurs, a razem z nim
+    /// kwotę podatku, którą wydruk ma udokumentować.
+    /// </remarks>
+    public static string Kurs(decimal wartosc) =>
+        wartosc.ToString("0.0###########", FormatLiczb);
+
     /// <summary>Data w zapisie rok-miesiąc-dzień.</summary>
     public static string Data(DateOnly data) =>
         data.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

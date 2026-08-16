@@ -547,6 +547,62 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
     public DateOnly DataUjeciaVat { get; set; }
 
     public string Waluta { get; set; } = "PLN";
+
+    /// <summary>
+    /// Kurs, którym przeliczono fakturę na złote; puste przy fakturze w PLN.
+    /// </summary>
+    /// <remarks>
+    /// Zapisany przy wystawieniu i nigdy później nie przeliczany. Kurs bierze
+    /// się z konkretnego dnia (art. 31a ustawy) - odczytanie go ponownie
+    /// tydzień później dałoby inną kwotę podatku niż ta, którą pokazuje
+    /// wystawiony już dokument.
+    /// </remarks>
+    public decimal? KursWaluty { get; set; }
+
+    /// <summary>Dzień tabeli, z której pochodzi kurs.</summary>
+    public DateOnly? KursZDnia { get; set; }
+
+    /// <summary>Numer tabeli NBP - dowód, skąd wzięto kurs.</summary>
+    public string? KursTabela { get; set; }
+
+    /// <summary>Czy faktura jest wystawiona w walucie innej niż złoty.</summary>
+    public bool Walutowa =>
+        !string.Equals(Waluta, "PLN", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Kurs do przeliczeń - jeden do jednego dla faktur złotowych.
+    /// </summary>
+    /// <remarks>
+    /// Dzięki temu rejestr VAT i deklaracja mnożą zawsze, bez rozgałęziania
+    /// kodu na „a jeśli to złotówki". Pominięty warunek w jednym z takich
+    /// miejsc oznaczałby podatek policzony od kwoty w euro.
+    /// </remarks>
+    public decimal KursDoPrzeliczen => KursWaluty ?? 1m;
+
+    /// <summary>
+    /// Kwota podatku w złotych.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Faktura w obcej walucie musi wykazywać podatek także w złotych
+    /// (art. 106e ust. 11 ustawy) - i to ta kwota trafia do rejestru VAT.
+    /// </para>
+    /// <para>
+    /// Przeliczamy stawka po stawce, tak samo jak dokument wysyłany do KSeF
+    /// (pola P_14_xW). Przeliczenie samej sumy potrafi dać wynik różniący się
+    /// o grosz, a ekran, wydruk i plik muszą mówić dokładnie to samo -
+    /// rozbieżność w takim miejscu kończy się telefonem od księgowej.
+    /// </para>
+    /// </remarks>
+    public decimal PodatekWZlotych => Pozycje.Count == 0
+        ? Przeliczenie.NaZlote(RazemVat, KursDoPrzeliczen)
+        : Kwoty.Zaokraglij(Pozycje
+            .GroupBy(p => p.KodStawki, StringComparer.Ordinal)
+            .Sum(stawka => Przeliczenie.NaZlote(
+                stawka.Where(p => !p.StanPrzed).Sum(p => p.KwotaVat)
+                - stawka.Where(p => p.StanPrzed).Sum(p => p.KwotaVat),
+                KursDoPrzeliczen)));
+
     public RodzajFaktury Rodzaj { get; set; } = RodzajFaktury.Vat;
 
     public Guid KontrahentId { get; set; }

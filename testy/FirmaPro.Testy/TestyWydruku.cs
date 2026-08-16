@@ -257,6 +257,33 @@ public sealed class TestyWydruku
         Assert.Empty(Odnosniki(dokument.Pages[^1]));
     }
 
+    /// <summary>
+    /// Faktura walutowa drukuje więcej niż złotowa - o kurs i podatek w złotych.
+    /// </summary>
+    /// <remarks>
+    /// Treści wydruku nie da się odczytać z gotowego pliku: kroje pisma są
+    /// osadzone w podzbiorze, a strumień poleceń skompresowany. Sprawdzamy
+    /// więc to, co widać z zewnątrz - że dokument walutowy niesie dodatkowe
+    /// polecenia rysowania, i że nie pojawiają się one na fakturze złotowej,
+    /// gdzie powtarzałyby tę samą kwotę dwa razy.
+    /// </remarks>
+    [Fact]
+    public void FakturaWalutowaDrukujeKursIPodatekWZlotych()
+    {
+        Faktura zlotowa = Fabryka.PrzykladowaFaktura();
+
+        Faktura walutowa = Fabryka.PrzykladowaFaktura();
+        walutowa.Waluta = "EUR";
+        walutowa.Kurs = new KursWaluty("EUR", 4.2837m, new DateOnly(2026, 8, 19),
+            "160/A/NBP/2026");
+
+        int bezKursu = DlugoscPierwszejStrony(WydrukFaktury.Utworz(zlotowa));
+        int zKursem = DlugoscPierwszejStrony(WydrukFaktury.Utworz(walutowa));
+
+        Assert.True(zKursem > bezKursu,
+            "Wydruk faktury w euro powinien nieść kurs i kwotę podatku w złotych.");
+    }
+
     // ------------------------------------------------------------ pomocnicze
 
     /// <summary>Adresy, pod które prowadzą odnośniki umieszczone na stronie.</summary>

@@ -634,6 +634,57 @@ public static class WydrukFaktury
 
             _rysik.DrawLine(Styl.Linia, lewa, _y, Styl.Prawa, _y);
             _y += Styl.Mm(4);
+
+            PrzeliczenieNaZlote(podsumowanie);
+        }
+
+        /// <summary>
+        /// Kurs i kwota podatku w złotych - tylko przy fakturze walutowej.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Faktura wystawiona w obcej walucie musi wykazywać kwotę podatku
+        /// w złotych (art. 106e ust. 11 ustawy). Bez tej kwoty nabywca nie ma
+        /// czego wpisać do własnego rejestru, a sam wydruk jest wadliwy.
+        /// </para>
+        /// <para>
+        /// Obok kwoty drukujemy numer tabeli i jej datę. To one rozstrzygają
+        /// spór o kurs - odbiorca może sprawdzić przeliczenie u źródła,
+        /// zamiast wierzyć wystawcy na słowo.
+        /// </para>
+        /// </remarks>
+        private void PrzeliczenieNaZlote(PodsumowanieFaktury podsumowanie)
+        {
+            if (!faktura.Walutowa || faktura.Kurs is not KursWaluty kurs)
+            {
+                return;
+            }
+
+            // Podatek przeliczamy stawka po stawce, dokładnie tak jak robi to
+            // dokument wysyłany do KSeF. Przeliczenie samej sumy potrafi dać
+            // wynik różniący się o grosz, a wydruk i plik muszą mówić to samo.
+            decimal wZlotych = podsumowanie.WedlugStawek
+                .Sum(s => Przeliczenie.NaZlote(s.Vat, kurs));
+
+            string tabela = string.IsNullOrWhiteSpace(kurs.Tabela)
+                ? Styl.Data(kurs.ZDnia)
+                : kurs.Tabela + " z " + Styl.Data(kurs.ZDnia);
+
+            _rysik.DrawString(
+                $"Kurs: 1 {kurs.Waluta} = {Styl.Kurs(kurs.Wartosc)} PLN (tabela NBP {tabela})",
+                Styl.Mala, Styl.TekstSzary,
+                new XRect(Styl.Lewa, _y, Styl.SzerokoscTresci, Styl.Mm(4)),
+                XStringFormats.TopRight);
+
+            _y += Styl.Mm(4);
+
+            _rysik.DrawString(
+                "Kwota VAT w złotych: " + Styl.Kwota(wZlotych) + " PLN",
+                Styl.MalaWyrozniona, Styl.Tekst,
+                new XRect(Styl.Lewa, _y, Styl.SzerokoscTresci, Styl.Mm(4)),
+                XStringFormats.TopRight);
+
+            _y += Styl.Mm(5);
         }
 
         private void RysujWierszPodsumowania(double lewa, double[] kolumny,

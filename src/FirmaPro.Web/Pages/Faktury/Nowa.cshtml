@@ -56,6 +56,16 @@
             </div>
 
             <div class="pole">
+                <label for="waluta">Waluta</label>
+                <select id="waluta" name="Waluta">
+                    @foreach (string waluta in NowaModel.Waluty)
+                    {
+                        <option value="@waluta" selected="@(waluta == Model.Waluta)">@waluta</option>
+                    }
+                </select>
+            </div>
+
+            <div class="pole">
                 <label for="forma">Forma płatności</label>
                 <select id="forma" name="FormaPlatnosci">
                     @foreach (FormaPlatnosci forma in Enum.GetValues<FormaPlatnosci>())
@@ -68,6 +78,14 @@
             </div>
         </div>
     </div>
+
+    @* Kurs pobierany jest dopiero przy zapisie, bo do jego ustalenia potrzeba
+       daty wystawienia i sprzedaży - a te można jeszcze zmienić. *@
+    <p class="wskazowka" id="wyjasnienieWaluty" style="display:none;margin:-8px 0 16px">
+        Kwoty wpisujesz w wybranej walucie. Kurs średni NBP z dnia
+        poprzedzającego program pobierze sam i wykaże podatek także w złotych —
+        tego wymaga art. 106e ust. 11 ustawy o VAT.
+    </p>
 
     <div class="karta">
         <h2 style="margin-top:0">Pozycje</h2>
@@ -223,6 +241,17 @@
 
         cialo.addEventListener('change', pokazZwolnienieGdyTrzeba);
         pokazZwolnienieGdyTrzeba();
+
+        // Wyjaśnienie o kursie ma sens tylko przy walucie obcej.
+        const waluta = document.getElementById('waluta');
+        const wyjasnienie = document.getElementById('wyjasnienieWaluty');
+
+        function pokazWyjasnienie() {
+            wyjasnienie.style.display = waluta.value === 'PLN' ? 'none' : '';
+        }
+
+        waluta.addEventListener('change', pokazWyjasnienie);
+        pokazWyjasnienie();
 
         // Wybór pozycji z cennika wypełnia resztę wiersza. Dopasowujemy po
         // pełnej nazwie, bo tylko taką wstawia lista podpowiedzi - wpisana

@@ -59,6 +59,17 @@ public static class Kwoty
     /// </remarks>
     public static string NaTekst(decimal kwota) => kwota.ToString("N2", ZapisPolski);
 
+    /// <summary>
+    /// Kurs waluty zapisany po polsku - tyle miejsc, ile podał bank.
+    /// </summary>
+    /// <remarks>
+    /// NBP notuje zwykle cztery miejsca po przecinku, ale przy walutach
+    /// o niskim nominale bywa ich więcej. Obcięcie kursu do dwóch miejsc
+    /// zmieniłoby kwotę podatku, którą ten kurs ma tłumaczyć.
+    /// </remarks>
+    public static string KursNaTekst(decimal kurs) =>
+        kurs.ToString("0.0###########", ZapisPolski);
+
     private static readonly NumberFormatInfo ZapisPolski = new()
     {
         NumberDecimalSeparator = ",",

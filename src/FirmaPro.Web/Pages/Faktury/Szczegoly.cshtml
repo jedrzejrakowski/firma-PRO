@@ -118,6 +118,24 @@
             <div class="kwota">@Kwoty.NaTekst(Model.Faktura.RazemBrutto) @Model.Faktura.Waluta</div>
         </div>
     </div>
+
+    @* Faktura w obcej walucie musi wykazywać podatek także w złotych
+       (art. 106e ust. 11 ustawy) - i to ta kwota trafia do rejestru VAT
+       oraz do deklaracji. Numer tabeli jest dowodem, skąd wziął się kurs. *@
+    @if (Model.Faktura.Walutowa && Model.Faktura.KursWaluty is decimal kurs)
+    {
+        <p class="uwaga-kursu">
+            Kurs: 1 @Model.Faktura.Waluta = @Kwoty.KursNaTekst(kurs) PLN
+            @if (Model.Faktura.KursZDnia is DateOnly zDnia)
+            {
+                <text>(tabela NBP @(Model.Faktura.KursTabela is { Length: > 0 } tabela
+                    ? tabela + " z " : string.Empty)@zDnia.ToString("yyyy-MM-dd"))</text>
+            }
+            &middot;
+            <strong>VAT w złotych:
+                @Kwoty.NaTekst(Model.Faktura.PodatekWZlotych) PLN</strong>
+        </p>
+    }
 </div>
 
 @* Faktura końcowa obejmuje całą dostawę, ale część nabywca opłacił już

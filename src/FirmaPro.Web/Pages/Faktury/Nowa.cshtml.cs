@@ -26,8 +26,20 @@ public sealed class WierszPozycji
 public sealed class NowaModel(
     FirmaProDbContext baza,
     UslugaFaktur uslugaFaktur,
-    UslugaCennika uslugaCennika) : PageModel
+    UslugaCennika uslugaCennika,
+    IKursyWalut kursyWalut) : PageModel
 {
+    /// <summary>
+    /// Waluty do wyboru na fakturze.
+    /// </summary>
+    /// <remarks>
+    /// Lista krótka i zamknięta. Kod waluty wpisywany ręcznie prędzej czy
+    /// później byłby literówką, a faktura w nieistniejącej walucie nie da się
+    /// przeliczyć na złote.
+    /// </remarks>
+    public static IReadOnlyList<string> Waluty { get; } =
+        ["PLN", "EUR", "USD", "GBP", "CHF", "CZK", "SEK", "NOK", "DKK"];
+
     /// <summary>Kody GTU do wyboru na liście.</summary>
     public static IReadOnlyList<string> KodyGtu { get; } =
         Enumerable.Range(1, 13).Select(n => $"GTU_{n:00}").ToList();
@@ -38,6 +50,7 @@ public sealed class NowaModel(
     [BindProperty] public DateOnly? TerminPlatnosci { get; set; }
     [BindProperty] public FormaPlatnosci? FormaPlatnosci { get; set; }
     [BindProperty] public string? PodstawaZwolnienia { get; set; }
+    [BindProperty] public string Waluta { get; set; } = "PLN";
     [BindProperty] public List<WierszPozycji> Pozycje { get; set; } = [];
 
     public IReadOnlyList<Kontrahent> Kontrahenci { get; private set; } = [];
@@ -90,6 +103,23 @@ public sealed class NowaModel(
             return Page();
         }
 
+        KursWaluty? kurs;
+
+        try
+        {
+            kurs = await PobierzKursAsync(anulowanie);
+        }
+        catch (BladKursuException blad)
+        {
+            // Bez kursu nie da się policzyć podatku w złotych, więc faktura
+            // w ogóle nie powstaje. Lepiej zatrzymać się tutaj niż wystawić
+            // dokument, z którego nie wynika zobowiązanie wobec urzędu.
+            Bledy.Add(blad.Message);
+            await WczytajListyAsync(anulowanie);
+            ZapewnijWiersz();
+            return Page();
+        }
+
         WynikWystawienia wynik = await uslugaFaktur.WystawAsync(
             KontrahentId,
             DataWystawienia,
@@ -99,6 +129,7 @@ public sealed class NowaModel(
             PodstawaZwolnienia,
             wypelnione.Select(p => (p.Nazwa, p.Jednostka, p.Ilosc, p.CenaNetto,
                                     p.KodStawki, p.Gtu)).ToList(),
+            kurs: kurs,
             anulowanie: anulowanie);
 
         if (!wynik.Udalo)
@@ -115,6 +146,28 @@ public sealed class NowaModel(
             $"{Kwoty.NaTekst(wynik.Faktura.RazemBrutto)} {wynik.Faktura.Waluta}.";
 
         return RedirectToPage("Szczegoly", new { id = wynik.Faktura.Id });
+    }
+
+    /// <summary>
+    /// Kurs waluty na dzień wynikający z ustawy.
+    /// </summary>
+    /// <remarks>
+    /// Kurs pobierany jest raz, przy wystawieniu, i zapisywany przy fakturze.
+    /// Odczytanie go ponownie tydzień później dałoby inną kwotę podatku niż
+    /// ta, którą pokazuje wystawiony już dokument.
+    /// </remarks>
+    private async Task<KursWaluty?> PobierzKursAsync(CancellationToken anulowanie)
+    {
+        if (string.IsNullOrWhiteSpace(Waluta)
+            || string.Equals(Waluta, "PLN", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        DateOnly dzien = Przeliczenie.DzienKursu(
+            DataWystawienia, DataSprzedazy ?? DataWystawienia);
+
+        return await kursyWalut.KursAsync(Waluta, dzien, anulowanie);
     }
 
     private async Task WczytajListyAsync(CancellationToken anulowanie)

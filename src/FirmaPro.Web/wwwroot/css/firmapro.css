@@ -828,6 +828,17 @@ button:hover, .przycisk:hover { background: var(--atrament-jasny); }
     font-size: 1.4rem;
 }
 
+/* Kurs i podatek w złotych pod podsumowaniem faktury walutowej. */
+.uwaga-kursu {
+    margin: 10px 0 0;
+    text-align: right;
+    font-size: .85rem;
+    color: var(--tekst-drugi);
+    font-variant-numeric: tabular-nums;
+}
+
+.uwaga-kursu strong { color: var(--atrament); }
+
 /* ========================================================== ustawienia */
 
 .naglowek-sekcji {

@@ -81,12 +81,18 @@ public sealed class UslugaRejestruVat(FirmaProDbContext baza)
             return [];
         }
 
-        Dictionary<Guid, List<PozycjaFakturySprzedazy>> pozycje = (await baza.FakturySprzedazy
-                .Where(f => zaliczkoweId.Contains(f.Id))
-                .Include(f => f.Pozycje)
-                .AsNoTracking()
-                .ToListAsync(anulowanie))
-            .ToDictionary(f => f.Id, f => f.Pozycje.ToList());
+        // Zaliczkę przeliczamy jej własnym kursem, a nie kursem faktury
+        // końcowej. Podatek od zaliczki wykazano w miesiącu jej otrzymania
+        // i po tamtym kursie - odejmowanie kwoty przeliczonej inaczej
+        // zostawiłoby w rejestrze różnicę kursową udającą sprzedaż.
+        List<FakturaSprzedazy> zaliczkowe = await baza.FakturySprzedazy
+            .Where(f => zaliczkoweId.Contains(f.Id))
+            .Include(f => f.Pozycje)
+            .AsNoTracking()
+            .ToListAsync(anulowanie);
+
+        Dictionary<Guid, FakturaSprzedazy> wedlugId =
+            zaliczkowe.ToDictionary(f => f.Id);
 
         Dictionary<Guid, Dictionary<string, decimal>> wynik = [];
 
@@ -96,11 +102,18 @@ public sealed class UslugaRejestruVat(FirmaProDbContext baza)
 
             foreach (RozliczonaZaliczka rozliczona in koncowa.RozliczoneZaliczki)
             {
-                foreach (PozycjaFakturySprzedazy pozycja in
-                         pozycje.GetValueOrDefault(rozliczona.ZaliczkowaId, []))
+                if (!wedlugId.TryGetValue(rozliczona.ZaliczkowaId,
+                        out FakturaSprzedazy? zaliczkowa))
+                {
+                    continue;
+                }
+
+                foreach (PozycjaFakturySprzedazy pozycja in zaliczkowa.Pozycje)
                 {
                     wedlugStawek[pozycja.KodStawki] =
-                        wedlugStawek.GetValueOrDefault(pozycja.KodStawki) + pozycja.WartoscNetto;
+                        wedlugStawek.GetValueOrDefault(pozycja.KodStawki)
+                        + Przeliczenie.NaZlote(pozycja.WartoscNetto,
+                            zaliczkowa.KursDoPrzeliczen);
                 }
             }
 
@@ -145,9 +158,14 @@ public sealed class UslugaRejestruVat(FirmaProDbContext baza)
                 StawkaVat stawka = StawkaVat.ZKodu(kod);
                 List<PozycjaFakturySprzedazy> pozycje = wedlugKodu.GetValueOrDefault(kod, []);
 
+                // Rejestr prowadzi się w złotych, także dla faktury wystawionej
+                // w euro - podatek państwo pobiera w złotych. Przeliczamy przed
+                // zaokrągleniem, żeby suma zgadzała się z sumą przeliczoną.
                 decimal netto = Kwoty.Zaokraglij(
-                    pozycje.Where(p => !p.StanPrzed).Sum(p => p.WartoscNetto)
-                    - pozycje.Where(p => p.StanPrzed).Sum(p => p.WartoscNetto)
+                    Przeliczenie.NaZlote(
+                        pozycje.Where(p => !p.StanPrzed).Sum(p => p.WartoscNetto)
+                        - pozycje.Where(p => p.StanPrzed).Sum(p => p.WartoscNetto),
+                        faktura.KursDoPrzeliczen)
                     - (zaliczki?.GetValueOrDefault(kod) ?? 0m));
 
                 return new KwotyWStawce(stawka, netto, stawka.PodatekOd(netto));
