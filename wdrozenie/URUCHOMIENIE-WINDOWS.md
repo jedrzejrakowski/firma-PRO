@@ -170,6 +170,44 @@ programu. Przebudowa wymienia sam program.
 > Bez Gita to samo robi się pobraniem świeżego pliku ZIP i rozpakowaniem go
 > do nowego folderu — wtedy trzeba tylko pamiętać o przeniesieniu `.env`.
 
+### Przejście z pobranego archiwum na Gita
+
+Masz już program uruchomiony z rozpakowanego ZIP-a i chcesz przestać
+pobierać archiwa? **Twoje dane nic na tym nie stracą.**
+
+Faktury, kontrahenci i klucze nie leżą w folderze programu, tylko na
+woluminach Dockera o stałych nazwach (`firmapro_baza`, `firmapro_klucze`).
+Nazwy biorą się z pliku `docker-compose.yml`, a nie z tego, gdzie leży
+folder — więc uruchomienie programu z nowego miejsca sięga po te same dane.
+
+1. Zainstaluj <https://git-scm.com/download/win> (wszystko domyślnie)
+   i **otwórz PowerShell od nowa**.
+2. Pobierz repozytorium obok starego folderu:
+
+   ```powershell
+   cd C:\
+   git clone -b claude/excel-invoicing-ksef-koxjud https://github.com/jedrzejrakowski/firma-PRO.git
+   ```
+
+3. Przenieś swój plik `.env` ze starego folderu do
+   `C:\firma-PRO\wdrozenie` — jest w nim hasło do bazy i do Twojego konta,
+   a w repozytorium go nie ma.
+4. Uruchom program z nowego miejsca:
+
+   ```powershell
+   cd C:\firma-PRO\wdrozenie
+   docker compose up -d --build
+   ```
+
+5. Wejdź na `https://localhost` i sprawdź, czy widzisz swoje faktury.
+   **Dopiero wtedy** skasuj stary folder.
+
+Od tej pory aktualizacja to `git pull` i przebudowa — bez pobierania
+czegokolwiek ręcznie.
+
+> **Skąd wiadomo, co się zmieniło?** `git log --oneline -10` wypisze
+> ostatnie dziesięć zmian wraz z opisem, co i dlaczego zostało zrobione.
+
 ## Co dalej
 
 | Chcę… | Polecenie (w folderze `wdrozenie`) |
