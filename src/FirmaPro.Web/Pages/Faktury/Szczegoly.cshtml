@@ -153,6 +153,50 @@
     }
 </div>
 
+@* Podmioty trzecie decydują między innymi o tym, komu KSeF udostępni
+   fakturę - więc muszą być widoczne przy dokumencie, a nie tylko w pliku. *@
+@if (Model.Faktura.PodmiotyInne.Count > 0)
+{
+    <div class="karta">
+        <h2 style="margin-top:0">Podmioty inne</h2>
+
+        <table class="pozycje">
+            <thead>
+                <tr>
+                    <th>Rola</th>
+                    <th>Nazwa</th>
+                    <th>NIP</th>
+                    <th>Adres</th>
+                    <th class="liczba">Udział</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (PodmiotInnyFaktury podmiot in
+                          Model.Faktura.PodmiotyInne.OrderBy(p => p.NrKolejny))
+                {
+                    <tr>
+                        <td>
+                            <strong>
+                                @(podmiot.Rola is RolaPodmiotu rola
+                                    ? Role.Nazwa(rola)
+                                    : podmiot.OpisRoli ?? "—")
+                            </strong>
+                        </td>
+                        <td>@podmiot.Nazwa</td>
+                        <td class="nowrap">@(podmiot.Nip ?? "—")</td>
+                        <td>@(podmiot.AdresLinia1 ?? "—")</td>
+                        <td class="liczba">
+                            @(podmiot.Udzial is decimal udzial
+                                ? Kwoty.NaTekst(udzial) + "%"
+                                : "—")
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
 @* Faktura końcowa obejmuje całą dostawę, ale część nabywca opłacił już
    zaliczką - i to musi być widać, żeby nikt nie zapłacił drugi raz
    (art. 106f ust. 3 ustawy). *@

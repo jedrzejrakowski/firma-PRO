@@ -160,6 +160,7 @@ public static class Walidator
         SprawdzNaglowek(faktura, wynik);
         SprawdzPodmiot(faktura.Sprzedawca, "Sprzedawca", nipWymagany: true, wynik);
         SprawdzPodmiot(faktura.Nabywca, "Nabywca", nipWymagany: false, wynik);
+        SprawdzPodmiotyInne(faktura, wynik);
         SprawdzPozycje(faktura, wynik);
         SprawdzPlatnosc(faktura, wynik);
 
@@ -267,6 +268,81 @@ public static class Walidator
         SprawdzDlugosc(podmiot.Nazwa, MaxZnakowy512, $"{etykieta} / Nazwa", wynik);
         SprawdzDlugosc(podmiot.Adres.Linia1, MaxZnakowy512, $"{etykieta} / Adres", wynik);
         SprawdzDlugosc(podmiot.Adres.Linia2, MaxZnakowy512, $"{etykieta} / Adres", wynik);
+    }
+
+    /// <summary>
+    /// Sprawdza podmioty trzecie.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Rola jest tu najważniejsza. To ona rozstrzyga, po co ten podmiot stoi
+    /// na fakturze - i to według niej KSeF udostępnia dokument komuś innemu
+    /// niż nabywca. Podmiot bez roli jest dla systemu bezużyteczny, a schemat
+    /// takiego dokumentu nie przyjmie.
+    /// </para>
+    /// <para>
+    /// Udziały pilnujemy osobno: przy kilku nabywcach ich suma nie może
+    /// przekroczyć stu procent, bo reszta przypada nabywcy głównemu.
+    /// </para>
+    /// </remarks>
+    private static void SprawdzPodmiotyInne(Faktura faktura, WynikWalidacji wynik)
+    {
+        const int MaksymalnaLiczba = 100;
+
+        if (faktura.PodmiotyInne.Count > MaksymalnaLiczba)
+        {
+            wynik.Blad("Podmioty inne",
+                $"struktura dopuszcza najwyżej {MaksymalnaLiczba} podmiotów trzecich");
+        }
+
+        for (int i = 0; i < faktura.PodmiotyInne.Count; i++)
+        {
+            PodmiotInny podmiot = faktura.PodmiotyInne[i];
+            string etykieta = $"Podmiot inny {i + 1}";
+
+            if (!podmiot.MaRole)
+            {
+                wynik.Blad($"{etykieta} / Rola",
+                    "trzeba wskazać rolę z listy albo opisać ją własnymi słowami");
+            }
+
+            if (podmiot.Rola is not null && !string.IsNullOrWhiteSpace(podmiot.OpisRoli))
+            {
+                wynik.Blad($"{etykieta} / Rola",
+                    "rola z listy i opis własny wykluczają się - zostaw jedno");
+            }
+
+            if (string.IsNullOrWhiteSpace(podmiot.Dane.Nazwa))
+            {
+                wynik.Blad($"{etykieta} / Nazwa", "pole jest puste");
+            }
+
+            if (!string.IsNullOrWhiteSpace(podmiot.Dane.Nip)
+                && !NipPoprawny(podmiot.Dane.Nip))
+            {
+                wynik.Blad($"{etykieta} / NIP",
+                    $"numer '{podmiot.Dane.Nip}' ma błędną sumę kontrolną");
+            }
+
+            if (podmiot.Udzial is { } udzial && (udzial <= 0 || udzial > 100))
+            {
+                wynik.Blad($"{etykieta} / Udział",
+                    "udział podaje się w procentach, od 0 do 100");
+            }
+
+            SprawdzDlugosc(podmiot.Dane.Nazwa, MaxZnakowy512,
+                $"{etykieta} / Nazwa", wynik);
+        }
+
+        decimal suma = faktura.PodmiotyInne
+            .Where(p => p.Rola == RolaPodmiotu.DodatkowyNabywca)
+            .Sum(p => p.Udzial ?? 0m);
+
+        if (suma > 100m)
+        {
+            wynik.Blad("Podmioty inne / Udział",
+                "udziały dodatkowych nabywców przekraczają 100%");
+        }
     }
 
     private static void SprawdzPozycje(Faktura faktura, WynikWalidacji wynik)

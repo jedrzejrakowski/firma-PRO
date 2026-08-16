@@ -850,6 +850,29 @@ button:hover, .przycisk:hover { background: var(--atrament-jasny); }
     font-weight: 500;
 }
 
+/* Sekcja zwijana - rzadko potrzebne pola, które nie mają wydłużać formularza. */
+.naglowek-zwijany {
+    cursor: pointer;
+    font-family: var(--szeryf);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--atrament);
+    list-style: none;
+}
+
+.naglowek-zwijany::-webkit-details-marker { display: none; }
+
+.naglowek-zwijany::before {
+    content: "▸";
+    display: inline-block;
+    width: 1em;
+    color: var(--tekst-drugi);
+}
+
+/* Podmiana znaku zamiast obrotu - obrócony trójkąt w niektórych krojach
+   wypada w bok zamiast w dół. */
+details[open] > .naglowek-zwijany::before { content: "▾"; }
+
 /* Wyjaśnienie pod rzędem przycisków faktury wysłanej do KSeF. */
 .uwaga-dokumentu {
     margin: -6px 0 18px;

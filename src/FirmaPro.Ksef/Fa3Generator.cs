@@ -79,6 +79,7 @@ public static class Fa3Generator
             Naglowek(dataWytworzenia ?? DateTimeOffset.UtcNow),
             Podmiot1(faktura.Sprzedawca),
             Podmiot2(faktura.Nabywca),
+            faktura.PodmiotyInne.Select(Podmiot3),
             SekcjaFa(faktura));
 
         if (!string.IsNullOrWhiteSpace(faktura.Stopka))
@@ -182,6 +183,76 @@ public static class Fa3Generator
         // i przyjmują wartość "2" (nie), gdy przypadek nie zachodzi.
         element.Add(new XElement(Ns + "JST", nabywca.JednostkaPodrzednaJst ? "1" : "2"));
         element.Add(new XElement(Ns + "GV", nabywca.CzlonekGrupyVat ? "1" : "2"));
+
+        return element;
+    }
+
+    /// <summary>
+    /// Sekcja podmiotu trzeciego.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Kolejność elementów jest wiążąca: dane identyfikacyjne, adres, dane
+    /// kontaktowe, rola, udział, numer klienta. Rola jest wyborem rozłącznym -
+    /// albo wartość z listy, albo znacznik roli własnej razem z jej opisem.
+    /// Podanie obu naraz unieważnia dokument.
+    /// </para>
+    /// <para>
+    /// To po numerze NIP podanym w tej sekcji KSeF udostępnia fakturę
+    /// podmiotowi innemu niż nabywca - jednostce podrzędnej samorządu,
+    /// oddziałowi, członkowi grupy VAT.
+    /// </para>
+    /// </remarks>
+    private static XElement Podmiot3(PodmiotInny podmiot)
+    {
+        var dane = new XElement(Ns + "DaneIdentyfikacyjne");
+
+        if (!string.IsNullOrWhiteSpace(podmiot.Dane.Nip))
+        {
+            dane.Add(new XElement(Ns + "NIP", podmiot.Dane.Nip));
+        }
+        else if (!string.IsNullOrWhiteSpace(podmiot.Dane.KodUe)
+                 && !string.IsNullOrWhiteSpace(podmiot.Dane.NrVatUe))
+        {
+            dane.Add(new XElement(Ns + "KodUE", podmiot.Dane.KodUe));
+            dane.Add(new XElement(Ns + "NrVatUE", podmiot.Dane.NrVatUe));
+        }
+        else
+        {
+            dane.Add(new XElement(Ns + "BrakID", "1"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(podmiot.Dane.Nazwa))
+        {
+            dane.Add(new XElement(Ns + "Nazwa", podmiot.Dane.Nazwa));
+        }
+
+        var element = new XElement(Ns + "Podmiot3", dane);
+
+        if (!string.IsNullOrWhiteSpace(podmiot.Dane.Adres.Linia1))
+        {
+            element.Add(Adres(podmiot.Dane));
+        }
+
+        DodajDaneKontaktowe(element, podmiot.Dane);
+
+        if (podmiot.Rola is { } rola)
+        {
+            element.Add(new XElement(Ns + "Rola",
+                ((int)rola).ToString(CultureInfo.InvariantCulture)));
+        }
+        else
+        {
+            element.Add(new XElement(Ns + "RolaInna", "1"));
+            element.Add(new XElement(Ns + "OpisRoli", podmiot.OpisRoli));
+        }
+
+        if (podmiot.Udzial is { } udzial)
+        {
+            element.Add(new XElement(Ns + "Udzial", Kwoty.LiczbaNaXml(udzial, 2)));
+        }
+
+        DodajGdyJest(element, "NrKlienta", podmiot.NrKlienta);
 
         return element;
     }

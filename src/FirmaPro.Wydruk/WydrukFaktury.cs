@@ -300,6 +300,52 @@ public static class WydrukFaktury
                             szerokosc, wysokosc);
 
             _y += wysokosc + Styl.Mm(5);
+
+            PodmiotyInne();
+        }
+
+        /// <summary>
+        /// Podmioty trzecie wypisane pod stronami transakcji.
+        /// </summary>
+        /// <remarks>
+        /// Krótko i jedną linijką na podmiot: wydruk firmowy ma prowadzić wzrok
+        /// do kwoty i terminu, a nie tonąć w danych. Pełne dane każdego podmiotu
+        /// pokazuje wizualizacja KSeF. Pominąć ich jednak nie można - nabywca
+        /// musi wiedzieć, że towar odbiera oddział albo że zapłata idzie
+        /// do faktora.
+        /// </remarks>
+        private void PodmiotyInne()
+        {
+            if (faktura.PodmiotyInne.Count == 0)
+            {
+                return;
+            }
+
+            List<string> linie = faktura.PodmiotyInne
+                .Select(p => $"{p.NazwaRoli}: {p.Dane.Nazwa}"
+                             + (string.IsNullOrWhiteSpace(p.Dane.Nip)
+                                 ? string.Empty
+                                 : $", NIP {p.Dane.Nip}")
+                             + (p.Udzial is { } udzial
+                                 ? $", udział {Styl.Ilosc(udzial)}%"
+                                 : string.Empty))
+                .ToList();
+
+            ZapewnijMiejsce((linie.Count * Styl.Mm(4)) + Styl.Mm(8));
+
+            foreach (string linia in linie)
+            {
+                foreach (string zawinieta in
+                         ZawinTekst(linia, Styl.Mala, Styl.SzerokoscTresci))
+                {
+                    _rysik.DrawString(zawinieta, Styl.Mala, Styl.TekstSzary,
+                        Styl.Lewa, _y);
+
+                    _y += Styl.Mm(3.6);
+                }
+            }
+
+            _y += Styl.Mm(4);
         }
 
         private void PudelkoPodmiotu(string tytul, List<string> wiersze,

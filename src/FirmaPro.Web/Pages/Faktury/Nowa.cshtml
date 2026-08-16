@@ -179,6 +179,81 @@
         </div>
     </div>
 
+    @* Podmioty trzecie są rzadkie, więc sekcja jest zwinięta - zwykła faktura
+       nie ma się przez nie wydłużać. Ale gdy są potrzebne, są potrzebne
+       naprawdę: bez nich jednostka podrzędna samorządu nie zobaczy faktury
+       w swoim KSeF, a odbiorca-oddział nie pojawi się na dokumencie. *@
+    <details class="karta" id="kartaPodmiotow" open="@(Model.PodmiotyInne.Any(p => !p.CzyPusty))">
+        <summary class="naglowek-zwijany">
+            Podmioty inne — odbiorca, faktor, dodatkowy nabywca
+        </summary>
+
+        <p class="wskazowka" style="margin:10px 0 14px">
+            Wypełnij tylko wtedy, gdy z fakturą związany jest ktoś poza
+            sprzedawcą i nabywcą. Po numerze NIP podanym tutaj KSeF udostępni
+            fakturę temu podmiotowi.
+        </p>
+
+        <div class="przewijak">
+            <table class="pozycje" id="tabelaPodmiotow">
+                <thead>
+                    <tr>
+                        <th style="width:22%">Rola</th>
+                        <th>Nazwa</th>
+                        <th style="width:14%">NIP</th>
+                        <th style="width:20%">Adres</th>
+                        <th style="width:9%">Udział %</th>
+                        <th style="width:12%">Nr klienta</th>
+                        <th style="width:4%"></th>
+                    </tr>
+                </thead>
+                <tbody id="cialoPodmiotow">
+                    @for (int i = 0; i < Model.PodmiotyInne.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <select name="PodmiotyInne[@i].Rola">
+                                    <option value="">— wybierz —</option>
+                                    @foreach (RolaPodmiotu rola in NowaModel.Role)
+                                    {
+                                        <option value="@rola" selected="@(rola == Model.PodmiotyInne[i].Rola)">
+                                            @NowaModel.NazwaRoli(rola)
+                                        </option>
+                                    }
+                                </select>
+                            </td>
+                            <td><input type="text" name="PodmiotyInne[@i].Nazwa"
+                                       value="@Model.PodmiotyInne[i].Nazwa" maxlength="512" /></td>
+                            <td><input type="text" name="PodmiotyInne[@i].Nip"
+                                       value="@Model.PodmiotyInne[i].Nip" maxlength="13" /></td>
+                            <td><input type="text" name="PodmiotyInne[@i].AdresLinia1"
+                                       value="@Model.PodmiotyInne[i].AdresLinia1" maxlength="512" /></td>
+                            <td><input type="number" step="0.01" min="0" max="100"
+                                       name="PodmiotyInne[@i].Udzial"
+                                       value="@Model.PodmiotyInne[i].Udzial" /></td>
+                            <td><input type="text" name="PodmiotyInne[@i].NrKlienta"
+                                       value="@Model.PodmiotyInne[i].NrKlienta" maxlength="256" /></td>
+                            <td class="usun">
+                                <button type="button" class="usun-wiersz usunPodmiot"
+                                        title="Usuń">&times;</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="paskiem">
+            <button type="button" class="przycisk przycisk-drugi" id="dodajPodmiot">
+                Dodaj podmiot
+            </button>
+            <span class="drobne">
+                Udział wypełnia się tylko przy dodatkowym nabywcy — reszta
+                przypada nabywcy z faktury.
+            </span>
+        </div>
+    </details>
+
     <div class="karta" id="kartaZwolnienia" style="display:none">
         <div class="pole">
             <label for="zwolnienie">Podstawa zwolnienia z podatku</label>
@@ -241,6 +316,41 @@
 
         cialo.addEventListener('change', pokazZwolnienieGdyTrzeba);
         pokazZwolnienieGdyTrzeba();
+
+        // Podmioty trzecie - to samo dodawanie wierszy co przy pozycjach.
+        // Osobna numeracja, bo to osobna lista po stronie serwera.
+        const podmioty = document.getElementById('cialoPodmiotow');
+
+        function przenumerujPodmioty() {
+            podmioty.querySelectorAll('tr').forEach((wiersz, indeks) => {
+                wiersz.querySelectorAll('[name]').forEach(pole => {
+                    pole.name = pole.name.replace(
+                        /PodmiotyInne\[\d+\]/, 'PodmiotyInne[' + indeks + ']');
+                });
+            });
+        }
+
+        document.getElementById('dodajPodmiot').addEventListener('click', () => {
+            const nowy = podmioty.querySelector('tr').cloneNode(true);
+            nowy.querySelectorAll('input').forEach(pole => { pole.value = ''; });
+            nowy.querySelectorAll('select').forEach(pole => { pole.selectedIndex = 0; });
+            podmioty.appendChild(nowy);
+            przenumerujPodmioty();
+        });
+
+        podmioty.addEventListener('click', zdarzenie => {
+            if (!zdarzenie.target.classList.contains('usunPodmiot')) return;
+
+            // Ostatni wiersz zostaje pusty - inaczej nie byłoby czego klonować.
+            if (podmioty.querySelectorAll('tr').length === 1) {
+                zdarzenie.target.closest('tr')
+                    .querySelectorAll('input').forEach(pole => { pole.value = ''; });
+                return;
+            }
+
+            zdarzenie.target.closest('tr').remove();
+            przenumerujPodmioty();
+        });
 
         // Wyjaśnienie o kursie ma sens tylko przy walucie obcej.
         const waluta = document.getElementById('waluta');

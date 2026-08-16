@@ -22,6 +22,51 @@ public sealed class WierszPozycji
     public bool CzyPusty => string.IsNullOrWhiteSpace(Nazwa);
 }
 
+/// <summary>
+/// Pojedynczy wiersz formularza podmiotów trzecich.
+/// </summary>
+/// <remarks>
+/// Podmiot trzeci to odbiorca będący oddziałem nabywcy, faktor, dodatkowy
+/// nabywca albo jednostka podrzędna samorządu. Struktura FA(3) przewiduje na
+/// nie osobną sekcję, a KSeF właśnie po nich udostępnia fakturę komuś innemu
+/// niż nabywca.
+/// </remarks>
+public sealed class WierszPodmiotu
+{
+    public string Nazwa { get; set; } = string.Empty;
+    public string? Nip { get; set; }
+    public string? AdresLinia1 { get; set; }
+    public string? AdresLinia2 { get; set; }
+
+    /// <summary>Rola z listy; puste, gdy opisywana jest własnymi słowami.</summary>
+    public RolaPodmiotu? Rola { get; set; }
+
+    public string? OpisRoli { get; set; }
+    public decimal? Udzial { get; set; }
+    public string? NrKlienta { get; set; }
+
+    /// <summary>Wiersz bez nazwy uznajemy za pusty - taki pomijamy.</summary>
+    public bool CzyPusty => string.IsNullOrWhiteSpace(Nazwa);
+
+    public PodmiotInny NaModel() => new()
+    {
+        Dane = new Podmiot
+        {
+            Nazwa = Nazwa.Trim(),
+            Nip = Nip?.Trim() ?? string.Empty,
+            Adres = new Adres
+            {
+                Linia1 = AdresLinia1?.Trim() ?? string.Empty,
+                Linia2 = string.IsNullOrWhiteSpace(AdresLinia2) ? null : AdresLinia2.Trim()
+            }
+        },
+        Rola = Rola,
+        OpisRoli = string.IsNullOrWhiteSpace(OpisRoli) ? null : OpisRoli.Trim(),
+        Udzial = Udzial,
+        NrKlienta = string.IsNullOrWhiteSpace(NrKlienta) ? null : NrKlienta.Trim()
+    };
+}
+
 /// <summary>Wystawianie nowej faktury sprzedaży.</summary>
 public sealed class NowaModel(
     FirmaProDbContext baza,
@@ -52,6 +97,15 @@ public sealed class NowaModel(
     [BindProperty] public string? PodstawaZwolnienia { get; set; }
     [BindProperty] public string Waluta { get; set; } = "PLN";
     [BindProperty] public List<WierszPozycji> Pozycje { get; set; } = [];
+
+    /// <summary>Podmioty trzecie - w zwykłej fakturze pusta lista.</summary>
+    [BindProperty] public List<WierszPodmiotu> PodmiotyInne { get; set; } = [];
+
+    /// <summary>Role do wyboru na liście.</summary>
+    public static IReadOnlyList<RolaPodmiotu> Role { get; } = Domena.Role.Wszystkie;
+
+    /// <summary>Nazwa roli w brzmieniu ze schematu.</summary>
+    public static string NazwaRoli(RolaPodmiotu rola) => Domena.Role.Nazwa(rola);
 
     public IReadOnlyList<Kontrahent> Kontrahenci { get; private set; } = [];
 
@@ -88,6 +142,7 @@ public sealed class NowaModel(
 
         // Jeden pusty wiersz na start - użytkownik od razu ma gdzie pisać.
         Pozycje = [new WierszPozycji()];
+        PodmiotyInne = [new WierszPodmiotu()];
         return Page();
     }
 
@@ -130,6 +185,10 @@ public sealed class NowaModel(
             wypelnione.Select(p => (p.Nazwa, p.Jednostka, p.Ilosc, p.CenaNetto,
                                     p.KodStawki, p.Gtu)).ToList(),
             kurs: kurs,
+            podmiotyInne: PodmiotyInne
+                .Where(p => !p.CzyPusty)
+                .Select(p => p.NaModel())
+                .ToList(),
             anulowanie: anulowanie);
 
         if (!wynik.Udalo)
@@ -185,6 +244,13 @@ public sealed class NowaModel(
         if (Pozycje.Count == 0)
         {
             Pozycje.Add(new WierszPozycji());
+        }
+
+        // Formularz klonuje pierwszy wiersz, więc jeden musi tam zostać
+        // nawet wtedy, gdy użytkownik żadnego podmiotu nie wpisał.
+        if (PodmiotyInne.Count == 0)
+        {
+            PodmiotyInne.Add(new WierszPodmiotu());
         }
     }
 

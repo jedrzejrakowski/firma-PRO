@@ -100,6 +100,7 @@ public static class Fa3Czytnik
             TypKorekty = TypKorekty(fa)
         };
 
+        WczytajPodmiotyInne(korzen, faktura);
         WczytajWiersze(fa, faktura);
         WczytajKorygowane(fa, faktura);
         WczytajZaliczkowe(fa, faktura);
@@ -142,6 +143,38 @@ public static class Fa3Czytnik
         }
 
         return podmiot;
+    }
+
+    /// <summary>
+    /// Wczytuje podmioty trzecie związane z fakturą.
+    /// </summary>
+    /// <remarks>
+    /// Rola jest w schemacie wyborem rozłącznym: albo numer z listy, albo
+    /// znacznik roli własnej wraz z jej opisem. Nieznany numer zostawiamy jako
+    /// brak roli - to lepsze niż podstawienie pierwszej z brzegu, bo wydruk
+    /// przypisałby wtedy podmiotowi rolę, której nie ma w dokumencie.
+    /// </remarks>
+    private static void WczytajPodmiotyInne(XElement korzen, Faktura faktura)
+    {
+        foreach (XElement element in korzen.Elements(Ns + "Podmiot3"))
+        {
+            var podmiot = new PodmiotInny
+            {
+                Dane = Podmiot(element),
+                OpisRoli = Tekst(element, "OpisRoli"),
+                Udzial = Liczba(element, "Udzial"),
+                NrKlienta = Tekst(element, "NrKlienta")
+            };
+
+            if (Tekst(element, "Rola") is { } kod
+                && int.TryParse(kod, CultureInfo.InvariantCulture, out int numer)
+                && Enum.IsDefined(typeof(RolaPodmiotu), numer))
+            {
+                podmiot.Rola = (RolaPodmiotu)numer;
+            }
+
+            faktura.PodmiotyInne.Add(podmiot);
+        }
     }
 
     // ---------------------------------------------------------------- wiersze

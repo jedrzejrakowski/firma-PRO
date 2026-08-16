@@ -196,6 +196,46 @@ public static class WydrukKsef
             _y = Math.Max(poLewej, poPrawej) + Styl.Mm(3);
 
             Kreska();
+
+            PodmiotyInne();
+        }
+
+        /// <summary>
+        /// Podmioty trzecie - każdy w osobnej sekcji, jak w aplikacji KSeF.
+        /// </summary>
+        /// <remarks>
+        /// Rola stoi tuż pod nazwą, bo bez niej nie wiadomo, po co ten podmiot
+        /// jest na fakturze: czy odbiera towar, czy przejął wierzytelność,
+        /// czy dokłada się do zapłaty jako drugi nabywca.
+        /// </remarks>
+        private void PodmiotyInne()
+        {
+            int numer = 1;
+
+            foreach (PodmiotInny podmiot in faktura.PodmiotyInne)
+            {
+                NaglowekSekcji($"Podmiot inny {numer++}");
+
+                double szerokosc = Styl.SzerokoscTresci;
+
+                Podmiot(podmiot.Dane, Styl.Lewa);
+
+                Wiersz("Rola: " + podmiot.NazwaRoli, Styl.Lewa, szerokosc);
+
+                if (podmiot.Udzial is { } udzial)
+                {
+                    Wiersz("Udział: " + Styl.Ilosc(udzial) + "%", Styl.Lewa, szerokosc);
+                }
+
+                if (!string.IsNullOrWhiteSpace(podmiot.NrKlienta))
+                {
+                    Wiersz("Numer klienta: " + podmiot.NrKlienta, Styl.Lewa, szerokosc);
+                }
+
+                _y += Styl.Mm(3);
+
+                Kreska();
+            }
         }
 
         /// <summary>Rysuje jedną stronę transakcji i zwraca dolną krawędź.</summary>

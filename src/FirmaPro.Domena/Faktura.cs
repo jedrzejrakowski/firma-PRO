@@ -220,6 +220,17 @@ public sealed class Faktura
     public Podmiot Sprzedawca { get; set; } = new();
     public Podmiot Nabywca { get; set; } = new();
 
+    /// <summary>
+    /// Podmioty trzecie związane z fakturą.
+    /// </summary>
+    /// <remarks>
+    /// Odbiorca będący oddziałem nabywcy, faktor, dodatkowy nabywca, jednostka
+    /// podrzędna samorządu. Struktura FA(3) dopuszcza do stu takich podmiotów,
+    /// każdy z własną rolą - i to po nich KSeF udostępnia fakturę komuś innemu
+    /// niż nabywca z sekcji Podmiot2.
+    /// </remarks>
+    public List<PodmiotInny> PodmiotyInne { get; set; } = [];
+
     public List<PozycjaFaktury> Pozycje { get; set; } = [];
     public WarunkiPlatnosci Platnosc { get; set; } = new();
 

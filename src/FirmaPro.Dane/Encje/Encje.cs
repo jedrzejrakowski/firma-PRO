@@ -774,6 +774,9 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
     /// <summary>Zaliczki rozliczane tą fakturą - tylko przy fakturze końcowej.</summary>
     public ICollection<RozliczonaZaliczka> RozliczoneZaliczki { get; set; } = [];
 
+    /// <summary>Podmioty trzecie wskazane na fakturze.</summary>
+    public ICollection<PodmiotInnyFaktury> PodmiotyInne { get; set; } = [];
+
     /// <summary>
     /// Czy dokument jest już zamknięty na zmiany.
     /// </summary>
@@ -821,6 +824,43 @@ public sealed class PozycjaFakturySprzedazy : EncjaBazowa, INalezyDoFirmy
     /// jednymi a drugimi.
     /// </remarks>
     public bool StanPrzed { get; set; }
+}
+
+/// <summary>
+/// Podmiot trzeci wskazany na fakturze sprzedaży.
+/// </summary>
+/// <remarks>
+/// Dane przepisane w chwili wystawienia, tak samo jak dane nabywcy - dokument
+/// ma pozostać kompletny sam z siebie, nawet gdyby kartoteka się zmieniła.
+/// </remarks>
+public sealed class PodmiotInnyFaktury : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    public Guid FakturaId { get; set; }
+    public FakturaSprzedazy? Faktura { get; set; }
+
+    /// <summary>Kolejność na dokumencie, liczona od 1.</summary>
+    public int NrKolejny { get; set; }
+
+    public string Nazwa { get; set; } = string.Empty;
+    public string? Nip { get; set; }
+    public string KodKraju { get; set; } = "PL";
+    public string? AdresLinia1 { get; set; }
+    public string? AdresLinia2 { get; set; }
+    public string? Email { get; set; }
+    public string? Telefon { get; set; }
+
+    /// <summary>Rola z listy przewidzianej strukturą; puste przy roli własnej.</summary>
+    public RolaPodmiotu? Rola { get; set; }
+
+    /// <summary>Opis roli, gdy nie ma jej na liście.</summary>
+    public string? OpisRoli { get; set; }
+
+    /// <summary>Procentowy udział dodatkowego nabywcy.</summary>
+    public decimal? Udzial { get; set; }
+
+    public string? NrKlienta { get; set; }
 }
 
 /// <summary>

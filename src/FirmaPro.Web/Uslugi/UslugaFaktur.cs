@@ -60,6 +60,7 @@ public sealed class UslugaFaktur(
         IReadOnlyList<(string Nazwa, string Jednostka, decimal Ilosc,
                        decimal CenaNetto, string KodStawki, string? Gtu)> pozycje,
         KursWaluty? kurs = null,
+        IReadOnlyList<PodmiotInny>? podmiotyInne = null,
         Action<FakturaSprzedazy>? przedZapisem = null,
         CancellationToken anulowanie = default)
     {
@@ -80,6 +81,13 @@ public sealed class UslugaFaktur(
 
         Faktura model = ZbudujModel(firma, kontrahent, dataWystawienia, dataSprzedazy,
             terminPlatnosci, formaPlatnosci, podstawaZwolnienia, pozycje);
+
+        // Podmioty trzecie dokładamy przed walidacją - to ona sprawdza role
+        // i udziały, bez których dokumentu nie przyjmie ani schemat, ani KSeF.
+        if (podmiotyInne is { Count: > 0 })
+        {
+            model.PodmiotyInne = [.. podmiotyInne];
+        }
 
         // Waluta i kurs idą razem: kurs bez waluty niczego nie przelicza,
         // a waluta bez kursu dałaby fakturę, z której nie wynika podatek.
@@ -701,6 +709,7 @@ public sealed class UslugaFaktur(
             .Include(f => f.Pozycje)
             .Include(f => f.PozycjeZamowienia)
             .Include(f => f.RozliczoneZaliczki)
+            .Include(f => f.PodmiotyInne)
             .SingleAsync(f => f.Id == fakturaId, anulowanie);
 
         if (faktura.XmlWyslany is { Length: > 0 } zapisany)
@@ -741,6 +750,7 @@ public sealed class UslugaFaktur(
             .Include(f => f.Pozycje)
             .Include(f => f.PozycjeZamowienia)
             .Include(f => f.RozliczoneZaliczki)
+            .Include(f => f.PodmiotyInne)
             .SingleAsync(f => f.Id == fakturaId, anulowanie);
 
         Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
@@ -771,6 +781,7 @@ public sealed class UslugaFaktur(
             .Include(f => f.Pozycje)
             .Include(f => f.PozycjeZamowienia)
             .Include(f => f.RozliczoneZaliczki)
+            .Include(f => f.PodmiotyInne)
             .SingleAsync(f => f.Id == fakturaId, anulowanie);
 
         Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
@@ -939,6 +950,45 @@ public sealed class UslugaFaktur(
         Telefon = firma.Telefon
     };
 
+    private static PodmiotInny NaPodmiotInny(PodmiotInnyFaktury encja) => new()
+    {
+        Dane = new Podmiot
+        {
+            Nazwa = encja.Nazwa,
+            Nip = encja.Nip ?? string.Empty,
+            Adres = new Adres
+            {
+                KodKraju = encja.KodKraju,
+                Linia1 = encja.AdresLinia1 ?? string.Empty,
+                Linia2 = encja.AdresLinia2
+            },
+            Email = encja.Email,
+            Telefon = encja.Telefon
+        },
+        Rola = encja.Rola,
+        OpisRoli = encja.OpisRoli,
+        Udzial = encja.Udzial,
+        NrKlienta = encja.NrKlienta
+    };
+
+    private static PodmiotInnyFaktury NaEncjePodmiotu(PodmiotInny model, int nrKolejny) => new()
+    {
+        NrKolejny = nrKolejny,
+        Nazwa = model.Dane.Nazwa,
+        Nip = string.IsNullOrWhiteSpace(model.Dane.Nip) ? null : model.Dane.Nip,
+        KodKraju = model.Dane.Adres.KodKraju,
+        AdresLinia1 = string.IsNullOrWhiteSpace(model.Dane.Adres.Linia1)
+            ? null
+            : model.Dane.Adres.Linia1,
+        AdresLinia2 = model.Dane.Adres.Linia2,
+        Email = model.Dane.Email,
+        Telefon = model.Dane.Telefon,
+        Rola = model.Rola,
+        OpisRoli = model.OpisRoli,
+        Udzial = model.Udzial,
+        NrKlienta = model.NrKlienta
+    };
+
     /// <summary>Zamienia model dziedziny na encję zapisywaną w bazie.</summary>
     private static FakturaSprzedazy NaEncje(Faktura model, Kontrahent kontrahent)
     {
@@ -1016,6 +1066,12 @@ public sealed class UslugaFaktur(
             });
         }
 
+        int nrPodmiotu = 1;
+        foreach (PodmiotInny podmiot in model.PodmiotyInne)
+        {
+            encja.PodmiotyInne.Add(NaEncjePodmiotu(podmiot, nrPodmiotu++));
+        }
+
         return encja;
     }
 
@@ -1048,6 +1104,10 @@ public sealed class UslugaFaktur(
             JednostkaPodrzednaJst = encja.NabywcaJst,
             CzlonekGrupyVat = encja.NabywcaGrupaVat
         },
+        PodmiotyInne = encja.PodmiotyInne
+            .OrderBy(p => p.NrKolejny)
+            .Select(NaPodmiotInny)
+            .ToList(),
         Platnosc = new WarunkiPlatnosci
         {
             Forma = encja.FormaPlatnosci,

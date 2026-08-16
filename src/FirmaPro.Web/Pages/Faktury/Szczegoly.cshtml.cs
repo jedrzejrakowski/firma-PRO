@@ -311,6 +311,7 @@ public sealed class SzczegolyModel(
         baza.FakturySprzedazy
             .Include(f => f.Pozycje)
             .Include(f => f.RozliczoneZaliczki)
+            .Include(f => f.PodmiotyInne)
             .FirstOrDefaultAsync(f => f.Id == id, anulowanie);
 
     /// <summary>Zamienia numer faktury na nazwę pliku bez znaków specjalnych.</summary>

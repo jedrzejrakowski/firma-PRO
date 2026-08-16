@@ -83,6 +83,8 @@ public class FirmaProDbContext : DbContext
     public DbSet<Platnosc> Platnosci => Set<Platnosc>();
     public DbSet<PozycjaZamowieniaFaktury> PozycjeZamowien => Set<PozycjaZamowieniaFaktury>();
     public DbSet<RozliczonaZaliczka> RozliczoneZaliczki => Set<RozliczonaZaliczka>();
+
+    public DbSet<PodmiotInnyFaktury> PodmiotyInneFaktur => Set<PodmiotInnyFaktury>();
     public DbSet<Kontrahent> Kontrahenci => Set<Kontrahent>();
     public DbSet<PozycjaCennika> Cennik => Set<PozycjaCennika>();
     public DbSet<WzorzecCykliczny> WzorceCykliczne => Set<WzorzecCykliczny>();
@@ -381,6 +383,33 @@ public class FirmaProDbContext : DbContext
             // kwota zniknęłaby z podstawy opodatkowania dwukrotnie.
             e.HasIndex(z => new { z.FirmaId, z.ZaliczkowaId }).IsUnique();
         });
+
+        budowniczy.Entity<PodmiotInnyFaktury>(e =>
+        {
+            e.ToTable("podmioty_inne_faktur");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Nazwa).HasMaxLength(512).IsRequired();
+            e.Property(p => p.Nip).HasMaxLength(32);
+            e.Property(p => p.KodKraju).HasMaxLength(2).IsRequired();
+            e.Property(p => p.AdresLinia1).HasMaxLength(512);
+            e.Property(p => p.AdresLinia2).HasMaxLength(512);
+            e.Property(p => p.Email).HasMaxLength(256);
+            e.Property(p => p.Telefon).HasMaxLength(64);
+            e.Property(p => p.OpisRoli).HasMaxLength(256);
+            e.Property(p => p.NrKlienta).HasMaxLength(256);
+            e.Property(p => p.Udzial).HasPrecision(5, 2);
+
+            // Rola zapisana słowem, a nie numerem: przy zaglądaniu do bazy
+            // „JstOdbiorca" mówi wszystko, a „8" wymaga sięgnięcia po schemat.
+            e.Property(p => p.Rola).HasConversion<string>().HasMaxLength(32);
+
+            e.HasOne(p => p.Faktura)
+                .WithMany(f => f!.PodmiotyInne)
+                .HasForeignKey(p => p.FakturaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(p => new { p.FirmaId, p.FakturaId });
+        });
     }
 
     private static void KonfigurujWysylki(ModelBuilder budowniczy)
@@ -590,6 +619,8 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<RozliczonaZaliczka>()
             .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<PodmiotInnyFaktury>()
+            .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
