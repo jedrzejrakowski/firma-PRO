@@ -594,14 +594,53 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
     /// rozbieżność w takim miejscu kończy się telefonem od księgowej.
     /// </para>
     /// </remarks>
-    public decimal PodatekWZlotych => Pozycje.Count == 0
-        ? Przeliczenie.NaZlote(RazemVat, KursDoPrzeliczen)
-        : Kwoty.Zaokraglij(Pozycje
-            .GroupBy(p => p.KodStawki, StringComparer.Ordinal)
-            .Sum(stawka => Przeliczenie.NaZlote(
-                stawka.Where(p => !p.StanPrzed).Sum(p => p.KwotaVat)
-                - stawka.Where(p => p.StanPrzed).Sum(p => p.KwotaVat),
-                KursDoPrzeliczen)));
+    public decimal PodatekWZlotych =>
+        WedlugStawekWZlotych(RazemVat, p => p.KwotaVat);
+
+    /// <summary>
+    /// Wartość netto w złotych.
+    /// </summary>
+    /// <remarks>
+    /// Przepisy każą wykazać w złotych sam podatek, ale to netto trafia
+    /// do rejestru VAT jako podstawa opodatkowania i do przychodów firmy.
+    /// Liczone tą samą drogą co podatek, żeby obie kwoty pochodziły
+    /// z jednego rachunku.
+    /// </remarks>
+    public decimal NettoWZlotych =>
+        WedlugStawekWZlotych(RazemNetto, p => p.WartoscNetto);
+
+    /// <summary>
+    /// Wartość brutto w złotych.
+    /// </summary>
+    /// <remarks>
+    /// Suma dwóch przeliczonych kwot, a nie osobne przeliczenie brutto.
+    /// Inaczej wiersz netto i VAT potrafiłby nie sumować się do brutto,
+    /// i to dokładnie na oczach człowieka, który to sprawdza.
+    /// </remarks>
+    public decimal BruttoWZlotych => NettoWZlotych + PodatekWZlotych;
+
+    /// <summary>
+    /// Przelicza kwotę na złote stawka po stawce.
+    /// </summary>
+    /// <remarks>
+    /// Tak samo jak dokument wysyłany do KSeF (pola P_14_xW). Przeliczenie
+    /// samej sumy potrafi dać wynik różniący się o grosz, a ekran, wydruk
+    /// i plik muszą mówić dokładnie to samo - rozbieżność w takim miejscu
+    /// kończy się telefonem od księgowej.
+    /// </remarks>
+    /// <param name="suma">Kwota zapisana przy fakturze - używana, gdy pozycje
+    /// nie zostały wczytane z bazy.</param>
+    /// <param name="skladnik">Które pole pozycji sumować.</param>
+    private decimal WedlugStawekWZlotych(decimal suma,
+                                         Func<PozycjaFakturySprzedazy, decimal> skladnik) =>
+        Pozycje.Count == 0
+            ? Przeliczenie.NaZlote(suma, KursDoPrzeliczen)
+            : Kwoty.Zaokraglij(Pozycje
+                .GroupBy(p => p.KodStawki, StringComparer.Ordinal)
+                .Sum(stawka => Przeliczenie.NaZlote(
+                    stawka.Where(p => !p.StanPrzed).Sum(skladnik)
+                    - stawka.Where(p => p.StanPrzed).Sum(skladnik),
+                    KursDoPrzeliczen)));
 
     public RodzajFaktury Rodzaj { get; set; } = RodzajFaktury.Vat;
 

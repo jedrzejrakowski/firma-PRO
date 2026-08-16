@@ -828,7 +828,7 @@ button:hover, .przycisk:hover { background: var(--atrament-jasny); }
     font-size: 1.4rem;
 }
 
-/* Kurs i podatek w złotych pod podsumowaniem faktury walutowej. */
+/* Kurs i kwoty w złotych pod podsumowaniem faktury walutowej. */
 .uwaga-kursu {
     margin: 10px 0 0;
     text-align: right;
@@ -837,7 +837,18 @@ button:hover, .przycisk:hover { background: var(--atrament-jasny); }
     font-variant-numeric: tabular-nums;
 }
 
-.uwaga-kursu strong { color: var(--atrament); }
+/* Przeliczenie jest informacją pomocniczą - zapłata idzie w walucie
+   faktury, więc te kwoty nie mogą przyciągać wzroku mocniej niż ona. */
+.podsumowanie-kwot.w-zlotych {
+    margin-top: 6px;
+    gap: 22px;
+    color: var(--tekst-drugi);
+}
+
+.podsumowanie-kwot.w-zlotych .kwota {
+    font-size: .95rem;
+    font-weight: 500;
+}
 
 /* ========================================================== ustawienia */
 

@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using FirmaPro.Dane.Encje;
 using FirmaPro.Domena;
 using FirmaPro.Ksef;
 using Xunit;
@@ -122,6 +123,68 @@ public sealed class TestyWalut
         IReadOnlyList<string> bledy = Fabryka.BledyWalidacjiXsd(xml);
 
         Assert.Empty(bledy);
+    }
+
+    /// <summary>
+    /// Zapisana faktura przelicza się stawka po stawce, a brutto się zgadza.
+    /// </summary>
+    /// <remarks>
+    /// Przeliczenie sumy 1240 EUR dałoby 5311,79 zł tak samo, ale przy innym
+    /// zestawie kwot obie drogi rozjeżdżają się o grosz. Liczy się to, żeby
+    /// ekran podawał dokładnie te kwoty, które trafiają do rejestru VAT
+    /// i do pliku dla KSeF - a tam przeliczenie idzie po stawkach.
+    /// </remarks>
+    [Fact]
+    public void ZapisanaFakturaPrzeliczaSieStawkaPoStawce()
+    {
+        var faktura = new FakturaSprzedazy
+        {
+            Waluta = "EUR",
+            KursWaluty = 4.2837m,
+            RazemNetto = 1240m,
+            RazemVat = 249.20m,
+            RazemBrutto = 1489.20m,
+            Pozycje =
+            [
+                new PozycjaFakturySprzedazy
+                {
+                    KodStawki = "23", WartoscNetto = 1000m, KwotaVat = 230m
+                },
+                new PozycjaFakturySprzedazy
+                {
+                    KodStawki = "8", WartoscNetto = 240m, KwotaVat = 19.20m
+                }
+            ]
+        };
+
+        // 1000 po 4,2837 to 4283,70 zł, a 240 to 1028,09 zł.
+        Assert.Equal(5311.79m, faktura.NettoWZlotych);
+
+        // 230 to 985,25 zł, a 19,20 to 82,25 zł.
+        Assert.Equal(1067.50m, faktura.PodatekWZlotych);
+
+        // Brutto jest sumą tych dwóch, a nie osobnym przeliczeniem - inaczej
+        // wiersze na ekranie potrafiłyby się nie sumować.
+        Assert.Equal(6379.29m, faktura.BruttoWZlotych);
+        Assert.Equal(faktura.NettoWZlotych + faktura.PodatekWZlotych,
+                     faktura.BruttoWZlotych);
+    }
+
+    /// <summary>Faktura złotowa nie zmienia kwot ani o grosz.</summary>
+    [Fact]
+    public void ZapisanaFakturaZlotowaNiePrzeliczaKwot()
+    {
+        var faktura = new FakturaSprzedazy
+        {
+            RazemNetto = 1000m,
+            RazemVat = 230m,
+            RazemBrutto = 1230m
+        };
+
+        Assert.False(faktura.Walutowa);
+        Assert.Equal(1000m, faktura.NettoWZlotych);
+        Assert.Equal(230m, faktura.PodatekWZlotych);
+        Assert.Equal(1230m, faktura.BruttoWZlotych);
     }
 
     private static Faktura FakturaWalutowa() => new()

@@ -119,9 +119,12 @@
         </div>
     </div>
 
-    @* Faktura w obcej walucie musi wykazywać podatek także w złotych
+    @* Faktura w obcej walucie musi wykazywać w złotych sam podatek
        (art. 106e ust. 11 ustawy) - i to ta kwota trafia do rejestru VAT
-       oraz do deklaracji. Numer tabeli jest dowodem, skąd wziął się kurs. *@
+       oraz do deklaracji. Netto i brutto pokazujemy obok, bo bez nich
+       nie widać, ile ta faktura znaczy dla przychodów firmy. Kwoty są
+       przygaszone: kontrahent płaci w walucie faktury, nie w złotych.
+       Numer tabeli jest dowodem, skąd wziął się kurs. *@
     @if (Model.Faktura.Walutowa && Model.Faktura.KursWaluty is decimal kurs)
     {
         <p class="uwaga-kursu">
@@ -131,10 +134,22 @@
                 <text>(tabela NBP @(Model.Faktura.KursTabela is { Length: > 0 } tabela
                     ? tabela + " z " : string.Empty)@zDnia.ToString("yyyy-MM-dd"))</text>
             }
-            &middot;
-            <strong>VAT w złotych:
-                @Kwoty.NaTekst(Model.Faktura.PodatekWZlotych) PLN</strong>
         </p>
+
+        <div class="podsumowanie-kwot w-zlotych">
+            <div>
+                <div class="etykieta">Netto w PLN</div>
+                <div class="kwota">@Kwoty.NaTekst(Model.Faktura.NettoWZlotych)</div>
+            </div>
+            <div>
+                <div class="etykieta">VAT w PLN</div>
+                <div class="kwota">@Kwoty.NaTekst(Model.Faktura.PodatekWZlotych)</div>
+            </div>
+            <div>
+                <div class="etykieta">Brutto w PLN</div>
+                <div class="kwota">@Kwoty.NaTekst(Model.Faktura.BruttoWZlotych)</div>
+            </div>
+        </div>
     }
 </div>
 

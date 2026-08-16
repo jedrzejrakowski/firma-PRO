@@ -17,9 +17,9 @@ namespace FirmaPro.Testy;
 [Collection(KolekcjaAplikacji.Nazwa)]
 public sealed class TestyWalutWeb(AplikacjaTestowa aplikacja)
 {
-    /// <summary>Faktura w euro pokazuje kurs i kwotę podatku w złotych.</summary>
+    /// <summary>Faktura w euro pokazuje kurs i całą kwotę w złotych.</summary>
     [Fact]
-    public async Task FakturaWEuroPokazujeKursIPodatekWZlotych()
+    public async Task FakturaWEuroPokazujeKursIKwotyWZlotych()
     {
         using HttpClient klient = await aplikacja.ZalogujAsync();
         aplikacja.Kursy.Blad = null;
@@ -34,8 +34,11 @@ public sealed class TestyWalutWeb(AplikacjaTestowa aplikacja)
         Assert.Contains("1 EUR = 4,2837 PLN", html, StringComparison.Ordinal);
         Assert.Contains("160/A/NBP/2026", html, StringComparison.Ordinal);
 
-        // 230 EUR po 4,2837 daje 985,25 zł.
-        Assert.Contains("985,25 PLN", html, StringComparison.Ordinal);
+        // 1000 EUR po 4,2837 daje 4283,70 zł, podatek 985,25 zł,
+        // a brutto jest sumą jednego i drugiego - nie osobnym przeliczeniem.
+        Assert.Contains("4 283,70", html, StringComparison.Ordinal);
+        Assert.Contains("985,25", html, StringComparison.Ordinal);
+        Assert.Contains("5 268,95", html, StringComparison.Ordinal);
     }
 
     /// <summary>Faktura złotowa nie pokazuje żadnego kursu.</summary>
@@ -52,7 +55,7 @@ public sealed class TestyWalutWeb(AplikacjaTestowa aplikacja)
         string html = await WystawAsync(klient, "PLN", "500");
 
         Assert.DoesNotContain("tabela NBP", html, StringComparison.Ordinal);
-        Assert.DoesNotContain("VAT w złotych", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("VAT w PLN", html, StringComparison.Ordinal);
     }
 
     /// <summary>
