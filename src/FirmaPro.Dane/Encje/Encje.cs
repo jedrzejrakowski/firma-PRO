@@ -688,6 +688,27 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
     /// <summary>Skrót SHA-256 wysłanego pliku - potrzebny do kodu QR.</summary>
     public string? SkrotXml { get; set; }
 
+    /// <summary>
+    /// Plik XML, który poszedł do KSeF - co do bajtu.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bez niego program umiałby złożyć dokument o tej samej treści, ale nie
+    /// ten sam dokument: XML niesie znacznik czasu wytworzenia, więc złożony
+    /// ponownie ma inny skrót niż ten zapisany w KSeF. Pobrany plik nie
+    /// zgadzałby się z systemem, a wizualizacja powstawałaby z wierszy bazy,
+    /// nie z faktury, która naprawdę istnieje w obrocie.
+    /// </para>
+    /// <para>
+    /// Faktury sprzed wprowadzenia tej kolumny mają tu wartość pustą -
+    /// program wraca wtedy do składania dokumentu na nowo.
+    /// </para>
+    /// </remarks>
+    public byte[]? XmlWyslany { get; set; }
+
+    /// <summary>Czy zachowano plik przesłany do KSeF.</summary>
+    public bool MaXmlWyslany => XmlWyslany is { Length: > 0 };
+
     // --- urzędowe poświadczenie odbioru -----------------------------------
 
     /// <summary>

@@ -701,6 +701,9 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             nameof(FakturaSprzedazy.DataPrzyjeciaKsef),
             nameof(FakturaSprzedazy.UwagiKsef),
             nameof(FakturaSprzedazy.SkrotXml),
+            // Zapis przesłanego pliku niczego w fakturze nie zmienia -
+            // utrwala to, co właśnie z niej powstało i poszło do KSeF.
+            nameof(FakturaSprzedazy.XmlWyslany),
             // Poświadczenie odbioru i numer sesji opisują drogę dokumentu do
             // KSeF, a nie jego treść. Co więcej, poświadczenie z definicji
             // powstaje dopiero po wysłaniu - gdyby dopisanie go było zabronione,

@@ -32,6 +32,15 @@ internal static partial class Dziennik
     internal static partial void NieudanyKurs(ILogger dziennik, string waluta, int kod);
 
     [LoggerMessage(
+        EventId = 1011,
+        Level = LogLevel.Error,
+        Message = "Nie udało się odczytać zapisanego pliku XML faktury {numer}. " +
+                  "Wizualizacja powstała z danych w bazie, a nie z dokumentu " +
+                  "przesłanego do KSeF.")]
+    internal static partial void NieczytelnyXml(
+        ILogger dziennik, Exception przyczyna, string numer);
+
+    [LoggerMessage(
         EventId = 1009,
         Level = LogLevel.Warning,
         Message = "Nie udało się pobrać poświadczenia odbioru faktury {numer}")]

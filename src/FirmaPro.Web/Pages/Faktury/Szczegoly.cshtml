@@ -235,15 +235,30 @@
        coś wysyła. Pobranie pliku nie jest nieodwracalne, więc nie musi
        przyciągać wzroku tak samo mocno. *@
     <a class="przycisk przycisk-drugi" asp-page-handler="Pdf"
-       asp-route-id="@Model.Faktura.Id">Pobierz PDF</a>
+       asp-route-id="@Model.Faktura.Id">
+        @(Model.Faktura.MaXmlWyslany ? "Wizualizacja (PDF)" : "Pobierz PDF")
+    </a>
     <a class="przycisk przycisk-drugi" asp-page-handler="Xml"
-       asp-route-id="@Model.Faktura.Id">Pobierz XML</a>
+       asp-route-id="@Model.Faktura.Id">
+        @(Model.Faktura.MaXmlWyslany ? "Plik z KSeF (XML)" : "Pobierz XML")
+    </a>
     @* Duplikat wydaje się, gdy odbiorca zgubił egzemplarz (art. 106l ustawy) -
        treść jest ta sama, zmienia się samo oznaczenie i data wydania. *@
     <a class="przycisk przycisk-drugi" asp-page-handler="Pdf"
        asp-route-id="@Model.Faktura.Id" asp-route-duplikat="true">Duplikat</a>
     <a class="przycisk przycisk-drugi" asp-page="Index">Wróć do listy</a>
 </div>
+
+@* Po wysłaniu fakturą jest plik, który trafił do KSeF - wiersze tej bazy są
+   już tylko jego odbiciem. Warto, żeby użytkownik wiedział, że pobiera
+   dokument, a nie jego kopię złożoną na nowo. *@
+@if (Model.Faktura.MaXmlWyslany)
+{
+    <p class="uwaga-dokumentu">
+        Wizualizacja i plik XML powstają z dokumentu przesłanego do KSeF —
+        tego samego co do bajtu, którego skrót kryje kod QR na wydruku.
+    </p>
+}
 
 
 <h2>Zapłata</h2>

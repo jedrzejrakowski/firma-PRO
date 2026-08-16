@@ -523,6 +523,10 @@ public sealed class UslugaFaktur(
             string numerReferencyjny = await klientKsef.WyslijFaktureAsync(xml, anulowanie);
             faktura.Status = StatusKsef.Wyslana;
             faktura.SkrotXml = Kryptografia.SkrotBase64(xml);
+
+            // Plik zapisujemy w tej samej chwili co skrót - to on jest odtąd
+            // dokumentem, a wiersze bazy tylko jego odbiciem.
+            faktura.XmlWyslany = xml;
             await baza.SaveChangesAsync(anulowanie);
 
             WynikWeryfikacji wynik =
@@ -679,7 +683,17 @@ public sealed class UslugaFaktur(
         }
     }
 
-    /// <summary>Buduje dokument XML bez wysyłania go - do podglądu i kontroli.</summary>
+    /// <summary>
+    /// Udostępnia dokument XML faktury.
+    /// </summary>
+    /// <remarks>
+    /// Dla faktury wysłanej do KSeF oddaje <b>zapisany plik</b>, co do bajtu
+    /// ten sam, który tam trafił - jego skrót zgadza się z kodem QR i z tym,
+    /// co widnieje w systemie. Dokument złożony na nowo miałby świeży znacznik
+    /// czasu wytworzenia, a więc inny skrót, i nie dałoby się nim niczego
+    /// udowodnić. Dla dokumentu jeszcze niewysłanego składamy plik na bieżąco -
+    /// służy do podglądu i kontroli przed wysyłką.
+    /// </remarks>
     public async Task<byte[]> ZbudujXmlAsync(Guid fakturaId,
                                              CancellationToken anulowanie = default)
     {
@@ -688,6 +702,11 @@ public sealed class UslugaFaktur(
             .Include(f => f.PozycjeZamowienia)
             .Include(f => f.RozliczoneZaliczki)
             .SingleAsync(f => f.Id == fakturaId, anulowanie);
+
+        if (faktura.XmlWyslany is { Length: > 0 } zapisany)
+        {
+            return zapisany;
+        }
 
         Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
         return Fa3Generator.ZbudujXml(NaModel(faktura, firma));
@@ -740,7 +759,107 @@ public sealed class UslugaFaktur(
             opcje = opcje.JakoDuplikat(DateOnly.FromDateTime(DateTime.Today));
         }
 
-        return WydrukFaktury.Utworz(NaModel(faktura, firma), opcje);
+        return WydrukFaktury.Utworz(DoWydruku(faktura, firma), opcje);
+    }
+
+    /// <summary>
+    /// Faktura, z której powstaje wydruk.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Dla dokumentu wysłanego do KSeF odczytujemy <b>zapisany plik XML</b>.
+    /// To on jest fakturą w rozumieniu przepisów - wiersze bazy danych są
+    /// tylko jego odbiciem, a wizualizacja ma pokazywać dokument, nie odbicie.
+    /// Gdyby te dwa źródła kiedykolwiek się rozjechały, papier pozostanie
+    /// zgodny z tym, co widać w systemie.
+    /// </para>
+    /// <para>
+    /// Gdy odczyt się nie uda - plik zapisany starszą wersją programu, uszkodzony
+    /// zapis - wracamy do składania modelu z bazy. Faktura bez wydruku byłaby
+    /// gorsza niż wydruk ze źródła zapasowego, zwłaszcza że nabywca zwykle czeka.
+    /// </para>
+    /// </remarks>
+    private Faktura DoWydruku(FakturaSprzedazy faktura, Firma firma)
+    {
+        if (faktura.XmlWyslany is not { Length: > 0 } xml)
+        {
+            return NaModel(faktura, firma);
+        }
+
+        try
+        {
+            Faktura zPliku = Fa3Czytnik.Odczytaj(xml);
+
+            Uzupelnij(zPliku, faktura);
+
+            return zPliku;
+        }
+        catch (BladOdczytuFakturyException blad)
+        {
+            Dziennik.NieczytelnyXml(dziennik, blad, faktura.Numer);
+
+            return NaModel(faktura, firma);
+        }
+    }
+
+    /// <summary>
+    /// Dokłada to, czego struktura FA(3) nie przewiduje.
+    /// </summary>
+    /// <remarks>
+    /// Numer tabeli NBP i dzień, z którego wzięto kurs, nie mają w schemacie
+    /// swoich pól - a są dowodem przeliczenia i mają być na wydruku. Kwoty
+    /// faktur zaliczkowych struktura też pomija: wskazuje same dokumenty,
+    /// bez sum, a bez sum nabywca nie wie, ile już zapłacił. Sam kurs i numery
+    /// pochodzą z pliku - stąd bierzemy wyłącznie to, czego w nim nie ma.
+    /// </remarks>
+    private static void Uzupelnij(Faktura zPliku, FakturaSprzedazy faktura)
+    {
+        if (zPliku.Kurs is { } kurs)
+        {
+            zPliku.Kurs = kurs with
+            {
+                ZDnia = faktura.KursZDnia ?? kurs.ZDnia,
+                Tabela = faktura.KursTabela
+            };
+        }
+
+        if (zPliku.Zaliczkowe.Count == 0 || faktura.RozliczoneZaliczki.Count == 0)
+        {
+            return;
+        }
+
+        Dictionary<string, RozliczonaZaliczka> wedlugNumeru = faktura.RozliczoneZaliczki
+            .GroupBy(z => z.Numer, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        Dictionary<string, RozliczonaZaliczka> wedlugKsef = faktura.RozliczoneZaliczki
+            .Where(z => !string.IsNullOrWhiteSpace(z.NumerKsef))
+            .GroupBy(z => z.NumerKsef!, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        for (int i = 0; i < zPliku.Zaliczkowe.Count; i++)
+        {
+            DaneZaliczki zPlikuZaliczka = zPliku.Zaliczkowe[i];
+
+            RozliczonaZaliczka? zapisana =
+                (!string.IsNullOrWhiteSpace(zPlikuZaliczka.NumerKsef)
+                 && wedlugKsef.TryGetValue(zPlikuZaliczka.NumerKsef!, out RozliczonaZaliczka? poKsef)
+                    ? poKsef
+                    : null)
+                ?? (wedlugNumeru.TryGetValue(zPlikuZaliczka.Numer, out RozliczonaZaliczka? poNumerze)
+                    ? poNumerze
+                    : null);
+
+            if (zapisana is not null)
+            {
+                zPliku.Zaliczkowe[i] = zPlikuZaliczka with
+                {
+                    Numer = zapisana.Numer,
+                    DataWystawienia = zapisana.DataWystawienia,
+                    Brutto = zapisana.Brutto
+                };
+            }
+        }
     }
 
     // ------------------------------------------------------------ pomocnicze

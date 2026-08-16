@@ -850,6 +850,13 @@ button:hover, .przycisk:hover { background: var(--atrament-jasny); }
     font-weight: 500;
 }
 
+/* Wyjaśnienie pod rzędem przycisków faktury wysłanej do KSeF. */
+.uwaga-dokumentu {
+    margin: -6px 0 18px;
+    font-size: .85rem;
+    color: var(--tekst-drugi);
+}
+
 /* ========================================================== ustawienia */
 
 .naglowek-sekcji {
