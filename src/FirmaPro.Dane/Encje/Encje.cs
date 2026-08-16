@@ -382,6 +382,82 @@ public sealed class PozycjaCennika : EncjaBazowa, INalezyDoFirmy
     public bool Aktywna { get; set; } = true;
 }
 
+/// <summary>
+/// Wzorzec faktury wystawianej cyklicznie.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Abonament, stała obsługa, najem - dokumenty, które co miesiąc różnią się
+/// wyłącznie datą i numerem. Wzorzec pamięta ich treść, żeby nie przepisywać
+/// jej dwanaście razy w roku.
+/// </para>
+/// <para>
+/// Wzorzec nie wystawia faktur sam z siebie. Program pokazuje, co czeka na
+/// wystawienie, ale dokument powstaje dopiero po kliknięciu - faktura jest
+/// dokumentem prawnym, którego po wysłaniu do KSeF nie da się wycofać,
+/// a jedynie skorygować.
+/// </para>
+/// </remarks>
+public sealed class WzorzecCykliczny : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    /// <summary>Nazwa własna wzorca - widoczna tylko w programie.</summary>
+    public string Nazwa { get; set; } = string.Empty;
+
+    public Guid KontrahentId { get; set; }
+    public Kontrahent? Kontrahent { get; set; }
+
+    public RytmFaktury Rytm { get; set; } = RytmFaktury.Miesiecznie;
+
+    /// <summary>
+    /// Dzień miesiąca, w którym wypada wystawienie.
+    /// </summary>
+    /// <remarks>
+    /// Zero oznacza ostatni dzień miesiąca (<see cref="Cyklicznosc.OstatniDzien"/>).
+    /// Dzień dłuższy od miesiąca jest przycinany - 31 w lutym to 28 albo 29.
+    /// </remarks>
+    public int DzienMiesiaca { get; set; } = 1;
+
+    public int TerminPlatnosciDni { get; set; } = 14;
+
+    public FormaPlatnosci? FormaPlatnosci { get; set; } = Domena.FormaPlatnosci.Przelew;
+
+    /// <summary>Od kiedy wzorzec obowiązuje.</summary>
+    public DateOnly Od { get; set; }
+
+    /// <summary>Do kiedy obowiązuje; puste oznacza „bezterminowo”.</summary>
+    public DateOnly? Do { get; set; }
+
+    /// <summary>Data najbliższej faktury z tego wzorca.</summary>
+    public DateOnly NastepneWystawienie { get; set; }
+
+    /// <summary>Kiedy wystawiono z niego ostatnią fakturę.</summary>
+    public DateOnly? OstatnieWystawienie { get; set; }
+
+    public bool Aktywny { get; set; } = true;
+
+    public List<PozycjaWzorca> Pozycje { get; } = [];
+}
+
+/// <summary>Wiersz wzorca faktury cyklicznej.</summary>
+public sealed class PozycjaWzorca : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    public Guid WzorzecId { get; set; }
+    public WzorzecCykliczny? Wzorzec { get; set; }
+
+    public int NrWiersza { get; set; }
+
+    public string Nazwa { get; set; } = string.Empty;
+    public string Jednostka { get; set; } = "szt.";
+    public decimal Ilosc { get; set; } = 1m;
+    public decimal CenaNetto { get; set; }
+    public string KodStawki { get; set; } = "23";
+    public string? Gtu { get; set; }
+}
+
 /// <summary>Kontrahent - nabywca na fakturze.</summary>
 public sealed class Kontrahent : EncjaBazowa, INalezyDoFirmy
 {

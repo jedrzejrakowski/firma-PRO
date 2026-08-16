@@ -3,6 +3,7 @@
 @using FirmaPro.Web.Uslugi
 @inject UslugaKont UslugaKont
 @inject UslugaPulpitu UslugaPulpitu
+@inject UslugaFakturCyklicznych UslugaCyklicznych
 @{
     string? nazwaFirmy = User.FindFirstValue(Tozsamosc.NazwaFirmy);
     bool zalogowany = User.Identity?.IsAuthenticated == true;
@@ -19,6 +20,10 @@
     // Znacznik przy „Należnościach” ma być widoczny z każdego ekranu - to
     // jedyna liczba, o której właściciel firmy chce wiedzieć bez klikania.
     int poTerminie = zalogowany ? await UslugaPulpitu.IlePoTerminieAsync() : 0;
+
+    // Drugi licznik w menu: ile faktur cyklicznych czeka na potwierdzenie.
+    // Program ich nie wystawia sam, więc bez tej liczby przepadałyby po cichu.
+    int cykliczne = zalogowany ? await UslugaCyklicznych.IleCzekaAsync() : 0;
 
     string strona = ViewContext.RouteData.Values["page"] as string ?? string.Empty;
 }
@@ -98,6 +103,14 @@ else
                 <a class="@Tu(strona, "/Faktury", "/Zakupy")" asp-page="/Faktury/Index">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h8l4 4v16l-3-2-3 2-3-2-3 2z" /><path d="M14 2v4h4" /><path d="M9 11h6M9 15h4" /></svg>
                     Faktury
+                </a>
+                <a class="@Tu(strona, "/Cykliczne")" asp-page="/Cykliczne/Index">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v6h-6" /></svg>
+                    Cykliczne
+                    @if (cykliczne > 0)
+                    {
+                        <span class="licznik" title="Faktury cykliczne czekające na wystawienie">@cykliczne</span>
+                    }
                 </a>
                 <a class="@Tu(strona, "/Naleznosci")" asp-page="/Naleznosci">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>

@@ -44,6 +44,7 @@ public sealed record DanePulpitu(
 public sealed class UslugaPulpitu(
     FirmaProDbContext baza,
     UslugaPlatnosci uslugaPlatnosci,
+    UslugaFakturCyklicznych uslugaCyklicznych,
     TimeProvider czas)
 {
     /// <summary>Ile miesięcy pokazuje wykres.</summary>
@@ -160,6 +161,17 @@ public sealed class UslugaPulpitu(
                 $"{odrzucone} faktur odrzuconych przez KSeF",
                 "Popraw dane i wyślij ponownie",
                 "/Faktury/Index"));
+        }
+
+        int cykliczne = await uslugaCyklicznych.IleCzekaAsync(anulowanie);
+
+        if (cykliczne > 0)
+        {
+            sprawy.Add(new SprawaNaDzis(
+                "blisko",
+                $"{cykliczne} faktur cyklicznych czeka na wystawienie",
+                "Program nie wystawia ich sam - potwierdź, gdy się zgadzają",
+                "/Cykliczne/Index"));
         }
 
         int robocze = await baza.FakturySprzedazy

@@ -3,6 +3,7 @@ using System;
 using FirmaPro.Dane;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FirmaPro.Dane.Migracje
 {
     [DbContext(typeof(FirmaProDbContext))]
-    partial class FirmaProDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260816055238_FakturyCykliczne")]
+    partial class FakturyCykliczne
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

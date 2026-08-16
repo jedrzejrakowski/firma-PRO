@@ -1,0 +1,139 @@
+@page
+@model FirmaPro.Web.Pages.Cykliczne.IndexModel
+@{
+    ViewData["Tytul"] = "Faktury cykliczne";
+}
+
+<div class="naglowek-ekranu">
+    <div>
+        <h1>Faktury cykliczne</h1>
+        <p class="podtytul">
+            Abonamenty, stała obsługa, najem — treść wpisujesz raz, potem tylko potwierdzasz.
+        </p>
+    </div>
+    <a class="przycisk" asp-page="Wzorzec">Nowy wzorzec</a>
+</div>
+
+@if (Model.Czeka.Count > 0)
+{
+    <div class="karta zwarta">
+        <header>
+            <h2>Czeka na wystawienie</h2>
+            <span class="drobne">@Model.Czeka.Count</span>
+        </header>
+        <div class="przewijak">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Wzorzec</th>
+                        <th>Nabywca</th>
+                        <th>Data faktury</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (DoWystawienia czeka in Model.Czeka)
+                    {
+                        <tr>
+                            <td><strong>@czeka.Wzorzec.Nazwa</strong></td>
+                            <td>@czeka.Wzorzec.Kontrahent?.Nazwa</td>
+                            <td class="nowrap">
+                                @czeka.Wzorzec.NastepneWystawienie.ToString("yyyy-MM-dd")
+                                @if (czeka.Zalegle > 1)
+                                {
+                                    <span class="znacznik znacznik-odrzucona">
+                                        zaległe: @czeka.Zalegle
+                                    </span>
+                                }
+                            </td>
+                            <td class="nowrap">
+                                <form method="post" asp-page-handler="Wystaw"
+                                      asp-route-id="@czeka.Wzorzec.Id">
+                                    <button type="submit">Wystaw fakturę</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* Zaległości powstają po przerwie w pracy - jedno kliknięcie to jedna
+       faktura, więc trzeba powiedzieć wprost, że kolejne wypadnie powtórzyć. *@
+    @if (Model.Czeka.Any(c => c.Zalegle > 1))
+    {
+        <p class="wskazowka">
+            Przy zaległościach każde kliknięcie wystawia jedną fakturę — kolejne
+            pojawi się tu z powrotem, aż nadrobisz wszystkie okresy.
+        </p>
+    }
+}
+
+<h2>Wzorce</h2>
+
+@if (Model.Wzorce.Count == 0)
+{
+    <div class="pusto">
+        Nie ma jeszcze żadnego wzorca.<br />
+        Załóż pierwszy, jeśli wystawiasz komuś fakturę co miesiąc.
+    </div>
+}
+else
+{
+    <div class="przewijak">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nazwa</th>
+                    <th>Nabywca</th>
+                    <th>Rytm</th>
+                    <th>Najbliższa</th>
+                    <th>Obowiązuje</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (WzorzecCykliczny wzorzec in Model.Wzorce)
+                {
+                    <tr>
+                        <td>
+                            <strong>@wzorzec.Nazwa</strong>
+                            @if (!wzorzec.Aktywny)
+                            {
+                                <span class="znacznik znacznik-robocza">wstrzymany</span>
+                            }
+                            <span class="drobne">
+                                @wzorzec.Pozycje.Count poz. ·
+                                termin @wzorzec.TerminPlatnosciDni dni
+                            </span>
+                        </td>
+                        <td>@wzorzec.Kontrahent?.Nazwa</td>
+                        <td class="nowrap">
+                            @FirmaPro.Web.Pages.Cykliczne.IndexModel.OpisRytmu(wzorzec.Rytm)
+                            <span class="drobne">
+                                @FirmaPro.Web.Pages.Cykliczne.IndexModel.OpisDnia(wzorzec.DzienMiesiaca)
+                            </span>
+                        </td>
+                        <td class="nowrap">@wzorzec.NastepneWystawienie.ToString("yyyy-MM-dd")</td>
+                        <td class="nowrap">
+                            @wzorzec.Od.ToString("yyyy-MM-dd") —
+                            @(wzorzec.Do?.ToString("yyyy-MM-dd") ?? "bezterminowo")
+                        </td>
+                        <td class="nowrap">
+                            <div class="dzialania-wiersza">
+                                <a asp-page="Wzorzec" asp-route-id="@wzorzec.Id">Popraw</a>
+                                <form method="post" asp-page-handler="Przelacz"
+                                      asp-route-id="@wzorzec.Id">
+                                    <button type="submit" class="przycisk-drugi przycisk-maly">
+                                        @(wzorzec.Aktywny ? "Wstrzymaj" : "Wznów")
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

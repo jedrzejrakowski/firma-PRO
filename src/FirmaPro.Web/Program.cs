@@ -134,6 +134,7 @@ budowniczy.Services.AddScoped<UslugaPlatnosci>();
 budowniczy.Services.AddScoped<UslugaPulpitu>();
 budowniczy.Services.AddScoped<UslugaSzukania>();
 budowniczy.Services.AddScoped<UslugaCennika>();
+budowniczy.Services.AddScoped<UslugaFakturCyklicznych>();
 budowniczy.Services.AddScoped<UslugaZakladania>();
 budowniczy.Services.AddScoped<UslugaKont>();
 

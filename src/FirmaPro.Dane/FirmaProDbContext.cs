@@ -85,6 +85,8 @@ public class FirmaProDbContext : DbContext
     public DbSet<RozliczonaZaliczka> RozliczoneZaliczki => Set<RozliczonaZaliczka>();
     public DbSet<Kontrahent> Kontrahenci => Set<Kontrahent>();
     public DbSet<PozycjaCennika> Cennik => Set<PozycjaCennika>();
+    public DbSet<WzorzecCykliczny> WzorceCykliczne => Set<WzorzecCykliczny>();
+    public DbSet<PozycjaWzorca> PozycjeWzorcow => Set<PozycjaWzorca>();
     public DbSet<FakturaSprzedazy> FakturySprzedazy => Set<FakturaSprzedazy>();
     public DbSet<PozycjaFakturySprzedazy> PozycjeFaktur => Set<PozycjaFakturySprzedazy>();
     public DbSet<FakturaZakupu> FakturyZakupu => Set<FakturaZakupu>();
@@ -108,6 +110,7 @@ public class FirmaProDbContext : DbContext
         KonfigurujZakupy(modelBuilder);
         KonfigurujZamknieciaOkresow(modelBuilder);
         KonfigurujNumeracje(modelBuilder);
+        KonfigurujWzorce(modelBuilder);
 
         ZastosujFiltryFirmy(modelBuilder);
     }
@@ -508,11 +511,54 @@ public class FirmaProDbContext : DbContext
     /// Zakłada globalny filtr na każdą encję oznaczoną
     /// <see cref="INalezyDoFirmy"/>.
     /// </summary>
-    private void ZastosujFiltryFirmy(ModelBuilder budowniczy)
+private static void KonfigurujWzorce(ModelBuilder budowniczy)
+    {
+        budowniczy.Entity<WzorzecCykliczny>(e =>
+        {
+            e.ToTable("wzorce_cykliczne");
+            e.HasKey(w => w.Id);
+
+            e.Property(w => w.Nazwa).HasMaxLength(256).IsRequired();
+            e.Property(w => w.Rytm).HasConversion<string>().HasMaxLength(16);
+
+            e.HasOne(w => w.Kontrahent)
+                .WithMany()
+                .HasForeignKey(w => w.KontrahentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Ekran „do wystawienia" pyta zawsze o to samo: które wzorce tej
+            // firmy są czynne i mają termin nie później niż dziś.
+            e.HasIndex(w => new { w.FirmaId, w.Aktywny, w.NastepneWystawienie });
+        });
+
+        budowniczy.Entity<PozycjaWzorca>(e =>
+        {
+            e.ToTable("pozycje_wzorcow");
+            e.HasKey(p => p.Id);
+
+            e.Property(p => p.Nazwa).HasMaxLength(512).IsRequired();
+            e.Property(p => p.Jednostka).HasMaxLength(64);
+            e.Property(p => p.KodStawki).HasMaxLength(8).IsRequired();
+            e.Property(p => p.Gtu).HasMaxLength(8);
+            e.Property(p => p.Ilosc).HasPrecision(18, 6);
+            e.Property(p => p.CenaNetto).HasPrecision(18, 8);
+
+            e.HasOne(p => p.Wzorzec)
+                .WithMany(w => w!.Pozycje)
+                .HasForeignKey(p => p.WzorzecId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+        private void ZastosujFiltryFirmy(ModelBuilder budowniczy)
     {
         budowniczy.Entity<Kontrahent>()
             .HasQueryFilter(k => k.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<PozycjaCennika>()
+            .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<WzorzecCykliczny>()
+            .HasQueryFilter(w => w.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<PozycjaWzorca>()
             .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<FakturaSprzedazy>()
             .HasQueryFilter(f => f.FirmaId == AktualnaFirmaId);
