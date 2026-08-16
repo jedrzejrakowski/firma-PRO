@@ -60,6 +60,10 @@ Systemie e-Faktur od 1 lutego 2026 r.
 > współpracownikom albo klientowi? Zajrzyj do
 > [Pokaz w internecie](wdrozenie/POKAZ-W-INTERNECIE.md) — mały serwer,
 > własny adres z HTTPS i konta zakładane samodzielnie przez oglądających.
+>
+> Chcesz **zmieniać kod na własnym komputerze**? Zajrzyj do
+> [Praca w VS Code](PRACA-W-VS-CODE.md) — co zainstalować, jak uruchomić
+> program z podglądem w przeglądarce i jak puszczać testy.
 
 Poniższy sposób jest dla pracy nad kodem. Wymagany **.NET SDK 10.0**
 lub nowszy oraz PostgreSQL.

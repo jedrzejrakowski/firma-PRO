@@ -1,0 +1,15 @@
+{
+    // Uruchamianie programu klawiszem F5. Adres i tryb deweloperski biorą się
+    // z profilu "http" w Properties/launchSettings.json - trzymamy je w jednym
+    // miejscu, żeby uruchomienie z wiersza poleceń i z edytora dawało to samo.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Firma PRO (przeglądarka)",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/src/FirmaPro.Web/FirmaPro.Web.csproj",
+            "launchConfigurationId": "http"
+        }
+    ]
+}

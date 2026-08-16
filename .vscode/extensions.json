@@ -1,0 +1,16 @@
+{
+    // Rozszerzenia potrzebne do pracy nad tym programem. VS Code zaproponuje
+    // ich instalację przy pierwszym otwarciu katalogu.
+    "recommendations": [
+        // C#, podpowiadanie składni, przechodzenie do definicji, uruchamianie
+        // testów. To jedyne naprawdę wymagane rozszerzenie.
+        "ms-dotnettools.csdevkit",
+
+        // Podgląd i edycja bazy PostgreSQL bez wychodzenia z edytora.
+        "ms-ossdata.vscode-pgsql",
+
+        // Respektowanie .editorconfig - wcięcia i zakończenia wierszy zgodne
+        // z resztą repozytorium.
+        "editorconfig.editorconfig"
+    ]
+}

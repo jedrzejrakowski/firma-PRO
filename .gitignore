@@ -8,7 +8,14 @@ artifacts/
 
 # Katalogi narzędzi
 .vs/
-.vscode/
+
+# Ustawienia VS Code trzymamy w repozytorium tylko te wspólne: listę
+# rozszerzeń i konfigurację uruchamiania. Osobiste ustawienia edytora
+# każdego programisty zostają u niego.
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 .idea/
 
 # Dane wrażliwe - tokeny KSeF, ciągi połączenia, klucze

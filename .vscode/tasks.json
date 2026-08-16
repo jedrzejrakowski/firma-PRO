@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "budowanie",
+            "command": "dotnet",
+            "type": "process",
+            "args": ["build", "${workspaceFolder}/FirmaPro.slnx"],
+            "problemMatcher": "$msCompile",
+            "group": { "kind": "build", "isDefault": true }
+        },
+        {
+            "label": "testy",
+            "command": "dotnet",
+            "type": "process",
+            "args": ["test", "${workspaceFolder}/FirmaPro.slnx"],
+            "problemMatcher": "$msCompile",
+            "group": { "kind": "test", "isDefault": true }
+        },
+        {
+            // Baza na czas pracy. Dane przeżywają wyłączenie komputera,
+            // bo leżą na woluminie "firmapro-dane".
+            "label": "baza: uruchom",
+            "command": "docker",
+            "type": "process",
+            "args": [
+                "run", "--name", "firmapro-baza", "-d",
+                "-e", "POSTGRES_PASSWORD=postgres",
+                "-e", "POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale-provider=icu --icu-locale=pl-PL --locale=C.UTF-8",
+                "-p", "5432:5432",
+                "-v", "firmapro-dane:/var/lib/postgresql/data",
+                "postgres:16"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "baza: zatrzymaj",
+            "command": "docker",
+            "type": "process",
+            "args": ["stop", "firmapro-baza"],
+            "problemMatcher": []
+        }
+    ]
+}
