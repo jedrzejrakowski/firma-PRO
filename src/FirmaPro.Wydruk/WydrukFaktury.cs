@@ -482,6 +482,7 @@ public static class WydrukFaktury
             List<string> uwagi = LinieUwag();
 
             double wysokosc = WysokoscPodsumowania(podsumowanie)
+                            + WysokoscPrzeliczenia()
                             + WysokoscPlatnosci(platnosc)
                             + WysokoscKoduQr()
                             + WysokoscUwag(uwagi);
@@ -504,6 +505,10 @@ public static class WydrukFaktury
             Styl.Mm(4) + Styl.Mm(5.5)
             + ((podsumowanie.WedlugStawek.Count + 1) * Styl.Mm(5))
             + Styl.Mm(4);
+
+        /// <summary>Wiersz z kwotami w złotych i podpis z kursem pod tabelą.</summary>
+        private double WysokoscPrzeliczenia() =>
+            faktura.Walutowa && faktura.Kurs is not null ? Styl.Mm(5) + Styl.Mm(3) : 0;
 
         private static double WysokoscPlatnosci(List<(string, string)> wiersze) =>
             Styl.Mm(2)
@@ -632,39 +637,75 @@ public static class WydrukFaktury
 
             RysujWierszPodsumowania(lewa, kolumny, razem, Styl.TabelaNaglowek);
 
+            PrzeliczenieNaZlote(podsumowanie, lewa, kolumny);
+
             _rysik.DrawLine(Styl.Linia, lewa, _y, Styl.Prawa, _y);
             _y += Styl.Mm(4);
 
-            PrzeliczenieNaZlote(podsumowanie);
+            PodpisKursu();
         }
 
         /// <summary>
-        /// Kurs i kwota podatku w złotych - tylko przy fakturze walutowej.
+        /// Wiersz z kwotami przeliczonymi na złote - tylko przy walucie obcej.
         /// </summary>
         /// <remarks>
         /// <para>
         /// Faktura wystawiona w obcej walucie musi wykazywać kwotę podatku
-        /// w złotych (art. 106e ust. 11 ustawy). Bez tej kwoty nabywca nie ma
-        /// czego wpisać do własnego rejestru, a sam wydruk jest wadliwy.
+        /// w złotych (art. 106e ust. 11 ustawy). Bez niej nabywca nie ma czego
+        /// wpisać do własnego rejestru, a sam wydruk jest wadliwy. Netto
+        /// i brutto stoją obok, bo faktura służy też za dowód w księgach
+        /// obu stron, a tam wszystko liczy się w złotych.
         /// </para>
         /// <para>
-        /// Obok kwoty drukujemy numer tabeli i jej datę. To one rozstrzygają
-        /// spór o kurs - odbiorca może sprawdzić przeliczenie u źródła,
-        /// zamiast wierzyć wystawcy na słowo.
+        /// Wiersz jest wyszarzony i podpisany walutą, żeby nikt nie wziął go
+        /// za kwotę do zapłaty - płatność idzie w walucie faktury, a ta stoi
+        /// niżej, wytłuszczona, pod napisem „Do zapłaty".
+        /// </para>
+        /// <para>
+        /// Przeliczamy stawka po stawce, dokładnie tak jak dokument wysyłany
+        /// do KSeF. Przeliczenie samej sumy potrafi dać wynik różniący się
+        /// o grosz, a wydruk i plik muszą mówić to samo. Brutto jest sumą
+        /// dwóch pozostałych kwot - inaczej wiersz nie sumowałby się w poprzek.
         /// </para>
         /// </remarks>
-        private void PrzeliczenieNaZlote(PodsumowanieFaktury podsumowanie)
+        private void PrzeliczenieNaZlote(PodsumowanieFaktury podsumowanie, double lewa,
+                                         double[] kolumny)
         {
             if (!faktura.Walutowa || faktura.Kurs is not KursWaluty kurs)
             {
                 return;
             }
 
-            // Podatek przeliczamy stawka po stawce, dokładnie tak jak robi to
-            // dokument wysyłany do KSeF. Przeliczenie samej sumy potrafi dać
-            // wynik różniący się o grosz, a wydruk i plik muszą mówić to samo.
-            decimal wZlotych = podsumowanie.WedlugStawek
+            decimal netto = podsumowanie.WedlugStawek
+                .Sum(s => Przeliczenie.NaZlote(s.Netto, kurs));
+
+            decimal vat = podsumowanie.WedlugStawek
                 .Sum(s => Przeliczenie.NaZlote(s.Vat, kurs));
+
+            string[] wZlotych =
+            [
+                "W PLN",
+                Styl.Kwota(netto),
+                Styl.Kwota(vat),
+                Styl.Kwota(netto + vat)
+            ];
+
+            RysujWierszPodsumowania(lewa, kolumny, wZlotych, Styl.Tabela, Styl.TekstSzary);
+        }
+
+        /// <summary>
+        /// Skąd wzięty kurs.
+        /// </summary>
+        /// <remarks>
+        /// Numer tabeli i jej data rozstrzygają spór o przeliczenie - odbiorca
+        /// może sprawdzić kurs u źródła, zamiast wierzyć wystawcy na słowo.
+        /// </remarks>
+        private void PodpisKursu()
+        {
+            if (!faktura.Walutowa || faktura.Kurs is not KursWaluty kurs)
+            {
+                return;
+            }
 
             string tabela = string.IsNullOrWhiteSpace(kurs.Tabela)
                 ? Styl.Data(kurs.ZDnia)
@@ -673,27 +714,20 @@ public static class WydrukFaktury
             _rysik.DrawString(
                 $"Kurs: 1 {kurs.Waluta} = {Styl.Kurs(kurs.Wartosc)} PLN (tabela NBP {tabela})",
                 Styl.Mala, Styl.TekstSzary,
-                new XRect(Styl.Lewa, _y, Styl.SzerokoscTresci, Styl.Mm(4)),
+                new XRect(Styl.Lewa, _y - Styl.Mm(2), Styl.SzerokoscTresci, Styl.Mm(4)),
                 XStringFormats.TopRight);
 
-            _y += Styl.Mm(4);
-
-            _rysik.DrawString(
-                "Kwota VAT w złotych: " + Styl.Kwota(wZlotych) + " PLN",
-                Styl.MalaWyrozniona, Styl.Tekst,
-                new XRect(Styl.Lewa, _y, Styl.SzerokoscTresci, Styl.Mm(4)),
-                XStringFormats.TopRight);
-
-            _y += Styl.Mm(5);
+            _y += Styl.Mm(3);
         }
 
         private void RysujWierszPodsumowania(double lewa, double[] kolumny,
-                                             string[] wartosci, XFont krój)
+                                             string[] wartosci, XFont krój,
+                                             XBrush? atrament = null)
         {
             double x = lewa;
             for (int i = 0; i < kolumny.Length; i++)
             {
-                _rysik.DrawString(wartosci[i], krój, Styl.Tekst,
+                _rysik.DrawString(wartosci[i], krój, atrament ?? Styl.Tekst,
                     new XRect(x + Styl.Mm(1.5), _y + Styl.Mm(1.2),
                               Styl.Mm(kolumny[i]) - Styl.Mm(3), Styl.Mm(4)),
                     i == 0 ? XStringFormats.TopLeft : XStringFormats.TopRight);
