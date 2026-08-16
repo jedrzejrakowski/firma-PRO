@@ -1,0 +1,171 @@
+@page
+@model FirmaPro.Web.Pages.Rejestry.ZestawieniaModel
+@{
+    ViewData["Tytul"] = "Zestawienia";
+}
+
+<div class="naglowek-ekranu">
+    <div>
+        <h1>Zestawienia dla księgowej</h1>
+        <p class="podtytul">
+            Komplet dokumentów za okres, w formie, którą da się otworzyć w arkuszu.
+        </p>
+    </div>
+
+    <form method="get" class="wybor-okresu">
+        <label for="okres">Okres</label>
+        <select id="okres" name="okres" onchange="this.form.submit()">
+            @foreach (OkresRozliczeniowy okres in Model.DostepneOkresy)
+            {
+                <option value="@okres.Kod" selected="@(okres.Kod == Model.Okres.Kod)">
+                    @okres.Nazwa
+                </option>
+            }
+        </select>
+        <noscript><button type="submit" class="przycisk-maly">Pokaż</button></noscript>
+    </form>
+</div>
+
+<div class="kafelki">
+    <div class="kafelek">
+        <span class="etykieta">Faktury sprzedaży</span>
+        <span class="kwota">@Model.Rejestr.Sprzedaz.Wpisy.Count</span>
+        <span class="drobne">@Kwoty.NaTekst(Model.Rejestr.Sprzedaz.RazemNetto) zł netto</span>
+    </div>
+    <div class="kafelek">
+        <span class="etykieta">Faktury kosztowe</span>
+        <span class="kwota">@Model.Rejestr.Zakupy.Wpisy.Count</span>
+        <span class="drobne">@Kwoty.NaTekst(Model.Rejestr.Zakupy.RazemNetto) zł netto</span>
+    </div>
+    <div class="kafelek wyroznik">
+        <span class="etykieta">
+            @(Model.Rejestr.Rozliczenie.DoZaplaty > 0 ? "Podatek do zapłaty" : "Nadwyżka")
+        </span>
+        <span class="kwota">
+            @Kwoty.NaTekst(Model.Rejestr.Rozliczenie.DoZaplaty > 0
+                ? Model.Rejestr.Rozliczenie.DoZaplaty
+                : Model.Rejestr.Rozliczenie.Nadwyzka) zł
+        </span>
+        <span class="drobne">za @Model.Okres.Nazwa</span>
+    </div>
+    <div class="kafelek blisko">
+        <span class="etykieta">Termin</span>
+        <span class="kwota">@Model.Termin.ToString("dd.MM")</span>
+        <span class="drobne">deklaracja i zapłata do @Model.Termin.ToString("yyyy-MM-dd")</span>
+    </div>
+</div>
+
+<div class="karta">
+    <div class="naglowek-sekcji">Do wysłania</div>
+
+    <p>
+        <strong>Paczka</strong> zawiera oba zestawienia i podsumowanie okresu
+        w jednym pliku — to ją wysyła się księgowej. Osobne pliki są na wypadek,
+        gdyby potrzebowała tylko jednego.
+    </p>
+
+    <div class="paskiem">
+        <a class="przycisk" asp-page-handler="Paczka" asp-route-okres="@Model.Okres.Kod">
+            Pobierz paczkę (ZIP)
+        </a>
+        <a class="przycisk przycisk-drugi" asp-page-handler="Sprzedaz"
+           asp-route-okres="@Model.Okres.Kod">Sprzedaż (CSV)</a>
+        <a class="przycisk przycisk-drugi" asp-page-handler="Zakupy"
+           asp-route-okres="@Model.Okres.Kod">Zakupy (CSV)</a>
+        <a class="przycisk przycisk-drugi" asp-page="Jpk" asp-route-okres="@Model.Okres.Kod">
+            Plik JPK_V7
+        </a>
+    </div>
+
+    <p class="wskazowka">
+        Pliki CSV otwierają się w Excelu i Arkuszach Google bez ustawiania
+        czegokolwiek — mają średnik jako rozdzielacz kolumn, przecinek
+        dziesiętny i polskie znaki.
+    </p>
+</div>
+
+@if (Model.Rejestr.Sprzedaz.Wpisy.Count == 0 && Model.Rejestr.Zakupy.Wpisy.Count == 0)
+{
+    <div class="pusto">
+        W okresie @Model.Okres.Nazwa nie ma żadnych dokumentów.<br />
+        Zestawienie i tak się pobierze — będzie zawierać same nagłówki i zera.
+    </div>
+}
+else
+{
+    <div class="dwie">
+        <div class="karta zwarta">
+            <header>
+                <h2>Sprzedaż</h2>
+                <a asp-page="Vat" asp-route-okres="@Model.Okres.Kod">Rejestr VAT</a>
+            </header>
+            <div class="przewijak">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data ujęcia</th>
+                            <th>Numer</th>
+                            <th>Nabywca</th>
+                            <th class="liczba">Netto</th>
+                            <th class="liczba">VAT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (WpisSprzedazy wpis in Model.Rejestr.Sprzedaz.Wpisy.Take(10))
+                        {
+                            <tr>
+                                <td class="nowrap">@wpis.DataUjecia.ToString("yyyy-MM-dd")</td>
+                                <td class="nowrap"><strong>@wpis.Numer</strong></td>
+                                <td>@wpis.NabywcaNazwa</td>
+                                <td class="liczba">@Kwoty.NaTekst(wpis.RazemNetto)</td>
+                                <td class="liczba">@Kwoty.NaTekst(wpis.RazemVat)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.Rejestr.Sprzedaz.Wpisy.Count > 10)
+            {
+                <p class="wskazowka" style="padding:10px 16px">
+                    Podgląd pierwszych dziesięciu z @Model.Rejestr.Sprzedaz.Wpisy.Count —
+                    w pliku są wszystkie.
+                </p>
+            }
+        </div>
+
+        <div class="karta zwarta">
+            <header>
+                <h2>Koszty</h2>
+                <a asp-page="/Faktury/Index" asp-route-widok="koszty">Wszystkie</a>
+            </header>
+            <div class="przewijak">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Numer</th>
+                            <th>Sprzedawca</th>
+                            <th class="liczba">Netto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (WpisZakupu wpis in Model.Rejestr.Zakupy.Wpisy.Take(10))
+                        {
+                            <tr>
+                                <td class="nowrap"><strong>@wpis.Numer</strong></td>
+                                <td>@wpis.SprzedawcaNazwa</td>
+                                <td class="liczba">@Kwoty.NaTekst(wpis.Netto)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.Rejestr.Zakupy.Wpisy.Count > 10)
+            {
+                <p class="wskazowka" style="padding:10px 16px">
+                    Podgląd pierwszych dziesięciu z @Model.Rejestr.Zakupy.Wpisy.Count —
+                    w pliku są wszystkie.
+                </p>
+            }
+        </div>
+    </div>
+}
