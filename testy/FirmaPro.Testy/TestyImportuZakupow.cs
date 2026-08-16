@@ -209,6 +209,70 @@ public sealed class TestyImportuZakupow(BazaTestowa baza)
         Assert.Contains("token", blad.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Import zachowuje plik faktury pobrany od dostawcy.
+    /// </summary>
+    /// <remarks>
+    /// Metadane z KSeF niosą same sumy. Bez pliku nie da się pokazać ani
+    /// pozycji, ani stawek - a przy sporze nie mielibyśmy u siebie żadnego
+    /// dowodu treści faktury, za którą zapłaciliśmy.
+    /// </remarks>
+    [Fact]
+    public async Task ImportZachowujePlikFakturyZKsef()
+    {
+        Guid firmaId = await ZalozFirmeAsync();
+
+        byte[] xmlDostawcy = Fa3Generator.ZbudujXml(Fabryka.PrzykladowaFaktura());
+
+        using var atrapa = new AtrapaKsef(oczekiwanyToken: Token,
+                                          xmlFakturyZakupowej: xmlDostawcy);
+
+        await using FirmaProDbContext kontekst = baza.UtworzKontekst(firmaId);
+        UslugaImportuZakupow usluga = Usluga(kontekst, atrapa);
+
+        IReadOnlyList<ZnalezionaFaktura> znalezione = await usluga.SzukajAsync(Od, Do);
+        await usluga.ImportujAsync(Od, Do, [Decyzja(znalezione[0])]);
+
+        FakturaZakupu faktura = await kontekst.FakturyZakupu.SingleAsync();
+
+        Assert.True(faktura.MaXmlKsef);
+        Assert.Equal(xmlDostawcy, faktura.XmlKsef);
+
+        // Z zapisanego pliku da się złożyć wizualizację - o to w tym chodzi.
+        Faktura zPliku = Fa3Czytnik.Odczytaj(faktura.XmlKsef!);
+        Assert.NotEmpty(zPliku.Pozycje);
+    }
+
+    /// <summary>
+    /// Niedostępny plik nie zatrzymuje importu.
+    /// </summary>
+    /// <remarks>
+    /// Faktura ma trafić do rejestru nawet wtedy, gdy KSeF akurat nie oddaje
+    /// plików: podatek rozlicza się w terminie, a wizualizację da się
+    /// dociągnąć później.
+    /// </remarks>
+    [Fact]
+    public async Task BrakPlikuNiePrzerywaImportu()
+    {
+        Guid firmaId = await ZalozFirmeAsync();
+        using var atrapa = new AtrapaKsef(oczekiwanyToken: Token);
+
+        await using FirmaProDbContext kontekst = baza.UtworzKontekst(firmaId);
+        UslugaImportuZakupow usluga = Usluga(kontekst, atrapa);
+
+        IReadOnlyList<ZnalezionaFaktura> znalezione = await usluga.SzukajAsync(Od, Do);
+
+        // Pobieranie pliku kończy się błędem, ale sam wpis ma powstać.
+        atrapa.Awaria = ("invoices/ksef/", System.Net.HttpStatusCode.ServiceUnavailable);
+
+        WynikImportu wynik = await usluga.ImportujAsync(Od, Do, [Decyzja(znalezione[0])]);
+
+        Assert.Equal(1, wynik.Zaimportowano);
+
+        FakturaZakupu faktura = await kontekst.FakturyZakupu.SingleAsync();
+        Assert.False(faktura.MaXmlKsef);
+    }
+
     [Fact]
     public async Task OdpytanieOMetadaneNieOtwieraSesji()
     {

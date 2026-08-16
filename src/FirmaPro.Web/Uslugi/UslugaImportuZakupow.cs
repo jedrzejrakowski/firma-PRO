@@ -105,6 +105,8 @@ public sealed class UslugaImportuZakupow(
         int zaimportowano = 0;
         int pominieto = 0;
 
+        var doPobrania = new List<FakturaZakupu>();
+
         foreach (DecyzjaImportu decyzja in decyzje)
         {
             if (!wedlugNumeru.TryGetValue(decyzja.NumerKsef, out FakturaZakupowa? dane))
@@ -122,13 +124,82 @@ public sealed class UslugaImportuZakupow(
                 continue;
             }
 
-            baza.FakturyZakupu.Add(NaEncje(dane, decyzja, firma.TypOkresuVat));
+            FakturaZakupu encja = NaEncje(dane, decyzja, firma.TypOkresuVat);
+
+            baza.FakturyZakupu.Add(encja);
+            doPobrania.Add(encja);
             zaimportowano++;
         }
+
+        await PobierzPlikiAsync(firma, doPobrania, anulowanie);
 
         await baza.SaveChangesAsync(anulowanie);
 
         return new WynikImportu(zaimportowano, pominieto, null);
+    }
+
+    /// <summary>
+    /// Dociąga z KSeF pliki XML zaimportowanych faktur.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Metadane niosą same sumy - dość do rejestru VAT, za mało, żeby zobaczyć,
+    /// za co zapłacono. Plik pozwala wydrukować wizualizację faktury dostawcy,
+    /// a przy sporze jest jedynym dowodem jej treści, jaki mamy u siebie.
+    /// </para>
+    /// <para>
+    /// Nieudane pobranie nie zatrzymuje importu, a pojedyncza faktura nie do
+    /// pobrania nie przekreśla pozostałych. Dokumenty mają trafić do rejestru
+    /// nawet wtedy, gdy KSeF akurat nie oddaje plików: podatek rozlicza się
+    /// w terminie, a wizualizację da się dociągnąć później.
+    /// </para>
+    /// <para>
+    /// Wszystkie pliki bierzemy w jednej sesji. Logowanie do KSeF jest drogie -
+    /// osobna sesja na każdą fakturę przy imporcie całego miesiąca oznaczałaby
+    /// kilkadziesiąt niepotrzebnych uwierzytelnień.
+    /// </para>
+    /// </remarks>
+    private async Task PobierzPlikiAsync(Firma firma, List<FakturaZakupu> faktury,
+                                         CancellationToken anulowanie)
+    {
+        if (faktury.Count == 0)
+        {
+            return;
+        }
+
+        IKlientKsef klient = fabrykaKlientow.Utworz(firma.Srodowisko);
+
+        try
+        {
+            await UwierzytelnienieKsef.ZalogujAsync(klient, firma, ochronaTokena, anulowanie);
+
+            foreach (FakturaZakupu faktura in faktury)
+            {
+                if (string.IsNullOrWhiteSpace(faktura.NumerKsef))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    faktura.XmlKsef =
+                        await klient.PobierzXmlFakturyAsync(faktura.NumerKsef!, anulowanie);
+                }
+                catch (BladKsefException)
+                {
+                    // Zostaje sam wpis w rejestrze - wizualizację da się
+                    // dociągnąć przy następnym imporcie.
+                }
+            }
+        }
+        catch (BladKsefException)
+        {
+            // Nie udało się nawet zalogować - import i tak ma się dokończyć.
+        }
+        finally
+        {
+            await ZamknijCicho(klient, anulowanie);
+        }
     }
 
     // ------------------------------------------------------------ pomocnicze

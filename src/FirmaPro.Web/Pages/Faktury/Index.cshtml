@@ -130,7 +130,16 @@
                             <td class="liczba">@Kwoty.NaTekst(faktura.RazemNetto)</td>
                             <td class="liczba">@Kwoty.NaTekst(faktura.RazemVat)</td>
                             <td class="liczba"><strong>@Kwoty.NaTekst(faktura.RazemBrutto)</strong></td>
-                            <td>
+                            <td class="dzialania-wiersza">
+                                @* Faktura zakupu nie ma u nas własnego ekranu -
+                                   jej treść jest w pliku od dostawcy, więc jedyne,
+                                   co da się z niej zrobić, to wizualizacja. *@
+                                @if (faktura.MaXmlKsef)
+                                {
+                                    <a class="przycisk przycisk-drugi przycisk-maly"
+                                       asp-page-handler="WizualizacjaZakupu"
+                                       asp-route-id="@faktura.Id">Wizualizacja</a>
+                                }
                                 <form method="post" asp-page-handler="UsunZakup" asp-route-id="@faktura.Id"
                                       onsubmit="return confirm('Usunąć fakturę @faktura.Numer z rejestru?')">
                                     <button type="submit" class="usun-wiersz" title="Usuń">&times;</button>

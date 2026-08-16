@@ -285,6 +285,28 @@ public sealed class SzczegolyModel(
         return File(pdf, "application/pdf", nazwa);
     }
 
+    /// <summary>
+    /// Udostępnia wizualizację w układzie Krajowego Systemu e-Faktur.
+    /// </summary>
+    /// <remarks>
+    /// Osobno od wydruku firmowego, bo służy do czego innego: ten idzie
+    /// do akt i do biura rachunkowego, tamten do kontrahenta.
+    /// </remarks>
+    public async Task<IActionResult> OnGetWizualizacjaAsync(Guid id,
+                                                            CancellationToken anulowanie)
+    {
+        FakturaSprzedazy? faktura = await WczytajAsync(id, anulowanie);
+        if (faktura is null)
+        {
+            return NotFound();
+        }
+
+        byte[] pdf = await uslugaFaktur.ZbudujWizualizacjeKsefAsync(id, anulowanie);
+
+        return File(pdf, "application/pdf",
+            BezpiecznaNazwa(faktura.Numer) + "_ksef.pdf");
+    }
+
     private Task<FakturaSprzedazy?> WczytajAsync(Guid id, CancellationToken anulowanie) =>
         baza.FakturySprzedazy
             .Include(f => f.Pozycje)

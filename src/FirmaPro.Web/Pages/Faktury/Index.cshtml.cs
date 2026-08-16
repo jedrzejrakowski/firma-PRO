@@ -1,7 +1,9 @@
 using FirmaPro.Dane;
 using FirmaPro.Dane.Encje;
 using FirmaPro.Domena;
+using FirmaPro.Ksef;
 using FirmaPro.Web.Uslugi;
+using FirmaPro.Wydruk;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -72,6 +74,53 @@ public sealed class IndexModel(
 
         return RedirectToPage(new { widok = WidokKoszty });
     }
+
+    /// <summary>
+    /// Wizualizacja faktury zakupu w układzie KSeF.
+    /// </summary>
+    /// <remarks>
+    /// Powstaje wyłącznie z pliku pobranego od dostawcy - u siebie mamy poza
+    /// nim same sumy, a z sum nie da się odtworzyć ani pozycji, ani stawek.
+    /// </remarks>
+    public async Task<IActionResult> OnGetWizualizacjaZakupuAsync(
+        Guid id, CancellationToken anulowanie)
+    {
+        FakturaZakupu? faktura = await baza.FakturyZakupu
+            .AsNoTracking()
+            .FirstOrDefaultAsync(f => f.Id == id, anulowanie);
+
+        if (faktura?.XmlKsef is not { Length: > 0 } xml)
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            Faktura zPliku = Fa3Czytnik.Odczytaj(xml);
+
+            byte[] pdf = WydrukKsef.Utworz(zPliku, new OpcjeWydruku
+            {
+                NumerKsef = faktura.NumerKsef
+            });
+
+            return File(pdf, "application/pdf", NazwaPliku(faktura.Numer) + "_ksef.pdf");
+        }
+        catch (BladOdczytuFakturyException)
+        {
+            // Plik od dostawcy jest jedynym źródłem - gdy nie da się go
+            // odczytać, nie mamy z czego złożyć wizualizacji zastępczej.
+            TempData["Ostrzezenie"] =
+                $"Nie udało się odczytać pliku faktury {faktura.Numer} pobranego z KSeF.";
+
+            return RedirectToPage(new { widok = WidokKoszty });
+        }
+    }
+
+    /// <summary>Zamienia numer faktury na nazwę pliku bez znaków specjalnych.</summary>
+    private static string NazwaPliku(string numer) =>
+        new((numer ?? "faktura")
+            .Select(z => char.IsLetterOrDigit(z) || z is '-' or '_' ? z : '_')
+            .ToArray());
 
     /// <summary>Opis statusu w języku, którym posługuje się użytkownik.</summary>
     public static string OpisStatusu(StatusKsef status) => status switch

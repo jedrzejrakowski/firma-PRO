@@ -926,6 +926,20 @@ public sealed class FakturaZakupu : EncjaBazowa, INalezyDoFirmy
     /// <summary>Numer nadany przez KSeF, gdy faktura pochodzi z systemu.</summary>
     public string? NumerKsef { get; set; }
 
+    /// <summary>
+    /// Plik XML faktury pobrany z KSeF.
+    /// </summary>
+    /// <remarks>
+    /// Przy zakupach to jedyny dokument, jaki mamy - dostawca nie przysyła
+    /// nam niczego poza tym, co włożył do systemu. Metadane z KSeF niosą same
+    /// sumy, więc bez pliku nie da się pokazać ani pozycji, ani stawek, ani
+    /// tego, za co właściwie zapłacono.
+    /// </remarks>
+    public byte[]? XmlKsef { get; set; }
+
+    /// <summary>Czy zachowano plik faktury pobrany z KSeF.</summary>
+    public bool MaXmlKsef => XmlKsef is { Length: > 0 };
+
     public string? Uwagi { get; set; }
 
     public ICollection<KwotaVatZakupu> Kwoty { get; set; } = [];

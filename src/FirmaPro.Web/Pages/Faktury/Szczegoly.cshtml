@@ -235,9 +235,11 @@
        coś wysyła. Pobranie pliku nie jest nieodwracalne, więc nie musi
        przyciągać wzroku tak samo mocno. *@
     <a class="przycisk przycisk-drugi" asp-page-handler="Pdf"
-       asp-route-id="@Model.Faktura.Id">
-        @(Model.Faktura.MaXmlWyslany ? "Wizualizacja (PDF)" : "Pobierz PDF")
-    </a>
+       asp-route-id="@Model.Faktura.Id">Pobierz PDF</a>
+    @* Widok urzędowy - ten sam u każdego dostawcy. Idzie do akt i do biura
+       rachunkowego, gdzie liczy się zgodność z dokumentem, a nie oprawa. *@
+    <a class="przycisk przycisk-drugi" asp-page-handler="Wizualizacja"
+       asp-route-id="@Model.Faktura.Id">Wizualizacja KSeF</a>
     <a class="przycisk przycisk-drugi" asp-page-handler="Xml"
        asp-route-id="@Model.Faktura.Id">
         @(Model.Faktura.MaXmlWyslany ? "Plik z KSeF (XML)" : "Pobierz XML")

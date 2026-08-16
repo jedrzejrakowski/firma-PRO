@@ -745,14 +745,7 @@ public sealed class UslugaFaktur(
 
         Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
 
-        OpcjeWydruku opcje =
-            faktura.Status == StatusKsef.Przyjeta
-            && !string.IsNullOrWhiteSpace(faktura.NumerKsef)
-            && !string.IsNullOrWhiteSpace(faktura.SkrotXml)
-                ? OpcjeWydruku.DlaPrzyjetejZeSkrotu(
-                    faktura.NumerKsef!, firma.Nip, faktura.DataWystawienia,
-                    faktura.SkrotXml!, firma.Srodowisko)
-                : OpcjeWydruku.DlaProjektu();
+        OpcjeWydruku opcje = Opcje(faktura, firma);
 
         if (duplikat)
         {
@@ -761,6 +754,39 @@ public sealed class UslugaFaktur(
 
         return WydrukFaktury.Utworz(DoWydruku(faktura, firma), opcje);
     }
+
+    /// <summary>
+    /// Buduje wizualizację w układzie Krajowego Systemu e-Faktur.
+    /// </summary>
+    /// <remarks>
+    /// Ten sam widok, który pokazuje aplikacja Ministerstwa i który oddaje
+    /// każdy program księgowy - rozpoznawalny i wszędzie taki sam. Firmowy
+    /// wydruk idzie do kontrahenta; ten służy do akt, do biura rachunkowego
+    /// i do kontroli, gdzie liczy się zgodność z dokumentem, a nie oprawa.
+    /// </remarks>
+    public async Task<byte[]> ZbudujWizualizacjeKsefAsync(
+        Guid fakturaId, CancellationToken anulowanie = default)
+    {
+        FakturaSprzedazy faktura = await baza.FakturySprzedazy
+            .Include(f => f.Pozycje)
+            .Include(f => f.PozycjeZamowienia)
+            .Include(f => f.RozliczoneZaliczki)
+            .SingleAsync(f => f.Id == fakturaId, anulowanie);
+
+        Firma firma = await baza.Firmy.SingleAsync(f => f.Id == faktura.FirmaId, anulowanie);
+
+        return WydrukKsef.Utworz(DoWydruku(faktura, firma), Opcje(faktura, firma));
+    }
+
+    /// <summary>Numer KSeF i kod weryfikacyjny - albo znacznik projektu.</summary>
+    private static OpcjeWydruku Opcje(FakturaSprzedazy faktura, Firma firma) =>
+        faktura.Status == StatusKsef.Przyjeta
+        && !string.IsNullOrWhiteSpace(faktura.NumerKsef)
+        && !string.IsNullOrWhiteSpace(faktura.SkrotXml)
+            ? OpcjeWydruku.DlaPrzyjetejZeSkrotu(
+                faktura.NumerKsef!, firma.Nip, faktura.DataWystawienia,
+                faktura.SkrotXml!, firma.Srodowisko)
+            : OpcjeWydruku.DlaProjektu();
 
     /// <summary>
     /// Faktura, z której powstaje wydruk.
