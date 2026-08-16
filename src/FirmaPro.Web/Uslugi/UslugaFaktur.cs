@@ -61,6 +61,7 @@ public sealed class UslugaFaktur(
                        decimal CenaNetto, string KodStawki, string? Gtu)> pozycje,
         KursWaluty? kurs = null,
         IReadOnlyList<PodmiotInny>? podmiotyInne = null,
+        PodmiotUpowazniony? upowazniony = null,
         Action<FakturaSprzedazy>? przedZapisem = null,
         CancellationToken anulowanie = default)
     {
@@ -88,6 +89,8 @@ public sealed class UslugaFaktur(
         {
             model.PodmiotyInne = [.. podmiotyInne];
         }
+
+        model.Upowazniony = upowazniony;
 
         // Waluta i kurs idą razem: kurs bez waluty niczego nie przelicza,
         // a waluta bez kursu dałaby fakturę, z której nie wynika podatek.
@@ -390,6 +393,7 @@ public sealed class UslugaFaktur(
         TypKorektyVat typKorekty,
         IReadOnlyList<(string Nazwa, string Jednostka, decimal Ilosc,
                        decimal CenaNetto, string KodStawki, string? Gtu)> pozycjePoKorekcie,
+        Podmiot? sprzedawcaPrzedKorekta = null,
         CancellationToken anulowanie = default)
     {
         ArgumentNullException.ThrowIfNull(pozycjePoKorekcie);
@@ -440,6 +444,10 @@ public sealed class UslugaFaktur(
                 Stawka = StawkaVat.ZKodu(p.KodStawki),
                 Gtu = p.Gtu
             }).ToList();
+
+        // Dane sprzedawcy sprzed korekty podaje się tylko wtedy, gdy to
+        // właśnie one są poprawiane (art. 106j ust. 2 pkt 3 ustawy).
+        model.SprzedawcaPrzedKorekta = sprzedawcaPrzedKorekta;
 
         model.Numer = "FK/ROBOCZA";
         WynikWalidacji walidacja = Walidator.SprawdzFakture(model);
@@ -1072,6 +1080,27 @@ public sealed class UslugaFaktur(
             encja.PodmiotyInne.Add(NaEncjePodmiotu(podmiot, nrPodmiotu++));
         }
 
+        if (model.Upowazniony is { } upowazniony)
+        {
+            encja.UpowaznionyRola = upowazniony.Rola;
+            encja.UpowaznionyNazwa = upowazniony.Dane.Nazwa;
+            encja.UpowaznionyNip = upowazniony.Dane.Nip;
+            encja.UpowaznionyKodKraju = upowazniony.Dane.Adres.KodKraju;
+            encja.UpowaznionyAdresLinia1 = upowazniony.Dane.Adres.Linia1;
+            encja.UpowaznionyAdresLinia2 = upowazniony.Dane.Adres.Linia2;
+            encja.UpowaznionyEmail = upowazniony.Dane.Email;
+            encja.UpowaznionyTelefon = upowazniony.Dane.Telefon;
+        }
+
+        if (model.SprzedawcaPrzedKorekta is { } przed)
+        {
+            encja.SprzedawcaPrzedNazwa = przed.Nazwa;
+            encja.SprzedawcaPrzedNip = przed.Nip;
+            encja.SprzedawcaPrzedKodKraju = przed.Adres.KodKraju;
+            encja.SprzedawcaPrzedAdresLinia1 = przed.Adres.Linia1;
+            encja.SprzedawcaPrzedAdresLinia2 = przed.Adres.Linia2;
+        }
+
         return encja;
     }
 
@@ -1108,6 +1137,38 @@ public sealed class UslugaFaktur(
             .OrderBy(p => p.NrKolejny)
             .Select(NaPodmiotInny)
             .ToList(),
+        Upowazniony = encja.UpowaznionyRola is { } rolaPu
+            ? new PodmiotUpowazniony
+            {
+                Rola = rolaPu,
+                Dane = new Podmiot
+                {
+                    Nazwa = encja.UpowaznionyNazwa ?? string.Empty,
+                    Nip = encja.UpowaznionyNip ?? string.Empty,
+                    Adres = new Adres
+                    {
+                        KodKraju = encja.UpowaznionyKodKraju ?? "PL",
+                        Linia1 = encja.UpowaznionyAdresLinia1 ?? string.Empty,
+                        Linia2 = encja.UpowaznionyAdresLinia2
+                    },
+                    Email = encja.UpowaznionyEmail,
+                    Telefon = encja.UpowaznionyTelefon
+                }
+            }
+            : null,
+        SprzedawcaPrzedKorekta = encja.SprzedawcaPrzedNazwa is { Length: > 0 } nazwaPrzed
+            ? new Podmiot
+            {
+                Nazwa = nazwaPrzed,
+                Nip = encja.SprzedawcaPrzedNip ?? string.Empty,
+                Adres = new Adres
+                {
+                    KodKraju = encja.SprzedawcaPrzedKodKraju ?? "PL",
+                    Linia1 = encja.SprzedawcaPrzedAdresLinia1 ?? string.Empty,
+                    Linia2 = encja.SprzedawcaPrzedAdresLinia2
+                }
+            }
+            : null,
         Platnosc = new WarunkiPlatnosci
         {
             Forma = encja.FormaPlatnosci,

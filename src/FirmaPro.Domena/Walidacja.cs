@@ -161,6 +161,8 @@ public static class Walidator
         SprawdzPodmiot(faktura.Sprzedawca, "Sprzedawca", nipWymagany: true, wynik);
         SprawdzPodmiot(faktura.Nabywca, "Nabywca", nipWymagany: false, wynik);
         SprawdzPodmiotyInne(faktura, wynik);
+        SprawdzUpowaznionego(faktura, wynik);
+        SprawdzSprzedawcePrzedKorekta(faktura, wynik);
         SprawdzPozycje(faktura, wynik);
         SprawdzPlatnosc(faktura, wynik);
 
@@ -343,6 +345,111 @@ public static class Walidator
             wynik.Blad("Podmioty inne / Udział",
                 "udziały dodatkowych nabywców przekraczają 100%");
         }
+    }
+
+    /// <summary>
+    /// Sprawdza podmiot upoważniony.
+    /// </summary>
+    /// <remarks>
+    /// Wymagania są tu ostrzejsze niż przy podmiotach trzecich: schemat żąda
+    /// numeru NIP i pełnego adresu. Komornik ani przedstawiciel podatkowy nie
+    /// jest podmiotem anonimowym - odpowiada za dokument obok sprzedawcy.
+    /// </remarks>
+    private static void SprawdzUpowaznionego(Faktura faktura, WynikWalidacji wynik)
+    {
+        if (faktura.Upowazniony is not { } upowazniony)
+        {
+            return;
+        }
+
+        const string Etykieta = "Podmiot upoważniony";
+
+        if (string.IsNullOrWhiteSpace(upowazniony.Dane.Nazwa))
+        {
+            wynik.Blad($"{Etykieta} / Nazwa", "pole jest puste");
+        }
+
+        if (string.IsNullOrWhiteSpace(upowazniony.Dane.Nip))
+        {
+            wynik.Blad($"{Etykieta} / NIP",
+                "podmiot upoważniony musi mieć numer NIP");
+        }
+        else if (!NipPoprawny(upowazniony.Dane.Nip))
+        {
+            wynik.Blad($"{Etykieta} / NIP",
+                $"numer '{upowazniony.Dane.Nip}' ma błędną sumę kontrolną");
+        }
+
+        if (string.IsNullOrWhiteSpace(upowazniony.Dane.Adres.Linia1))
+        {
+            wynik.Blad($"{Etykieta} / Adres",
+                "adres jest w tej sekcji obowiązkowy");
+        }
+
+        SprawdzDlugosc(upowazniony.Dane.Nazwa, MaxZnakowy512, $"{Etykieta} / Nazwa", wynik);
+        SprawdzDlugosc(upowazniony.Dane.Adres.Linia1, MaxZnakowy512,
+            $"{Etykieta} / Adres", wynik);
+    }
+
+    /// <summary>
+    /// Sprawdza dane sprzedawcy sprzed korekty.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Sekcja ma sens wyłącznie na fakturze korygującej - na zwykłej nie ma
+    /// czego korygować, a schemat w ogóle jej tam nie przewiduje.
+    /// </para>
+    /// <para>
+    /// Osobno pilnujemy numeru NIP. Błędnego numeru nie poprawia się korektą
+    /// danych (art. 106j ust. 2 pkt 3 nie obejmuje tego przypadku) - trzeba
+    /// wystawić korektę do zera i nową fakturę. Zmiana numeru tą drogą dałaby
+    /// dokument, którego urząd nie powiąże z pierwotnym.
+    /// </para>
+    /// </remarks>
+    private static void SprawdzSprzedawcePrzedKorekta(Faktura faktura, WynikWalidacji wynik)
+    {
+        if (faktura.SprzedawcaPrzedKorekta is not { } przed)
+        {
+            return;
+        }
+
+        const string Etykieta = "Sprzedawca przed korektą";
+
+        if (!faktura.CzyKorekta)
+        {
+            wynik.Blad(Etykieta,
+                "dane sprzedawcy sprzed korekty można podać wyłącznie " +
+                "na fakturze korygującej");
+        }
+
+        if (string.IsNullOrWhiteSpace(przed.Nazwa))
+        {
+            wynik.Blad($"{Etykieta} / Nazwa", "pole jest puste");
+        }
+
+        if (string.IsNullOrWhiteSpace(przed.Adres.Linia1))
+        {
+            wynik.Blad($"{Etykieta} / Adres", "brak pierwszej linii adresu");
+        }
+
+        if (string.IsNullOrWhiteSpace(przed.Nip))
+        {
+            wynik.Blad($"{Etykieta} / NIP", "trzeba podać numer z faktury korygowanej");
+        }
+        else if (!NipPoprawny(przed.Nip))
+        {
+            wynik.Blad($"{Etykieta} / NIP",
+                $"numer '{przed.Nip}' ma błędną sumę kontrolną");
+        }
+        else if (OczyscNumer(przed.Nip) != OczyscNumer(faktura.Sprzedawca.Nip))
+        {
+            wynik.Blad($"{Etykieta} / NIP",
+                "błędnego numeru NIP nie poprawia się korektą danych - " +
+                "trzeba wystawić korektę do wartości zerowych i nową fakturę");
+        }
+
+        SprawdzDlugosc(przed.Nazwa, MaxZnakowy512, $"{Etykieta} / Nazwa", wynik);
+        SprawdzDlugosc(przed.Adres.Linia1, MaxZnakowy512, $"{Etykieta} / Adres", wynik);
     }
 
     private static void SprawdzPozycje(Faktura faktura, WynikWalidacji wynik)

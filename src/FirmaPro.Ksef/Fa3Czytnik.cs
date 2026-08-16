@@ -101,6 +101,8 @@ public static class Fa3Czytnik
         };
 
         WczytajPodmiotyInne(korzen, faktura);
+        WczytajUpowaznionego(korzen, faktura);
+        WczytajSprzedawcePrzedKorekta(fa, faktura);
         WczytajWiersze(fa, faktura);
         WczytajKorygowane(fa, faktura);
         WczytajZaliczkowe(fa, faktura);
@@ -174,6 +176,53 @@ public static class Fa3Czytnik
             }
 
             faktura.PodmiotyInne.Add(podmiot);
+        }
+    }
+
+    /// <summary>
+    /// Wczytuje podmiot upoważniony.
+    /// </summary>
+    /// <remarks>
+    /// Rola jest w tej sekcji obowiązkowa i nie ma wariantu opisowego. Gdyby
+    /// przyszedł numer spoza listy, całą sekcję pomijamy - wypisanie na
+    /// wydruku „komornik" przy nieznanym kodzie byłoby zgadywaniem.
+    /// </remarks>
+    private static void WczytajUpowaznionego(XElement korzen, Faktura faktura)
+    {
+        if (korzen.Element(Ns + "PodmiotUpowazniony") is not { } element)
+        {
+            return;
+        }
+
+        if (Tekst(element, "RolaPU") is not { } kod
+            || !int.TryParse(kod, CultureInfo.InvariantCulture, out int numer)
+            || !Enum.IsDefined(typeof(RolaUpowaznionego), numer))
+        {
+            return;
+        }
+
+        Podmiot dane = Podmiot(element);
+
+        // Ta sekcja ma własne nazwy pól kontaktowych.
+        if (element.Element(Ns + "DaneKontaktowe") is { } kontakt)
+        {
+            dane.Email = Tekst(kontakt, "EmailPU");
+            dane.Telefon = Tekst(kontakt, "TelefonPU");
+        }
+
+        faktura.Upowazniony = new PodmiotUpowazniony
+        {
+            Dane = dane,
+            Rola = (RolaUpowaznionego)numer
+        };
+    }
+
+    /// <summary>Wczytuje dane sprzedawcy sprzed korekty.</summary>
+    private static void WczytajSprzedawcePrzedKorekta(XElement fa, Faktura faktura)
+    {
+        if (fa.Element(Ns + "Podmiot1K") is { } element)
+        {
+            faktura.SprzedawcaPrzedKorekta = Podmiot(element);
         }
     }
 

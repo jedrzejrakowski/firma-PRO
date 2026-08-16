@@ -175,6 +175,42 @@
         </p>
     </div>
 
+    @* Korekta danych sprzedawcy to inny przypadek niż korekta kwot
+       (art. 106j ust. 2 pkt 3 ustawy) - trzeba wtedy podać dane w brzmieniu
+       sprzed poprawki, bo inaczej nie widać, co się właściwie zmieniło. *@
+    <details class="karta" open="@Model.KorygujDaneSprzedawcy">
+        <summary class="naglowek-zwijany">
+            Korekta danych sprzedawcy — nazwy albo adresu
+        </summary>
+
+        <label class="wybor" style="margin:12px 0">
+            <input type="checkbox" name="KorygujDaneSprzedawcy" value="true"
+                   checked="@Model.KorygujDaneSprzedawcy" />
+            Ta korekta poprawia dane sprzedawcy
+        </label>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="przedNazwa">Nazwa na fakturze korygowanej</label>
+                <input type="text" id="przedNazwa" name="SprzedawcaPrzedNazwa"
+                       value="@Model.SprzedawcaPrzedNazwa" maxlength="512" />
+            </div>
+
+            <div class="pole">
+                <label for="przedAdres">Adres na fakturze korygowanej</label>
+                <input type="text" id="przedAdres" name="SprzedawcaPrzedAdres"
+                       value="@Model.SprzedawcaPrzedAdres" maxlength="512" />
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Wpisz dane w brzmieniu <strong>sprzed</strong> poprawki — te, które
+            widnieją na fakturze korygowanej. Aktualne program weźmie
+            z ustawień firmy. Numeru NIP tą drogą się nie poprawia: przy błędnym
+            numerze wystawia się korektę do wartości zerowych i nową fakturę.
+        </p>
+    </details>
+
     <div class="paskiem">
         <button type="submit">Wystaw korektę</button>
         <a class="przycisk przycisk-drugi" asp-page="Szczegoly"

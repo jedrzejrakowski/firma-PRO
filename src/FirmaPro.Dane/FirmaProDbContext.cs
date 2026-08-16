@@ -284,6 +284,23 @@ public class FirmaProDbContext : DbContext
             e.Property(f => f.SkrotXml).HasMaxLength(64);
             e.Property(f => f.KorygowanaNumer).HasMaxLength(256);
             e.Property(f => f.KorygowanaNumerKsef).HasMaxLength(64);
+
+            // Rola zapisana słowem - w bazie czyta się ją bez zaglądania
+            // do schematu Ministerstwa.
+            e.Property(f => f.UpowaznionyRola).HasConversion<string>().HasMaxLength(32);
+            e.Property(f => f.UpowaznionyNazwa).HasMaxLength(512);
+            e.Property(f => f.UpowaznionyNip).HasMaxLength(32);
+            e.Property(f => f.UpowaznionyKodKraju).HasMaxLength(2);
+            e.Property(f => f.UpowaznionyAdresLinia1).HasMaxLength(512);
+            e.Property(f => f.UpowaznionyAdresLinia2).HasMaxLength(512);
+            e.Property(f => f.UpowaznionyEmail).HasMaxLength(256);
+            e.Property(f => f.UpowaznionyTelefon).HasMaxLength(64);
+
+            e.Property(f => f.SprzedawcaPrzedNazwa).HasMaxLength(512);
+            e.Property(f => f.SprzedawcaPrzedNip).HasMaxLength(32);
+            e.Property(f => f.SprzedawcaPrzedKodKraju).HasMaxLength(2);
+            e.Property(f => f.SprzedawcaPrzedAdresLinia1).HasMaxLength(512);
+            e.Property(f => f.SprzedawcaPrzedAdresLinia2).HasMaxLength(512);
             e.Property(f => f.PrzyczynaKorekty).HasMaxLength(256);
             e.Property(f => f.TypKorekty).HasConversion<string>().HasMaxLength(24);
 

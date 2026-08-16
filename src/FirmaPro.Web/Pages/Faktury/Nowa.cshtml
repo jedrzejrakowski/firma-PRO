@@ -252,6 +252,51 @@
                 przypada nabywcy z faktury.
             </span>
         </div>
+
+        @* Osobna sekcja schematu i osobny przypadek prawny: tu nie chodzi
+           o kogoś związanego z transakcją, tylko o to, że fakturę wystawia
+           kto inny niż sprzedawca. Taki podmiot może być tylko jeden. *@
+        <div class="naglowek-sekcji">Podmiot upoważniony do wystawienia faktury</div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="rolaPu">Rola</label>
+                <select id="rolaPu" name="UpowaznionyRola">
+                    <option value="">— brak —</option>
+                    @foreach (RolaUpowaznionego rola in NowaModel.RoleUpowaznionych)
+                    {
+                        <option value="@rola" selected="@(rola == Model.UpowaznionyRola)">
+                            @NowaModel.NazwaRoli(rola)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="pole">
+                <label for="puNazwa">Nazwa</label>
+                <input type="text" id="puNazwa" name="UpowaznionyNazwa"
+                       value="@Model.UpowaznionyNazwa" maxlength="512" />
+            </div>
+
+            <div class="pole">
+                <label for="puNip">NIP</label>
+                <input type="text" id="puNip" name="UpowaznionyNip"
+                       value="@Model.UpowaznionyNip" maxlength="13" />
+            </div>
+
+            <div class="pole">
+                <label for="puAdres">Adres</label>
+                <input type="text" id="puAdres" name="UpowaznionyAdres"
+                       value="@Model.UpowaznionyAdres" maxlength="512" />
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Komornik i organ egzekucyjny — dostawa w trybie egzekucji
+            (art. 106c ustawy). Przedstawiciel podatkowy — art. 18a–18d.
+            Sprzedawcą pozostaje podatnik; ta sekcja mówi tylko, kto dokument
+            wystawił. NIP i adres są tu obowiązkowe.
+        </p>
     </details>
 
     <div class="karta" id="kartaZwolnienia" style="display:none">

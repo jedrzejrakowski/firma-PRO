@@ -777,6 +777,47 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
     /// <summary>Podmioty trzecie wskazane na fakturze.</summary>
     public ICollection<PodmiotInnyFaktury> PodmiotyInne { get; set; } = [];
 
+    // --- podmiot upoważniony ----------------------------------------------
+
+    /// <summary>
+    /// Podmiot, który wystawił fakturę w imieniu podatnika.
+    /// </summary>
+    /// <remarks>
+    /// Komornik, organ egzekucyjny albo przedstawiciel podatkowy. Trzymamy to
+    /// kolumnami przy fakturze, a nie osobną tabelą, bo taki podmiot może być
+    /// tylko jeden - tak stanowi schemat.
+    /// </remarks>
+    public RolaUpowaznionego? UpowaznionyRola { get; set; }
+
+    public string? UpowaznionyNazwa { get; set; }
+    public string? UpowaznionyNip { get; set; }
+    public string? UpowaznionyKodKraju { get; set; }
+    public string? UpowaznionyAdresLinia1 { get; set; }
+    public string? UpowaznionyAdresLinia2 { get; set; }
+    public string? UpowaznionyEmail { get; set; }
+    public string? UpowaznionyTelefon { get; set; }
+
+    /// <summary>Czy fakturę wystawił ktoś w imieniu podatnika.</summary>
+    public bool MaUpowaznionego => UpowaznionyRola is not null;
+
+    // --- dane sprzedawcy sprzed korekty ------------------------------------
+
+    /// <summary>
+    /// Nazwa i adres sprzedawcy w brzmieniu z faktury korygowanej.
+    /// </summary>
+    /// <remarks>
+    /// Wypełniane tylko wtedy, gdy korekta poprawia dane samego sprzedawcy
+    /// (art. 106j ust. 2 pkt 3 ustawy) - inaczej nie widać, co się zmieniło.
+    /// </remarks>
+    public string? SprzedawcaPrzedNazwa { get; set; }
+    public string? SprzedawcaPrzedNip { get; set; }
+    public string? SprzedawcaPrzedKodKraju { get; set; }
+    public string? SprzedawcaPrzedAdresLinia1 { get; set; }
+    public string? SprzedawcaPrzedAdresLinia2 { get; set; }
+
+    /// <summary>Czy korekta poprawia dane sprzedawcy.</summary>
+    public bool KorygujeDaneSprzedawcy => SprzedawcaPrzedNazwa is { Length: > 0 };
+
     /// <summary>
     /// Czy dokument jest już zamknięty na zmiany.
     /// </summary>

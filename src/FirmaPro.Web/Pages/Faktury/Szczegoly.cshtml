@@ -197,6 +197,57 @@
     </div>
 }
 
+@* Fakturę wystawił kto inny niż sprzedawca - to musi być widoczne przy
+   dokumencie, bo zmienia jego wymowę (art. 106c, art. 18a-18d ustawy). *@
+@if (Model.Faktura.MaUpowaznionego)
+{
+    <div class="karta">
+        <h2 style="margin-top:0">Podmiot upoważniony</h2>
+
+        <div class="siatka">
+            <div>
+                <div class="etykieta" style="color:var(--tekst-szary);font-size:0.82rem">Rola</div>
+                <p><strong>@Role.Nazwa(Model.Faktura.UpowaznionyRola!.Value)</strong></p>
+            </div>
+            <div>
+                <div class="etykieta" style="color:var(--tekst-szary);font-size:0.82rem">Nazwa</div>
+                <p>@Model.Faktura.UpowaznionyNazwa</p>
+            </div>
+            <div>
+                <div class="etykieta" style="color:var(--tekst-szary);font-size:0.82rem">NIP</div>
+                <p>@(Model.Faktura.UpowaznionyNip ?? "—")</p>
+            </div>
+            <div>
+                <div class="etykieta" style="color:var(--tekst-szary);font-size:0.82rem">Adres</div>
+                <p>@(Model.Faktura.UpowaznionyAdresLinia1 ?? "—")</p>
+            </div>
+        </div>
+    </div>
+}
+
+@* Korekta danych sprzedawcy - bez brzmienia sprzed poprawki nie widać,
+   co ten dokument właściwie zmienia (art. 106j ust. 2 pkt 3 ustawy). *@
+@if (Model.Faktura.KorygujeDaneSprzedawcy)
+{
+    <div class="karta">
+        <h2 style="margin-top:0">Sprzedawca przed korektą</h2>
+
+        <p>
+            <strong>@Model.Faktura.SprzedawcaPrzedNazwa</strong><br />
+            @Model.Faktura.SprzedawcaPrzedAdresLinia1
+            @if (!string.IsNullOrWhiteSpace(Model.Faktura.SprzedawcaPrzedAdresLinia2))
+            {
+                <text>, @Model.Faktura.SprzedawcaPrzedAdresLinia2</text>
+            }
+        </p>
+
+        <p class="wskazowka" style="margin:0">
+            Ta korekta poprawia dane sprzedawcy. Powyżej brzmienie z faktury
+            korygowanej; obowiązujące dane są w nagłówku dokumentu.
+        </p>
+    </div>
+}
+
 @* Faktura końcowa obejmuje całą dostawę, ale część nabywca opłacił już
    zaliczką - i to musi być widać, żeby nikt nie zapłacił drugi raz
    (art. 106f ust. 3 ustawy). *@

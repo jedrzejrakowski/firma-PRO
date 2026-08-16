@@ -101,6 +101,42 @@ public sealed class NowaModel(
     /// <summary>Podmioty trzecie - w zwykłej fakturze pusta lista.</summary>
     [BindProperty] public List<WierszPodmiotu> PodmiotyInne { get; set; } = [];
 
+    // --- podmiot upoważniony ------------------------------------------------
+
+    /// <summary>
+    /// Rola podmiotu, który wystawia fakturę w imieniu podatnika.
+    /// </summary>
+    /// <remarks>
+    /// Pusta przy zwykłej fakturze. Wypełniona włącza całą sekcję - komornik,
+    /// organ egzekucyjny albo przedstawiciel podatkowy (art. 106c, 18a-18d).
+    /// </remarks>
+    [BindProperty] public RolaUpowaznionego? UpowaznionyRola { get; set; }
+
+    [BindProperty] public string? UpowaznionyNazwa { get; set; }
+    [BindProperty] public string? UpowaznionyNip { get; set; }
+    [BindProperty] public string? UpowaznionyAdres { get; set; }
+
+    /// <summary>Role podmiotu upoważnionego do wyboru.</summary>
+    public static IReadOnlyList<RolaUpowaznionego> RoleUpowaznionych { get; } =
+        Domena.Role.Upowaznionych;
+
+    public static string NazwaRoli(RolaUpowaznionego rola) => Domena.Role.Nazwa(rola);
+
+    /// <summary>Podmiot upoważniony zbudowany z pól formularza.</summary>
+    private PodmiotUpowazniony? Upowazniony() =>
+        UpowaznionyRola is { } rola && !string.IsNullOrWhiteSpace(UpowaznionyNazwa)
+            ? new PodmiotUpowazniony
+            {
+                Rola = rola,
+                Dane = new Podmiot
+                {
+                    Nazwa = UpowaznionyNazwa.Trim(),
+                    Nip = UpowaznionyNip?.Trim() ?? string.Empty,
+                    Adres = new Adres { Linia1 = UpowaznionyAdres?.Trim() ?? string.Empty }
+                }
+            }
+            : null;
+
     /// <summary>Role do wyboru na liście.</summary>
     public static IReadOnlyList<RolaPodmiotu> Role { get; } = Domena.Role.Wszystkie;
 
@@ -189,6 +225,7 @@ public sealed class NowaModel(
                 .Where(p => !p.CzyPusty)
                 .Select(p => p.NaModel())
                 .ToList(),
+            upowazniony: Upowazniony(),
             anulowanie: anulowanie);
 
         if (!wynik.Udalo)

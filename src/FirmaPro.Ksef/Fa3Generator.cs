@@ -80,6 +80,7 @@ public static class Fa3Generator
             Podmiot1(faktura.Sprzedawca),
             Podmiot2(faktura.Nabywca),
             faktura.PodmiotyInne.Select(Podmiot3),
+            faktura.Upowazniony is null ? null : Upowazniony(faktura.Upowazniony),
             SekcjaFa(faktura));
 
         if (!string.IsNullOrWhiteSpace(faktura.Stopka))
@@ -253,6 +254,40 @@ public static class Fa3Generator
         }
 
         DodajGdyJest(element, "NrKlienta", podmiot.NrKlienta);
+
+        return element;
+    }
+
+    /// <summary>
+    /// Sekcja podmiotu upoważnionego.
+    /// </summary>
+    /// <remarks>
+    /// Adres jest tu obowiązkowy, w odróżnieniu od pozostałych sekcji -
+    /// komornika czy przedstawiciela podatkowego trzeba dać się odnaleźć.
+    /// Dane kontaktowe mają w tej sekcji własne nazwy pól (EmailPU, TelefonPU),
+    /// więc nie da się użyć wspólnej metody.
+    /// </remarks>
+    private static XElement Upowazniony(PodmiotUpowazniony podmiot)
+    {
+        var element = new XElement(Ns + "PodmiotUpowazniony",
+            new XElement(Ns + "DaneIdentyfikacyjne",
+                new XElement(Ns + "NIP", podmiot.Dane.Nip),
+                new XElement(Ns + "Nazwa", podmiot.Dane.Nazwa)),
+            Adres(podmiot.Dane));
+
+        if (!string.IsNullOrWhiteSpace(podmiot.Dane.Email)
+            || !string.IsNullOrWhiteSpace(podmiot.Dane.Telefon))
+        {
+            var kontakt = new XElement(Ns + "DaneKontaktowe");
+
+            DodajGdyJest(kontakt, "EmailPU", podmiot.Dane.Email);
+            DodajGdyJest(kontakt, "TelefonPU", podmiot.Dane.Telefon);
+
+            element.Add(kontakt);
+        }
+
+        element.Add(new XElement(Ns + "RolaPU",
+            ((int)podmiot.Rola).ToString(CultureInfo.InvariantCulture)));
 
         return element;
     }
@@ -458,6 +493,17 @@ public static class Fa3Generator
             }
 
             fa.Add(dane);
+        }
+
+        // Dane sprzedawcy sprzed korekty stoją w schemacie zaraz po wykazie
+        // faktur korygowanych - kolejność jest wiążąca.
+        if (faktura.SprzedawcaPrzedKorekta is { } przed)
+        {
+            fa.Add(new XElement(Ns + "Podmiot1K",
+                new XElement(Ns + "DaneIdentyfikacyjne",
+                    new XElement(Ns + "NIP", przed.Nip),
+                    new XElement(Ns + "Nazwa", przed.Nazwa)),
+                Adres(przed)));
         }
     }
 

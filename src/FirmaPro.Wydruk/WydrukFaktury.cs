@@ -316,7 +316,11 @@ public static class WydrukFaktury
         /// </remarks>
         private void PodmiotyInne()
         {
-            if (faktura.PodmiotyInne.Count == 0)
+            // Sekcja pojawia się także wtedy, gdy podmiotów trzecich nie ma,
+            // ale fakturę wystawił komornik albo koryguje ona dane sprzedawcy.
+            if (faktura.PodmiotyInne.Count == 0
+                && faktura.Upowazniony is null
+                && faktura.SprzedawcaPrzedKorekta is null)
             {
                 return;
             }
@@ -330,6 +334,8 @@ public static class WydrukFaktury
                                  ? $", udział {Styl.Ilosc(udzial)}%"
                                  : string.Empty))
                 .ToList();
+
+            DopiszSekcjeSzczegolne(linie);
 
             ZapewnijMiejsce((linie.Count * Styl.Mm(4)) + Styl.Mm(8));
 
@@ -346,6 +352,32 @@ public static class WydrukFaktury
             }
 
             _y += Styl.Mm(4);
+        }
+
+        /// <summary>
+        /// Dopisuje podmiot upoważniony i dane sprzedawcy sprzed korekty.
+        /// </summary>
+        /// <remarks>
+        /// Na wydruku firmowym obie rzeczy mieszczą się w jednej linijce.
+        /// Pominąć ich nie można: pierwsza mówi, że faktury nie wystawił
+        /// sprzedawca, druga - co ta korekta właściwie poprawia.
+        /// </remarks>
+        private void DopiszSekcjeSzczegolne(List<string> linie)
+        {
+            if (faktura.Upowazniony is { } upowazniony)
+            {
+                linie.Add($"Fakturę wystawił: {upowazniony.Dane.Nazwa}"
+                          + (string.IsNullOrWhiteSpace(upowazniony.Dane.Nip)
+                              ? string.Empty
+                              : $", NIP {upowazniony.Dane.Nip}")
+                          + $" ({upowazniony.NazwaRoli.ToLowerInvariant()})");
+            }
+
+            if (faktura.SprzedawcaPrzedKorekta is { } przed)
+            {
+                linie.Add($"Sprzedawca przed korektą: {przed.Nazwa}, "
+                          + przed.Adres.Jednolinijkowy);
+            }
         }
 
         private void PudelkoPodmiotu(string tytul, List<string> wiersze,

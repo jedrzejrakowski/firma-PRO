@@ -231,6 +231,32 @@ public sealed class Faktura
     /// </remarks>
     public List<PodmiotInny> PodmiotyInne { get; set; } = [];
 
+    /// <summary>
+    /// Podmiot upoważniony do wystawienia faktury w imieniu podatnika.
+    /// </summary>
+    /// <remarks>
+    /// Komornik, organ egzekucyjny albo przedstawiciel podatkowy. Sprzedawcą
+    /// pozostaje podatnik - ta sekcja mówi tylko, kto dokument wystawił.
+    /// </remarks>
+    public PodmiotUpowazniony? Upowazniony { get; set; }
+
+    /// <summary>
+    /// Dane sprzedawcy sprzed korekty.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Wypełniane wyłącznie wtedy, gdy fakturą korygującą poprawia się dane
+    /// samego sprzedawcy - nazwę albo adres (art. 106j ust. 2 pkt 3 ustawy).
+    /// Wtedy trzeba podać pełne dane w brzmieniu z faktury korygowanej, bo
+    /// inaczej nie widać, co właściwie zostało poprawione.
+    /// </para>
+    /// <para>
+    /// Nie dotyczy błędnego numeru NIP: tego nie koryguje się w ten sposób,
+    /// tylko fakturą do wartości zerowych i wystawieniem nowej.
+    /// </para>
+    /// </remarks>
+    public Podmiot? SprzedawcaPrzedKorekta { get; set; }
+
     public List<PozycjaFaktury> Pozycje { get; set; } = [];
     public WarunkiPlatnosci Platnosc { get; set; } = new();
 

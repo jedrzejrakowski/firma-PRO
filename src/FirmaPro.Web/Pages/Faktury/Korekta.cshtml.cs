@@ -31,6 +31,38 @@ public sealed class KorektaModel(
 
     [BindProperty] public List<WierszPozycji> Pozycje { get; set; } = [];
 
+    // --- korekta danych sprzedawcy -----------------------------------------
+
+    /// <summary>
+    /// Czy korekta poprawia dane samego sprzedawcy.
+    /// </summary>
+    /// <remarks>
+    /// Osobny znacznik, bo to inny przypadek niż korekta kwot: art. 106j
+    /// ust. 2 pkt 3 wymaga wtedy podania pełnych danych w brzmieniu z faktury
+    /// korygowanej, żeby widać było, co właściwie zostało poprawione.
+    /// </remarks>
+    [BindProperty] public bool KorygujDaneSprzedawcy { get; set; }
+
+    [BindProperty] public string? SprzedawcaPrzedNazwa { get; set; }
+    [BindProperty] public string? SprzedawcaPrzedAdres { get; set; }
+
+    /// <summary>Dane sprzedawcy sprzed korekty zbudowane z pól formularza.</summary>
+    /// <remarks>
+    /// Numer NIP bierzemy z faktury korygowanej, a nie z formularza. Błędnego
+    /// numeru nie poprawia się korektą danych - trzeba wystawić korektę do zera
+    /// i nową fakturę - więc pole do jego wpisania byłoby zaproszeniem
+    /// do pomyłki nie do naprawienia.
+    /// </remarks>
+    private Podmiot? SprzedawcaPrzedKorekta(FakturaSprzedazy korygowana) =>
+        KorygujDaneSprzedawcy && !string.IsNullOrWhiteSpace(SprzedawcaPrzedNazwa)
+            ? new Podmiot
+            {
+                Nazwa = SprzedawcaPrzedNazwa.Trim(),
+                Nip = korygowana.Firma?.Nip ?? string.Empty,
+                Adres = new Adres { Linia1 = SprzedawcaPrzedAdres?.Trim() ?? string.Empty }
+            }
+            : null;
+
     public List<string> Bledy { get; } = [];
 
     public static IReadOnlyList<string> KodyGtu => NowaModel.KodyGtu;
@@ -87,6 +119,7 @@ public sealed class KorektaModel(
             KorygowanaId, DataWystawienia, PrzyczynaKorekty, TypKorekty,
             wypelnione.Select(p => (p.Nazwa, p.Jednostka, p.Ilosc, p.CenaNetto,
                                     p.KodStawki, p.Gtu)).ToList(),
+            SprzedawcaPrzedKorekta(faktura),
             anulowanie);
 
         if (!wynik.Udalo)
@@ -108,5 +141,6 @@ public sealed class KorektaModel(
     private Task<FakturaSprzedazy?> WczytajAsync(Guid id, CancellationToken anulowanie) =>
         baza.FakturySprzedazy
             .Include(f => f.Pozycje)
+            .Include(f => f.Firma)
             .FirstOrDefaultAsync(f => f.Id == id, anulowanie);
 }

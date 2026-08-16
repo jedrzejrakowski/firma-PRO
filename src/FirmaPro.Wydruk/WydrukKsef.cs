@@ -236,6 +236,59 @@ public static class WydrukKsef
 
                 Kreska();
             }
+
+            Upowazniony();
+            SprzedawcaPrzedKorekta();
+        }
+
+        /// <summary>
+        /// Podmiot upoważniony do wystawienia faktury.
+        /// </summary>
+        /// <remarks>
+        /// Komornik albo organ egzekucyjny wystawia dokument za dłużnika
+        /// (art. 106c ustawy), przedstawiciel podatkowy - za podatnika
+        /// zagranicznego. Bez tej sekcji wydruk sugerowałby, że fakturę
+        /// wystawił sam sprzedawca.
+        /// </remarks>
+        private void Upowazniony()
+        {
+            if (faktura.Upowazniony is not { } upowazniony)
+            {
+                return;
+            }
+
+            NaglowekSekcji("Podmiot upoważniony");
+
+            Podmiot(upowazniony.Dane, Styl.Lewa);
+            Wiersz("Rola: " + upowazniony.NazwaRoli, Styl.Lewa, Styl.SzerokoscTresci);
+
+            _y += Styl.Mm(3);
+
+            Kreska();
+        }
+
+        /// <summary>
+        /// Dane sprzedawcy sprzed korekty.
+        /// </summary>
+        /// <remarks>
+        /// Wyłącznie przy korekcie danych sprzedawcy (art. 106j ust. 2 pkt 3).
+        /// Bez brzmienia sprzed poprawki nie widać, co dokument właściwie
+        /// zmienia - a to jest jego jedyną treścią.
+        /// </remarks>
+        private void SprzedawcaPrzedKorekta()
+        {
+            if (faktura.SprzedawcaPrzedKorekta is not { } przed)
+            {
+                return;
+            }
+
+            NaglowekSekcji("Sprzedawca przed korektą");
+
+            Podmiot(przed, Styl.Lewa);
+
+            _y += Styl.Mm(3);
+
+            Kreska();
         }
 
         /// <summary>Rysuje jedną stronę transakcji i zwraca dolną krawędź.</summary>

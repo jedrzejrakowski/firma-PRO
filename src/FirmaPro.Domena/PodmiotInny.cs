@@ -105,6 +105,57 @@ public sealed class PodmiotInny
             : "rola nieokreślona";
 }
 
+/// <summary>
+/// Rola podmiotu upoważnionego.
+/// </summary>
+/// <remarks>
+/// Numery odpowiadają wprost polu RolaPU w strukturze FA(3). Wszystkie trzy
+/// przypadki są tym samym: fakturę wystawia kto inny niż sprzedawca, a mimo
+/// to dokumentuje ona jego sprzedaż.
+/// </remarks>
+public enum RolaUpowaznionego
+{
+    /// <summary>Organ egzekucyjny - art. 106c pkt 1 ustawy.</summary>
+    OrganEgzekucyjny = 1,
+
+    /// <summary>Komornik sądowy - art. 106c pkt 2 ustawy.</summary>
+    KomornikSadowy = 2,
+
+    /// <summary>Przedstawiciel podatkowy - art. 18a-18d ustawy.</summary>
+    PrzedstawicielPodatkowy = 3
+}
+
+/// <summary>
+/// Podmiot upoważniony do wystawienia faktury w imieniu podatnika.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Trzy przypadki, wszystkie wprost z ustawy. Komornik i organ egzekucyjny
+/// wystawiają fakturę dokumentującą dostawę dokonaną w trybie egzekucji
+/// (art. 106c) - sprzedawcą pozostaje dłużnik, ale to nie on wystawia
+/// dokument. Przedstawiciel podatkowy działa za podatnika nieposiadającego
+/// siedziby w kraju (art. 18a-18d).
+/// </para>
+/// <para>
+/// Bez tej sekcji faktura komornicza wygląda tak, jakby wystawił ją dłużnik -
+/// a to nieprawda i rzecz przy kontroli nie do obronienia.
+/// </para>
+/// </remarks>
+public sealed class PodmiotUpowazniony
+{
+    /// <summary>
+    /// Dane identyfikacyjne i adresowe.
+    /// </summary>
+    /// <remarks>Adres jest tu obowiązkowy - inaczej schemat odrzuci plik.</remarks>
+    public Podmiot Dane { get; set; } = new();
+
+    /// <summary>Rola - w tej sekcji obowiązkowa, bez wariantu opisowego.</summary>
+    public RolaUpowaznionego Rola { get; set; } = RolaUpowaznionego.KomornikSadowy;
+
+    /// <summary>Nazwa roli do pokazania człowiekowi.</summary>
+    public string NazwaRoli => Role.Nazwa(Rola);
+}
+
 /// <summary>Nazwy ról podmiotów trzecich.</summary>
 /// <remarks>
 /// Brzmienie wzięte ze schematu, bo to ono pojawia się w aplikacji
@@ -128,7 +179,19 @@ public static class Role
         _ => rola.ToString()
     };
 
+    public static string Nazwa(RolaUpowaznionego rola) => rola switch
+    {
+        RolaUpowaznionego.OrganEgzekucyjny => "Organ egzekucyjny",
+        RolaUpowaznionego.KomornikSadowy => "Komornik sądowy",
+        RolaUpowaznionego.PrzedstawicielPodatkowy => "Przedstawiciel podatkowy",
+        _ => rola.ToString()
+    };
+
     /// <summary>Wszystkie role w kolejności numerów ze schematu.</summary>
     public static IReadOnlyList<RolaPodmiotu> Wszystkie { get; } =
         Enum.GetValues<RolaPodmiotu>();
+
+    /// <summary>Role podmiotu upoważnionego.</summary>
+    public static IReadOnlyList<RolaUpowaznionego> Upowaznionych { get; } =
+        Enum.GetValues<RolaUpowaznionego>();
 }
