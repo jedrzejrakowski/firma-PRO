@@ -217,12 +217,17 @@ public static class Fa3Czytnik
         };
     }
 
-    /// <summary>Wczytuje dane sprzedawcy sprzed korekty.</summary>
+    /// <summary>Wczytuje dane stron sprzed korekty.</summary>
     private static void WczytajSprzedawcePrzedKorekta(XElement fa, Faktura faktura)
     {
         if (fa.Element(Ns + "Podmiot1K") is { } element)
         {
             faktura.SprzedawcaPrzedKorekta = Podmiot(element);
+        }
+
+        foreach (XElement nabywca in fa.Elements(Ns + "Podmiot2K"))
+        {
+            faktura.NabywcyPrzedKorekta.Add(Podmiot(nabywca));
         }
     }
 

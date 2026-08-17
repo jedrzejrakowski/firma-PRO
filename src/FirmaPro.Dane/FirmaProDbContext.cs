@@ -301,6 +301,12 @@ public class FirmaProDbContext : DbContext
             e.Property(f => f.SprzedawcaPrzedKodKraju).HasMaxLength(2);
             e.Property(f => f.SprzedawcaPrzedAdresLinia1).HasMaxLength(512);
             e.Property(f => f.SprzedawcaPrzedAdresLinia2).HasMaxLength(512);
+
+            e.Property(f => f.NabywcaPrzedNazwa).HasMaxLength(512);
+            e.Property(f => f.NabywcaPrzedNip).HasMaxLength(32);
+            e.Property(f => f.NabywcaPrzedKodKraju).HasMaxLength(2);
+            e.Property(f => f.NabywcaPrzedAdresLinia1).HasMaxLength(512);
+            e.Property(f => f.NabywcaPrzedAdresLinia2).HasMaxLength(512);
             e.Property(f => f.PrzyczynaKorekty).HasMaxLength(256);
             e.Property(f => f.TypKorekty).HasConversion<string>().HasMaxLength(24);
 

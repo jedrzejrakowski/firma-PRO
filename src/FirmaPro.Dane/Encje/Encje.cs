@@ -819,6 +819,25 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
     public bool KorygujeDaneSprzedawcy => SprzedawcaPrzedNazwa is { Length: > 0 };
 
     /// <summary>
+    /// Nazwa i adres nabywcy w brzmieniu z faktury korygowanej.
+    /// </summary>
+    /// <remarks>
+    /// Ta sama sprawa co przy sprzedawcy, po drugiej stronie transakcji.
+    /// Kolumnami, a nie tabelą: korekta danych dotyczy nabywcy z faktury,
+    /// a ten jest jeden. Korygowanie danych dodatkowych nabywców schemat
+    /// dopuszcza, ale to przypadek na tyle rzadki, że nie warto pod niego
+    /// budować osobnej tabeli - obsługa jest w modelu i w pliku.
+    /// </remarks>
+    public string? NabywcaPrzedNazwa { get; set; }
+    public string? NabywcaPrzedNip { get; set; }
+    public string? NabywcaPrzedKodKraju { get; set; }
+    public string? NabywcaPrzedAdresLinia1 { get; set; }
+    public string? NabywcaPrzedAdresLinia2 { get; set; }
+
+    /// <summary>Czy korekta poprawia dane nabywcy.</summary>
+    public bool KorygujeDaneNabywcy => NabywcaPrzedNazwa is { Length: > 0 };
+
+    /// <summary>
     /// Czy dokument jest już zamknięty na zmiany.
     /// </summary>
     /// <remarks>

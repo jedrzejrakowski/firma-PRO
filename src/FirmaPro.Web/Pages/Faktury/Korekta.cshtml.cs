@@ -46,6 +46,28 @@ public sealed class KorektaModel(
     [BindProperty] public string? SprzedawcaPrzedNazwa { get; set; }
     [BindProperty] public string? SprzedawcaPrzedAdres { get; set; }
 
+    /// <summary>Czy korekta poprawia dane nabywcy.</summary>
+    [BindProperty] public bool KorygujDaneNabywcy { get; set; }
+
+    [BindProperty] public string? NabywcaPrzedNazwa { get; set; }
+    [BindProperty] public string? NabywcaPrzedAdres { get; set; }
+
+    /// <summary>Dane nabywcy sprzed korekty zbudowane z pól formularza.</summary>
+    /// <remarks>
+    /// Numer NIP bierzemy z faktury korygowanej - tego numeru korekta danych
+    /// nie zmienia, a pole do jego wpisania byłoby zaproszeniem do pomyłki
+    /// nie do naprawienia inaczej niż korektą do zera.
+    /// </remarks>
+    private Podmiot? NabywcaPrzedKorekta(FakturaSprzedazy korygowana) =>
+        KorygujDaneNabywcy && !string.IsNullOrWhiteSpace(NabywcaPrzedNazwa)
+            ? new Podmiot
+            {
+                Nazwa = NabywcaPrzedNazwa.Trim(),
+                Nip = korygowana.NabywcaNip,
+                Adres = new Adres { Linia1 = NabywcaPrzedAdres?.Trim() ?? string.Empty }
+            }
+            : null;
+
     /// <summary>Dane sprzedawcy sprzed korekty zbudowane z pól formularza.</summary>
     /// <remarks>
     /// Numer NIP bierzemy z faktury korygowanej, a nie z formularza. Błędnego
@@ -120,6 +142,7 @@ public sealed class KorektaModel(
             wypelnione.Select(p => (p.Nazwa, p.Jednostka, p.Ilosc, p.CenaNetto,
                                     p.KodStawki, p.Gtu)).ToList(),
             SprzedawcaPrzedKorekta(faktura),
+            NabywcaPrzedKorekta(faktura),
             anulowanie);
 
         if (!wynik.Udalo)

@@ -18,7 +18,14 @@ wyszukiwarka, konta i role, kopie zapasowe, uruchomienie w kontenerach.
 Struktura FA(3) jest pokryta po stronie podmiotów w całości: `Podmiot1`,
 `Podmiot2`, `Podmiot3` (dziesięć ról plus rola własna), `PodmiotUpowazniony`
 (komornik, organ egzekucyjny, przedstawiciel podatkowy) oraz `Podmiot1K`
-(korekta danych sprzedawcy).
+i `Podmiot2K` (korekta danych sprzedawcy i nabywcy).
+
+Jedno ograniczenie zapisane świadomie: schemat dopuszcza korygowanie danych
+wielu nabywców naraz (`Podmiot2K` do stu jednu wystąpień). Model, generator
+i czytnik to obsługują, ale **baza i formularz zapisują jednego** - nabywcę
+z faktury. Korekta danych dodatkowego nabywcy z sekcji `Podmiot3` to przypadek
+na tyle rzadki, że nie warto pod niego budować osobnej tabeli; gdyby okazał
+się potrzebny, dołożenie jej nie ruszy niczego poza warstwą zapisu.
 
 Dwie wizualizacje, obie potrzebne i obie zostają:
 

@@ -163,6 +163,7 @@ public static class Walidator
         SprawdzPodmiotyInne(faktura, wynik);
         SprawdzUpowaznionego(faktura, wynik);
         SprawdzSprzedawcePrzedKorekta(faktura, wynik);
+        SprawdzNabywcowPrzedKorekta(faktura, wynik);
         SprawdzPozycje(faktura, wynik);
         SprawdzPlatnosc(faktura, wynik);
 
@@ -450,6 +451,73 @@ public static class Walidator
 
         SprawdzDlugosc(przed.Nazwa, MaxZnakowy512, $"{Etykieta} / Nazwa", wynik);
         SprawdzDlugosc(przed.Adres.Linia1, MaxZnakowy512, $"{Etykieta} / Adres", wynik);
+    }
+
+    /// <summary>
+    /// Sprawdza dane nabywców sprzed korekty.
+    /// </summary>
+    /// <remarks>
+    /// Reguły te same co po stronie sprzedawcy, bo i przepis ten sam
+    /// (art. 106j ust. 2 pkt 3 ustawy): sekcja wyłącznie na korekcie, pełne
+    /// dane, a numeru NIP tą drogą się nie zmienia. Numer musi zgadzać się
+    /// z numerem nabywcy na korekcie - inaczej urząd nie powiąże obu faktur.
+    /// </remarks>
+    private static void SprawdzNabywcowPrzedKorekta(Faktura faktura, WynikWalidacji wynik)
+    {
+        if (faktura.NabywcyPrzedKorekta.Count == 0)
+        {
+            return;
+        }
+
+        if (!faktura.CzyKorekta)
+        {
+            wynik.Blad("Nabywca przed korektą",
+                "dane nabywcy sprzed korekty można podać wyłącznie " +
+                "na fakturze korygującej");
+        }
+
+        // Numer nabywcy głównego oraz numery dodatkowych nabywców - korekta
+        // danych może dotyczyć każdego z nich.
+        HashSet<string> dopuszczalne =
+        [
+            OczyscNumer(faktura.Nabywca.Nip),
+            .. faktura.PodmiotyInne
+                .Where(p => p.Rola == RolaPodmiotu.DodatkowyNabywca)
+                .Select(p => OczyscNumer(p.Dane.Nip))
+        ];
+
+        for (int i = 0; i < faktura.NabywcyPrzedKorekta.Count; i++)
+        {
+            Podmiot przed = faktura.NabywcyPrzedKorekta[i];
+            string etykieta = faktura.NabywcyPrzedKorekta.Count == 1
+                ? "Nabywca przed korektą"
+                : $"Nabywca przed korektą {i + 1}";
+
+            if (string.IsNullOrWhiteSpace(przed.Nazwa))
+            {
+                wynik.Blad($"{etykieta} / Nazwa", "pole jest puste");
+            }
+
+            if (string.IsNullOrWhiteSpace(przed.Nip))
+            {
+                wynik.Blad($"{etykieta} / NIP",
+                    "trzeba podać numer z faktury korygowanej");
+            }
+            else if (!NipPoprawny(przed.Nip))
+            {
+                wynik.Blad($"{etykieta} / NIP",
+                    $"numer '{przed.Nip}' ma błędną sumę kontrolną");
+            }
+            else if (!dopuszczalne.Contains(OczyscNumer(przed.Nip)))
+            {
+                wynik.Blad($"{etykieta} / NIP",
+                    "błędnego numeru NIP nie poprawia się korektą danych - " +
+                    "trzeba wystawić korektę do wartości zerowych i nową fakturę");
+            }
+
+            SprawdzDlugosc(przed.Nazwa, MaxZnakowy512, $"{etykieta} / Nazwa", wynik);
+            SprawdzDlugosc(przed.Adres.Linia1, MaxZnakowy512, $"{etykieta} / Adres", wynik);
+        }
     }
 
     private static void SprawdzPozycje(Faktura faktura, WynikWalidacji wynik)

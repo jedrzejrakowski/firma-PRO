@@ -211,6 +211,39 @@
         </p>
     </details>
 
+    @* Ta sama sprawa po stronie nabywcy - bliźniacza sekcja schematu. *@
+    <details class="karta" open="@Model.KorygujDaneNabywcy">
+        <summary class="naglowek-zwijany">
+            Korekta danych nabywcy — nazwy albo adresu
+        </summary>
+
+        <label class="wybor" style="margin:12px 0">
+            <input type="checkbox" name="KorygujDaneNabywcy" value="true"
+                   checked="@Model.KorygujDaneNabywcy" />
+            Ta korekta poprawia dane nabywcy
+        </label>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="nabywcaPrzedNazwa">Nazwa na fakturze korygowanej</label>
+                <input type="text" id="nabywcaPrzedNazwa" name="NabywcaPrzedNazwa"
+                       value="@Model.NabywcaPrzedNazwa" maxlength="512" />
+            </div>
+
+            <div class="pole">
+                <label for="nabywcaPrzedAdres">Adres na fakturze korygowanej</label>
+                <input type="text" id="nabywcaPrzedAdres" name="NabywcaPrzedAdres"
+                       value="@Model.NabywcaPrzedAdres" maxlength="512" />
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Aktualne dane nabywcy program bierze z kartoteki kontrahenta —
+            popraw je tam <strong>przed</strong> wystawieniem korekty. Tutaj
+            wpisz brzmienie sprzed poprawki. Numeru NIP tą drogą się nie zmienia.
+        </p>
+    </details>
+
     <div class="paskiem">
         <button type="submit">Wystaw korektę</button>
         <a class="przycisk przycisk-drugi" asp-page="Szczegoly"

@@ -248,6 +248,28 @@
     </div>
 }
 
+@* Ta sama rzecz po stronie nabywcy. *@
+@if (Model.Faktura.KorygujeDaneNabywcy)
+{
+    <div class="karta">
+        <h2 style="margin-top:0">Nabywca przed korektą</h2>
+
+        <p>
+            <strong>@Model.Faktura.NabywcaPrzedNazwa</strong><br />
+            @Model.Faktura.NabywcaPrzedAdresLinia1
+            @if (!string.IsNullOrWhiteSpace(Model.Faktura.NabywcaPrzedAdresLinia2))
+            {
+                <text>, @Model.Faktura.NabywcaPrzedAdresLinia2</text>
+            }
+        </p>
+
+        <p class="wskazowka" style="margin:0">
+            Ta korekta poprawia dane nabywcy. Powyżej brzmienie z faktury
+            korygowanej; obowiązujące dane są w nagłówku dokumentu.
+        </p>
+    </div>
+}
+
 @* Faktura końcowa obejmuje całą dostawę, ale część nabywca opłacił już
    zaliczką - i to musi być widać, żeby nikt nie zapłacił drugi raz
    (art. 106f ust. 3 ustawy). *@

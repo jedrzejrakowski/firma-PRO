@@ -505,6 +505,22 @@ public static class Fa3Generator
                     new XElement(Ns + "Nazwa", przed.Nazwa)),
                 Adres(przed)));
         }
+
+        // Dane nabywców sprzed korekty stoją zaraz po danych sprzedawcy.
+        foreach (Podmiot nabywca in faktura.NabywcyPrzedKorekta)
+        {
+            var sekcja = new XElement(Ns + "Podmiot2K",
+                new XElement(Ns + "DaneIdentyfikacyjne",
+                    new XElement(Ns + "NIP", nabywca.Nip),
+                    new XElement(Ns + "Nazwa", nabywca.Nazwa)));
+
+            if (!string.IsNullOrWhiteSpace(nabywca.Adres.Linia1))
+            {
+                sekcja.Add(Adres(nabywca));
+            }
+
+            fa.Add(sekcja);
+        }
     }
 
     /// <summary>

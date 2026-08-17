@@ -257,6 +257,24 @@ public sealed class Faktura
     /// </remarks>
     public Podmiot? SprzedawcaPrzedKorekta { get; set; }
 
+    /// <summary>
+    /// Dane nabywców w brzmieniu z faktury korygowanej.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bliźniacza sprawa do <see cref="SprzedawcaPrzedKorekta"/>, tylko po
+    /// drugiej stronie transakcji: gdy korekta poprawia nazwę albo adres
+    /// nabywcy, trzeba podać jego dane sprzed poprawki. Lista, bo schemat
+    /// dopuszcza sto jeden wystąpień - korygować można także dane dodatkowych
+    /// nabywców z sekcji Podmiot3.
+    /// </para>
+    /// <para>
+    /// Tak samo jak przy sprzedawcy: błędnego numeru NIP tą drogą się nie
+    /// poprawia. Wymagana jest korekta do wartości zerowych i nowa faktura.
+    /// </para>
+    /// </remarks>
+    public List<Podmiot> NabywcyPrzedKorekta { get; set; } = [];
+
     public List<PozycjaFaktury> Pozycje { get; set; } = [];
     public WarunkiPlatnosci Platnosc { get; set; } = new();
 

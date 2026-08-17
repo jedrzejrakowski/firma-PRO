@@ -394,6 +394,7 @@ public sealed class UslugaFaktur(
         IReadOnlyList<(string Nazwa, string Jednostka, decimal Ilosc,
                        decimal CenaNetto, string KodStawki, string? Gtu)> pozycjePoKorekcie,
         Podmiot? sprzedawcaPrzedKorekta = null,
+        Podmiot? nabywcaPrzedKorekta = null,
         CancellationToken anulowanie = default)
     {
         ArgumentNullException.ThrowIfNull(pozycjePoKorekcie);
@@ -448,6 +449,11 @@ public sealed class UslugaFaktur(
         // Dane sprzedawcy sprzed korekty podaje się tylko wtedy, gdy to
         // właśnie one są poprawiane (art. 106j ust. 2 pkt 3 ustawy).
         model.SprzedawcaPrzedKorekta = sprzedawcaPrzedKorekta;
+
+        if (nabywcaPrzedKorekta is not null)
+        {
+            model.NabywcyPrzedKorekta = [nabywcaPrzedKorekta];
+        }
 
         model.Numer = "FK/ROBOCZA";
         WynikWalidacji walidacja = Walidator.SprawdzFakture(model);
@@ -1101,6 +1107,18 @@ public sealed class UslugaFaktur(
             encja.SprzedawcaPrzedAdresLinia2 = przed.Adres.Linia2;
         }
 
+        // W bazie mieści się jeden nabywca sprzed korekty - ten z faktury.
+        if (model.NabywcyPrzedKorekta.Count > 0)
+        {
+            Podmiot nabywcaPrzed = model.NabywcyPrzedKorekta[0];
+
+            encja.NabywcaPrzedNazwa = nabywcaPrzed.Nazwa;
+            encja.NabywcaPrzedNip = nabywcaPrzed.Nip;
+            encja.NabywcaPrzedKodKraju = nabywcaPrzed.Adres.KodKraju;
+            encja.NabywcaPrzedAdresLinia1 = nabywcaPrzed.Adres.Linia1;
+            encja.NabywcaPrzedAdresLinia2 = nabywcaPrzed.Adres.Linia2;
+        }
+
         return encja;
     }
 
@@ -1169,6 +1187,22 @@ public sealed class UslugaFaktur(
                 }
             }
             : null,
+        NabywcyPrzedKorekta = encja.NabywcaPrzedNazwa is { Length: > 0 } nazwaNabywcyPrzed
+            ?
+            [
+                new Podmiot
+                {
+                    Nazwa = nazwaNabywcyPrzed,
+                    Nip = encja.NabywcaPrzedNip ?? string.Empty,
+                    Adres = new Adres
+                    {
+                        KodKraju = encja.NabywcaPrzedKodKraju ?? "PL",
+                        Linia1 = encja.NabywcaPrzedAdresLinia1 ?? string.Empty,
+                        Linia2 = encja.NabywcaPrzedAdresLinia2
+                    }
+                }
+            ]
+            : [],
         Platnosc = new WarunkiPlatnosci
         {
             Forma = encja.FormaPlatnosci,

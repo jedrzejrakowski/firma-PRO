@@ -320,7 +320,8 @@ public static class WydrukFaktury
             // ale fakturę wystawił komornik albo koryguje ona dane sprzedawcy.
             if (faktura.PodmiotyInne.Count == 0
                 && faktura.Upowazniony is null
-                && faktura.SprzedawcaPrzedKorekta is null)
+                && faktura.SprzedawcaPrzedKorekta is null
+                && faktura.NabywcyPrzedKorekta.Count == 0)
             {
                 return;
             }
@@ -377,6 +378,12 @@ public static class WydrukFaktury
             {
                 linie.Add($"Sprzedawca przed korektą: {przed.Nazwa}, "
                           + przed.Adres.Jednolinijkowy);
+            }
+
+            foreach (Podmiot nabywca in faktura.NabywcyPrzedKorekta)
+            {
+                linie.Add($"Nabywca przed korektą: {nabywca.Nazwa}, "
+                          + nabywca.Adres.Jednolinijkowy);
             }
         }
 

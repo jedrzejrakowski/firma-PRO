@@ -239,6 +239,7 @@ public static class WydrukKsef
 
             Upowazniony();
             SprzedawcaPrzedKorekta();
+            NabywcyPrzedKorekta();
         }
 
         /// <summary>
@@ -265,6 +266,32 @@ public static class WydrukKsef
             _y += Styl.Mm(3);
 
             Kreska();
+        }
+
+        /// <summary>
+        /// Dane nabywców sprzed korekty.
+        /// </summary>
+        /// <remarks>
+        /// Bliźniacza sekcja do sprzedawcy - i tak samo bez niej nie widać,
+        /// co korekta zmienia (art. 106j ust. 2 pkt 3 ustawy).
+        /// </remarks>
+        private void NabywcyPrzedKorekta()
+        {
+            int numer = 1;
+            bool wielu = faktura.NabywcyPrzedKorekta.Count > 1;
+
+            foreach (Podmiot przed in faktura.NabywcyPrzedKorekta)
+            {
+                NaglowekSekcji(wielu
+                    ? $"Nabywca przed korektą {numer++}"
+                    : "Nabywca przed korektą");
+
+                Podmiot(przed, Styl.Lewa);
+
+                _y += Styl.Mm(3);
+
+                Kreska();
+            }
         }
 
         /// <summary>

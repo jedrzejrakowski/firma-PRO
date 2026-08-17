@@ -232,6 +232,98 @@ public sealed class TestyUpowaznionegoIKorekty
             odczytana.SprzedawcaPrzedKorekta!.Nazwa);
     }
 
+    // --------------------------------------------- korekta danych nabywcy
+
+    [Fact]
+    public void DaneNabywcyPrzedKorektaTrafiajaDoDokumentu()
+    {
+        XDocument dokument = Zbuduj(KorektaDanychNabywcy());
+        XNamespace ns = dokument.Root!.GetDefaultNamespace();
+
+        XElement sekcja = Assert.Single(dokument.Descendants(ns + "Podmiot2K"));
+
+        Assert.Equal("Auto-Serwis Nowak (dawna nazwa)",
+            sekcja.Descendants(ns + "Nazwa").Single().Value);
+        Assert.Equal("ul. Dawna 9", sekcja.Descendants(ns + "AdresL1").Single().Value);
+    }
+
+    [Fact]
+    public void KorektaDanychNabywcyPrzechodziSchemat() =>
+        Assert.Empty(Fabryka.BledyWalidacjiXsd(
+            Fa3Generator.ZbudujXml(KorektaDanychNabywcy())));
+
+    [Fact]
+    public void OdczytOddajeDaneNabywcyPrzedKorekta()
+    {
+        Faktura odczytana = TamIzPowrotem(KorektaDanychNabywcy());
+
+        Podmiot przed = Assert.Single(odczytana.NabywcyPrzedKorekta);
+
+        Assert.Equal("Auto-Serwis Nowak (dawna nazwa)", przed.Nazwa);
+        Assert.Equal("7010001453", przed.Nip);
+    }
+
+    [Fact]
+    public void NabywcaPrzedKorektaPozaKorektaJestBledem()
+    {
+        Faktura faktura = Fabryka.PrzykladowaFaktura();
+        faktura.NabywcyPrzedKorekta.Add(new Podmiot
+        {
+            Nazwa = "Dawna nazwa",
+            Nip = faktura.Nabywca.Nip,
+            Adres = new Adres { Linia1 = "ul. Dawna 9" }
+        });
+
+        Assert.True(Walidator.SprawdzFakture(faktura).SaBledy);
+    }
+
+    /// <summary>Zmiana numeru NIP nabywcy tą drogą jest zablokowana.</summary>
+    [Fact]
+    public void ZmianaNipuNabywcyJestZablokowana()
+    {
+        Faktura faktura = KorektaDanychNabywcy();
+        faktura.NabywcyPrzedKorekta[0].Nip = "5252248481";
+
+        WynikWalidacji wynik = Walidator.SprawdzFakture(faktura);
+
+        Assert.True(wynik.SaBledy);
+        Assert.Contains(wynik.Problemy,
+            p => p.Komunikat.Contains("zerowych", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Korygować można też dane dodatkowego nabywcy.
+    /// </summary>
+    /// <remarks>
+    /// Schemat na to pozwala (Podmiot2K odnosi się także do nabywców z sekcji
+    /// Podmiot3), więc numer takiego nabywcy musi przechodzić walidację.
+    /// </remarks>
+    [Fact]
+    public void DaneDodatkowegoNabywcyMoznaKorygowac()
+    {
+        Faktura faktura = KorektaDanychNabywcy();
+
+        faktura.PodmiotyInne.Add(new PodmiotInny
+        {
+            Dane = new Podmiot { Nazwa = "Drugi nabywca", Nip = "1180000001" },
+            Rola = RolaPodmiotu.DodatkowyNabywca
+        });
+
+        faktura.NabywcyPrzedKorekta.Add(new Podmiot
+        {
+            Nazwa = "Drugi nabywca (dawna nazwa)",
+            Nip = "1180000001",
+            Adres = new Adres { Linia1 = "ul. Inna 2" }
+        });
+
+        Assert.False(Walidator.SprawdzFakture(faktura).SaBledy);
+        Assert.Empty(Fabryka.BledyWalidacjiXsd(Fa3Generator.ZbudujXml(faktura)));
+    }
+
+    [Fact]
+    public void PoprawnaKorektaDanychNabywcyNieMaBledow() =>
+        Assert.False(Walidator.SprawdzFakture(KorektaDanychNabywcy()).SaBledy);
+
     // ------------------------------------------------------------ pomocnicze
 
     private static XDocument Zbuduj(Faktura faktura) =>
@@ -255,6 +347,25 @@ public sealed class TestyUpowaznionegoIKorekty
                 Adres = new Adres { Linia1 = "ul. Sądowa 1", Linia2 = "00-100 Warszawa" }
             }
         };
+
+        return faktura;
+    }
+
+    private static Faktura KorektaDanychNabywcy()
+    {
+        Faktura faktura = Fabryka.PrzykladowaFaktura();
+
+        faktura.Rodzaj = RodzajFaktury.Korygujaca;
+        faktura.PrzyczynaKorekty = "Zmiana nazwy nabywcy";
+        faktura.Korygowane.Add(new DaneFakturyKorygowanej(
+            "FV/2026/07/9", new DateOnly(2026, 7, 20), null));
+
+        faktura.NabywcyPrzedKorekta.Add(new Podmiot
+        {
+            Nazwa = "Auto-Serwis Nowak (dawna nazwa)",
+            Nip = faktura.Nabywca.Nip,
+            Adres = new Adres { Linia1 = "ul. Dawna 9", Linia2 = "02-620 Warszawa" }
+        });
 
         return faktura;
     }
