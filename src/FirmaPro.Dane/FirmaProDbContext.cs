@@ -96,6 +96,7 @@ public class FirmaProDbContext : DbContext
     public DbSet<ZamkniecieOkresuVat> ZamknieciaOkresow => Set<ZamkniecieOkresuVat>();
     public DbSet<SeriaNumeracji> SerieNumeracji => Set<SeriaNumeracji>();
     public DbSet<ZapisKsiegi> ZapisyKsiegi => Set<ZapisKsiegi>();
+    public DbSet<SrodekTrwalyFirmy> SrodkiTrwale => Set<SrodekTrwalyFirmy>();
 
     // Nazwa parametru musi odpowiadać deklaracji z klasy bazowej, dlatego
     // jako jedyna w tym pliku pozostaje angielska.
@@ -629,6 +630,25 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             // Księgę czyta się zawsze po okresie, więc indeks po dacie.
             e.HasIndex(z => new { z.FirmaId, z.Data });
         });
+
+        budowniczy.Entity<SrodekTrwalyFirmy>(e =>
+        {
+            e.ToTable("srodki_trwale");
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Nazwa).HasMaxLength(512).IsRequired();
+            e.Property(s => s.NumerInwentarzowy).HasMaxLength(64).IsRequired();
+            e.Property(s => s.Uwagi).HasMaxLength(512);
+            e.Property(s => s.WartoscPoczatkowa).HasPrecision(18, 2);
+            e.Property(s => s.LimitKosztu).HasPrecision(18, 2);
+            e.Property(s => s.StawkaRoczna).HasPrecision(6, 3);
+            e.Property(s => s.Wspolczynnik).HasPrecision(4, 2);
+            e.Property(s => s.Metoda).HasConversion<string>().HasMaxLength(24);
+
+            // Numer inwentarzowy identyfikuje środek w ewidencji, więc nie może
+            // się powtórzyć - dwa środki o tym samym numerze dałyby w księdze
+            // dwa nierozróżnialne odpisy.
+            e.HasIndex(s => new { s.FirmaId, s.NumerInwentarzowy }).IsUnique();
+        });
     }
 
     private void ZastosujFiltryFirmy(ModelBuilder budowniczy)
@@ -675,6 +695,8 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<ZapisKsiegi>()
             .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<SrodekTrwalyFirmy>()
+            .HasQueryFilter(s => s.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

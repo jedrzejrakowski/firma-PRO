@@ -37,6 +37,7 @@ public sealed class UslugaKsiegi(FirmaProDbContext baza)
         wpisy.AddRange(await PrzychodyAsync(od, doDnia, anulowanie));
         wpisy.AddRange(await KosztyAsync(od, doDnia, anulowanie));
         wpisy.AddRange(await ReczneAsync(od, doDnia, anulowanie));
+        wpisy.AddRange(await OdpisyAsync(okres, anulowanie));
 
         return Kpir.Zbuduj(okres, wpisy);
     }
@@ -190,6 +191,72 @@ public sealed class UslugaKsiegi(FirmaProDbContext baza)
                 zakup.KolumnaKpir,
                 zakup.RazemNetto,
                 zakup.Odliczany ? null : "VAT bez odliczenia"));
+        }
+
+        return wpisy;
+    }
+
+    // ------------------------------------------------------------- amortyzacja
+
+    /// <summary>
+    /// Odpisy amortyzacyjne od początku roku do końca okresu.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Zakup środka trwałego świadomie nie wchodzi do księgi jako koszt -
+    /// kosztem są właśnie te odpisy (art. 22 ust. 8 ustawy o PIT). To domyka
+    /// obieg: faktura za samochód wypada z kosztów, a co miesiąc wchodzi
+    /// przypadająca na niego rata.
+    /// </para>
+    /// <para>
+    /// Do księgi trafia <b>kwota kosztowa</b>, nie pełny odpis. Przy samochodzie
+    /// droższym od limitu część odpisu nie jest kosztem nigdy
+    /// (art. 23 ust. 1 pkt 4), więc wpisanie pełnej raty zaniżałoby dochód.
+    /// </para>
+    /// </remarks>
+    private async Task<List<WpisKsiegi>> OdpisyAsync(OkresRozliczeniowy okres,
+                                                     CancellationToken anulowanie)
+    {
+        List<SrodekTrwalyFirmy> srodki = await baza.SrodkiTrwale
+            .AsNoTracking()
+            .ToListAsync(anulowanie);
+
+        var wpisy = new List<WpisKsiegi>();
+
+        // Liczymy od stycznia, bo księga potrzebuje sum narastających.
+        var poczatekRoku = new DateOnly(okres.PierwszyDzien.Year, 1, 1);
+
+        foreach (SrodekTrwalyFirmy srodek in srodki)
+        {
+            SrodekTrwaly model = srodek.NaModel();
+
+            foreach (Odpis odpis in PlanAmortyzacji.Zbuduj(model))
+            {
+                DateOnly dzien = odpis.Okres.OstatniDzien;
+
+                if (dzien < poczatekRoku || dzien > okres.OstatniDzien)
+                {
+                    continue;
+                }
+
+                if (odpis.Koszt == 0)
+                {
+                    continue;
+                }
+
+                wpisy.Add(new WpisKsiegi(
+                    dzien,
+                    srodek.NumerInwentarzowy,
+                    string.Empty,
+                    null,
+                    "Odpis amortyzacyjny — " + srodek.Nazwa,
+                    KolumnaKpir.PozostaleWydatki,
+                    odpis.Koszt,
+                    model.PrzekraczaLimit
+                        ? "odpis " + Kwoty.NaTekst(odpis.Kwota)
+                          + " zł, koszt ograniczony limitem"
+                        : null));
+            }
         }
 
         return wpisy;

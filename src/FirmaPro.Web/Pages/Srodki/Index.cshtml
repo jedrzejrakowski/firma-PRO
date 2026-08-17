@@ -1,0 +1,249 @@
+@page
+@using FirmaPro.Domena
+@using FirmaPro.Dane.Encje
+@model FirmaPro.Web.Pages.Srodki.IndexModel
+@{
+    ViewData["Tytul"] = "Środki trwałe";
+}
+
+<h1>Środki trwałe</h1>
+<p class="podtytul">Ewidencja i plan odpisów amortyzacyjnych</p>
+
+@if (Model.Bledy.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie można wpisać środka trwałego:</strong>
+        <ul class="bledy">
+            @foreach (string blad in Model.Bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="karta">
+    <h2 style="margin-top:0">Ewidencja</h2>
+
+    @if (Model.Srodki.Count == 0)
+    {
+        <p class="wskazowka">
+            Ewidencja jest pusta. Dopóki środek trwały nie jest tu wpisany,
+            <strong>jego koszt nie wchodzi do księgi wcale</strong> — faktura
+            za zakup jest z kosztów wyłączona, bo rozlicza się go odpisami
+            (art. 22 ust. 8 ustawy o PIT).
+        </p>
+    }
+    else
+    {
+        <div class="przewijak">
+            <table class="pozycje">
+                <thead>
+                    <tr>
+                        <th>Nr inw.</th>
+                        <th>Nazwa</th>
+                        <th>Przyjęto</th>
+                        <th>Metoda</th>
+                        <th class="liczba">Stawka</th>
+                        <th class="liczba">Wartość</th>
+                        <th class="liczba">Umorzenie</th>
+                        <th class="liczba">Pozostało</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (SrodekTrwalyFirmy srodek in Model.Srodki)
+                    {
+                        <tr>
+                            <td class="nowrap"><strong>@srodek.NumerInwentarzowy</strong></td>
+                            <td>
+                                <a asp-page="Index" asp-route-plan="@srodek.Id">@srodek.Nazwa</a>
+                                @if (srodek.DataLikwidacji is DateOnly koniec)
+                                {
+                                    <span class="znacznik znacznik-robocza">
+                                        zlikwidowany @koniec.ToString("yyyy-MM-dd")
+                                    </span>
+                                }
+                                @if (srodek.LimitKosztu is decimal limit
+                                     && srodek.WartoscPoczatkowa > limit)
+                                {
+                                    <span class="znacznik znacznik-wyslana">
+                                        koszt ograniczony do @Kwoty.NaTekst(limit)
+                                    </span>
+                                }
+                            </td>
+                            <td class="nowrap">@srodek.DataPrzyjecia.ToString("yyyy-MM-dd")</td>
+                            <td>@IndexModel.NazwaMetody(srodek.Metoda)</td>
+                            <td class="liczba nowrap">@srodek.StawkaRoczna.ToString("0.##")%</td>
+                            <td class="liczba">@Kwoty.NaTekst(srodek.WartoscPoczatkowa)</td>
+                            <td class="liczba">@Kwoty.NaTekst(IndexModel.Umorzenie(srodek))</td>
+                            <td class="liczba">
+                                <strong>@Kwoty.NaTekst(IndexModel.DoUmorzenia(srodek))</strong>
+                            </td>
+                            <td>
+                                <form method="post" asp-page-handler="Usun" asp-route-id="@srodek.Id"
+                                      onsubmit="return confirm('Usunąć @srodek.Nazwa z ewidencji? Odpisy znikną z księgi także za miesiące poprzednie.')">
+                                    <button type="submit" class="usun-wiersz" title="Usuń">&times;</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <p class="wskazowka">
+            Odpisy wchodzą do księgi same, do kolumny 13, począwszy od miesiąca
+            następującego po przyjęciu do używania (art. 22h ust. 1 pkt 1).
+            Sprzedany albo zlikwidowany środek zamyka się datą likwidacji —
+            usuwanie wymazałoby też odpisy z lat poprzednich, a te były kosztem.
+        </p>
+    }
+</div>
+
+@if (Model.Wybrany is not null)
+{
+    <div class="karta">
+        <h2 style="margin-top:0">Plan odpisów — @Model.Wybrany.Nazwa</h2>
+
+        <div class="przewijak">
+            <table class="pozycje">
+                <thead>
+                    <tr>
+                        <th>Miesiąc</th>
+                        <th class="liczba">Odpis</th>
+                        <th class="liczba">Koszt</th>
+                        <th class="liczba">Umorzenie</th>
+                        <th class="liczba">Pozostaje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (Odpis odpis in Model.Plan)
+                    {
+                        <tr>
+                            <td class="nowrap">@odpis.Okres.Nazwa</td>
+                            <td class="liczba">@Kwoty.NaTekst(odpis.Kwota)</td>
+                            <td class="liczba">
+                                @if (odpis.Koszt != odpis.Kwota)
+                                {
+                                    <strong>@Kwoty.NaTekst(odpis.Koszt)</strong>
+                                }
+                                else
+                                {
+                                    @Kwoty.NaTekst(odpis.Koszt)
+                                }
+                            </td>
+                            <td class="liczba">@Kwoty.NaTekst(odpis.Umorzenie)</td>
+                            <td class="liczba">
+                                @Kwoty.NaTekst(odpis.DoUmorzenia(Model.Wybrany.WartoscPoczatkowa))
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.Wybrany.LimitKosztu is decimal limit
+             && Model.Wybrany.WartoscPoczatkowa > limit)
+        {
+            <p class="wskazowka">
+                Odpis liczy się od pełnej wartości, ale kosztem jest tylko część
+                przypadająca na kwotę do @Kwoty.NaTekst(limit) zł
+                (art. 23 ust. 1 pkt 4 ustawy o PIT). Reszta nie będzie kosztem
+                nigdy — do księgi wchodzi kolumna „Koszt”.
+            </p>
+        }
+
+        <form method="post" asp-page-handler="Zlikwiduj" asp-route-id="@Model.Wybrany.Id"
+              class="paskiem">
+            <div class="pole" style="margin:0">
+                <label for="dzien">Data likwidacji lub sprzedaży</label>
+                <input type="date" id="dzien" name="dzien"
+                       value="@DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd")" />
+            </div>
+            <button type="submit" class="przycisk-drugi">Zamknij amortyzację</button>
+        </form>
+    </div>
+}
+
+<div class="karta">
+    <h2 style="margin-top:0">Wpisz środek trwały</h2>
+
+    <form method="post">
+        <div class="siatka">
+            <div class="pole">
+                <label for="nazwa">Nazwa</label>
+                <input type="text" id="nazwa" name="Nazwa" value="@Model.Nazwa"
+                       maxlength="512" placeholder="np. Samochód osobowy Skoda Octavia" required />
+            </div>
+
+            <div class="pole">
+                <label for="numer">Numer inwentarzowy</label>
+                <input type="text" id="numer" name="NumerInwentarzowy"
+                       value="@Model.NumerInwentarzowy" maxlength="64"
+                       placeholder="np. ST/2026/1" required />
+            </div>
+
+            @* Nie data zakupu - amortyzacja zaczyna się od miesiąca po przyjęciu
+               do używania, więc to ta data rozstrzyga o pierwszym odpisie. *@
+            <div class="pole">
+                <label for="przyjecie">Data przyjęcia do używania</label>
+                <input type="date" id="przyjecie" name="DataPrzyjecia"
+                       value="@Model.DataPrzyjecia.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div class="pole">
+                <label for="wartosc">Wartość początkowa</label>
+                <input type="number" step="0.01" min="0" id="wartosc" name="WartoscPoczatkowa"
+                       value="@Model.WartoscPoczatkowa" required />
+            </div>
+        </div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="metoda">Metoda amortyzacji</label>
+                <select id="metoda" name="Metoda">
+                    @foreach (MetodaAmortyzacji metoda in IndexModel.Metody)
+                    {
+                        <option value="@metoda" selected="@(metoda == Model.Metoda)">
+                            @IndexModel.NazwaMetody(metoda)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="pole">
+                <label for="stawka">Roczna stawka</label>
+                <input type="number" step="0.01" min="0" max="100" id="stawka"
+                       name="StawkaRoczna" value="@Model.StawkaRoczna" />
+            </div>
+
+            <div class="pole">
+                <label for="wspolczynnik">Współczynnik (degresywna)</label>
+                <input type="number" step="0.1" min="1" max="3" id="wspolczynnik"
+                       name="Wspolczynnik" value="@Model.Wspolczynnik" />
+            </div>
+
+            <div class="pole">
+                <label for="limit">Limit kosztu</label>
+                <input type="number" step="0.01" min="0" id="limit" name="LimitKosztu"
+                       value="@Model.LimitKosztu" placeholder="pusto poza samochodami" />
+            </div>
+        </div>
+
+        <div class="pole">
+            <label for="uwagi">Uwagi</label>
+            <input type="text" id="uwagi" name="Uwagi" value="@Model.Uwagi" maxlength="512" />
+        </div>
+
+        <div class="paskiem">
+            <button type="submit">Wpisz do ewidencji</button>
+            <span class="drobne">
+                Limit kosztu: 150 000 zł dla samochodu osobowego, 225 000 zł
+                dla elektrycznego. Stawkę bierze się z Wykazu stawek
+                amortyzacyjnych — sprzęt komputerowy 30%, samochód 20%,
+                budynek 2,5%.
+            </span>
+        </div>
+    </form>
+</div>

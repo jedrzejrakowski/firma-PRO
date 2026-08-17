@@ -1209,3 +1209,76 @@ public sealed class ZapisKsiegi : EncjaBazowa, INalezyDoFirmy
     /// <summary>Uwagi - kolumna 16.</summary>
     public string? Uwagi { get; set; }
 }
+
+/// <summary>
+/// Środek trwały w ewidencji firmy.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Zakup środka trwałego nie jest kosztem miesiąca zakupu - kosztem są odpisy
+/// amortyzacyjne (art. 22 ust. 8 ustawy o PIT). Faktura za samochód nie wchodzi
+/// więc do księgi, a wchodzą odpisy liczone z tej ewidencji.
+/// </para>
+/// <para>
+/// Samych odpisów nie zapisujemy w bazie. Plan wynika w całości z danych środka
+/// i przelicza się go za każdym razem: gdyby odpisy leżały osobno, poprawienie
+/// wartości początkowej zostawiłoby stare kwoty i księga przestałaby zgadzać
+/// się z ewidencją.
+/// </para>
+/// </remarks>
+public sealed class SrodekTrwalyFirmy : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    public string Nazwa { get; set; } = string.Empty;
+
+    /// <summary>Numer inwentarzowy - trafia do księgi jako numer dowodu.</summary>
+    public string NumerInwentarzowy { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Dzień przyjęcia do używania.
+    /// </summary>
+    /// <remarks>
+    /// Nie dzień zakupu - amortyzacja zaczyna się od miesiąca następującego
+    /// po miesiącu przyjęcia (art. 22h ust. 1 pkt 1).
+    /// </remarks>
+    public DateOnly DataPrzyjecia { get; set; }
+
+    public decimal WartoscPoczatkowa { get; set; }
+
+    public MetodaAmortyzacji Metoda { get; set; } = MetodaAmortyzacji.Liniowa;
+
+    /// <summary>Roczna stawka z Wykazu stawek amortyzacyjnych, w procentach.</summary>
+    public decimal StawkaRoczna { get; set; } = 20m;
+
+    /// <summary>Współczynnik podwyższający - tylko przy metodzie degresywnej.</summary>
+    public decimal Wspolczynnik { get; set; } = 2.0m;
+
+    /// <summary>
+    /// Górna granica wartości, od której odpis jest kosztem.
+    /// </summary>
+    /// <remarks>
+    /// 150 000 zł dla samochodu osobowego, 225 000 zł dla elektrycznego
+    /// (art. 23 ust. 1 pkt 4). Puste przy pozostałych środkach.
+    /// </remarks>
+    public decimal? LimitKosztu { get; set; }
+
+    /// <summary>Dzień likwidacji albo sprzedaży - po nim odpisów już nie ma.</summary>
+    public DateOnly? DataLikwidacji { get; set; }
+
+    public string? Uwagi { get; set; }
+
+    /// <summary>Model dziedziny, z którego liczy się plan odpisów.</summary>
+    public SrodekTrwaly NaModel() => new()
+    {
+        Nazwa = Nazwa,
+        NumerInwentarzowy = NumerInwentarzowy,
+        DataPrzyjecia = DataPrzyjecia,
+        WartoscPoczatkowa = WartoscPoczatkowa,
+        Metoda = Metoda,
+        StawkaRoczna = StawkaRoczna,
+        Wspolczynnik = Wspolczynnik,
+        LimitKosztu = LimitKosztu,
+        DataLikwidacji = DataLikwidacji
+    };
+}
