@@ -49,8 +49,10 @@
             </select>
         </div>
 
+        <a class="przycisk przycisk-drugi" asp-page-handler="Pdf"
+           asp-route-okres="@Model.Okres.Kod">Wydruk księgi (PDF)</a>
         <a class="przycisk przycisk-drugi" asp-page-handler="Csv"
-           asp-route-okres="@Model.Okres.Kod">Pobierz plik CSV</a>
+           asp-route-okres="@Model.Okres.Kod">Plik dla księgowej (CSV)</a>
     </form>
 </div>
 

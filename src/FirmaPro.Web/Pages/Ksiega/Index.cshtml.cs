@@ -4,6 +4,7 @@ using FirmaPro.Dane;
 using FirmaPro.Dane.Encje;
 using FirmaPro.Domena;
 using FirmaPro.Web.Uslugi;
+using FirmaPro.Wydruk;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -150,6 +151,33 @@ public sealed class IndexModel(
         }
 
         return RedirectToPage(new { okres });
+    }
+
+    /// <summary>
+    /// Księga w PDF - do wydrukowania i przechowywania.
+    /// </summary>
+    /// <remarks>
+    /// Plik CSV jest wygodny dla księgowej, ale księgą jest to, co da się
+    /// wydrukować: podatnik ma obowiązek przechowywać ją wraz z dowodami,
+    /// na których podstawie powstały zapisy.
+    /// </remarks>
+    public async Task<IActionResult> OnGetPdfAsync(string? okres, CancellationToken anulowanie)
+    {
+        await WczytajAsync(okres, anulowanie);
+
+        Firma firma = await baza.Firmy
+            .AsNoTracking()
+            .SingleAsync(f => f.Id == baza.AktualnaFirmaId, anulowanie);
+
+        byte[] pdf = Forma == FormaOpodatkowania.Ryczalt
+            ? WydrukKsiegi.Utworz(Ryczalt!, firma.Nazwa, firma.Nip)
+            : WydrukKsiegi.Utworz(Kpir!, firma.Nazwa, firma.Nip);
+
+        string nazwa = Forma == FormaOpodatkowania.Ryczalt
+            ? $"ewidencja-przychodow-{Okres.Kod}.pdf"
+            : $"kpir-{Okres.Kod}.pdf";
+
+        return File(pdf, "application/pdf", nazwa);
     }
 
     /// <summary>Księga w pliku do wysłania księgowej albo do archiwum.</summary>

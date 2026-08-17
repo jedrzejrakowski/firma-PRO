@@ -294,3 +294,100 @@ public sealed class TestyRyczaltu
         Assert.Equal(0L, ewidencja.RazemPodatek);
     }
 }
+
+/// <summary>
+/// Wydruk księgi.
+/// </summary>
+/// <remarks>
+/// Układu strony testem się nie sprawdzi - to trzeba obejrzeć. Testy pilnują
+/// tego, co sprawdzalne: że plik jest poprawnym dokumentem PDF, że długa
+/// księga rozkłada się na strony i że wydruk powstaje dla obu form księgi.
+/// </remarks>
+public sealed class TestyWydrukuKsiegi
+{
+    private static readonly OkresRozliczeniowy Sierpien = OkresRozliczeniowy.Miesiac(2026, 8);
+
+    private static Kpir Ksiega(int ileZapisow)
+    {
+        var wpisy = new List<WpisKsiegi>();
+
+        for (int i = 1; i <= ileZapisow; i++)
+        {
+            wpisy.Add(new WpisKsiegi(
+                new DateOnly(2026, 8, Math.Min(i, 28)),
+                $"FV/2026/08/{i}",
+                "Kontrahent sp. z o.o.",
+                "ul. Testowa 1, 00-001 Warszawa",
+                "Sprzedaż towarów i usług",
+                KolumnaKpir.SprzedazTowarowIUslug,
+                1000m + i));
+        }
+
+        return Kpir.Zbuduj(Sierpien, wpisy);
+    }
+
+    [Fact]
+    public void WydrukKsiegiJestPoprawnymPdf()
+    {
+        byte[] pdf = FirmaPro.Wydruk.WydrukKsiegi.Utworz(
+            Ksiega(3), "Moja Firma sp. z o.o.", "5252248481");
+
+        Assert.NotEmpty(pdf);
+        Assert.StartsWith("%PDF-",
+            System.Text.Encoding.ASCII.GetString(pdf, 0, 5), StringComparison.Ordinal);
+    }
+
+    /// <summary>Strona jest pozioma - inaczej szesnaście kolumn się nie mieści.</summary>
+    [Fact]
+    public void StronaJestPozioma()
+    {
+        byte[] pdf = FirmaPro.Wydruk.WydrukKsiegi.Utworz(
+            Ksiega(1), "Moja Firma sp. z o.o.", "5252248481");
+
+        using var pamiec = new MemoryStream(pdf);
+        using PdfSharp.Pdf.PdfDocument dokument =
+            PdfSharp.Pdf.IO.PdfReader.Open(pamiec, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+
+        Assert.True(dokument.Pages[0].Width > dokument.Pages[0].Height,
+            "Księga ma się drukować na arkuszu poziomym.");
+    }
+
+    [Fact]
+    public void DlugaKsiegaRozkladaSieNaStrony()
+    {
+        byte[] pdf = FirmaPro.Wydruk.WydrukKsiegi.Utworz(
+            Ksiega(120), "Moja Firma sp. z o.o.", "5252248481");
+
+        using var pamiec = new MemoryStream(pdf);
+        using PdfSharp.Pdf.PdfDocument dokument =
+            PdfSharp.Pdf.IO.PdfReader.Open(pamiec, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+
+        Assert.True(dokument.PageCount > 1,
+            "Księga ze 120 zapisami powinna zająć więcej niż jedną stronę.");
+    }
+
+    [Fact]
+    public void EwidencjaRyczaltuTezMaWydruk()
+    {
+        EwidencjaRyczaltu ewidencja = EwidencjaRyczaltu.Zbuduj(Sierpien,
+        [
+            new WpisRyczaltu(new DateOnly(2026, 8, 12), "FV/1", "Usługa", 12m, 10_000m),
+            new WpisRyczaltu(new DateOnly(2026, 8, 20), "FV/2", "Wykład", 17m, 2_000m)
+        ]);
+
+        byte[] pdf = FirmaPro.Wydruk.WydrukKsiegi.Utworz(
+            ewidencja, "Moja Firma sp. z o.o.", "5252248481");
+
+        Assert.StartsWith("%PDF-",
+            System.Text.Encoding.ASCII.GetString(pdf, 0, 5), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PustaKsiegaTezSieDrukuje()
+    {
+        byte[] pdf = FirmaPro.Wydruk.WydrukKsiegi.Utworz(
+            Kpir.Zbuduj(Sierpien, []), "Moja Firma sp. z o.o.", "5252248481");
+
+        Assert.NotEmpty(pdf);
+    }
+}
