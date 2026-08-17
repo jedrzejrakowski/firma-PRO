@@ -9,6 +9,10 @@ Gałąź robocza: `claude/excel-invoicing-ksef-koxjud`.
 
 ## Co działa
 
+Księga przychodów i rozchodów oraz ewidencja przychodów przy ryczałcie:
+wybór formy opodatkowania, kwalifikacja kosztów do kolumn, sumy narastające,
+zapisy ręczne bez faktury, wydruk księgi i plik CSV dla biura rachunkowego.
+
 Wystawianie faktur (zwykłe, korygujące, zaliczkowe, końcowe, duplikaty),
 wysyłka do KSeF z pobraniem UPO, faktury cykliczne, cennik, kontrahenci,
 płatności i należności, rejestr VAT, deklaracja JPK\_V7, import faktur zakupu
@@ -62,6 +66,9 @@ Do przejścia w środowisku testowym Ministerstwa, gdy będzie token.
 - **Faktury zakupu sprzed wprowadzenia `XmlKsef`** nie mają zapisanego pliku,
   więc nie da się dla nich zrobić wizualizacji. Ponowny import tego samego
   okresu uzupełnia braki — duplikaty są pomijane.
+- **Dochód w księdze nie jest podstawą opodatkowania** - nie uwzględnia spisu
+  z natury, amortyzacji ani składek ZUS. Napisane jest to i na ekranie,
+  i na wydruku, ale warto o tym pamiętać przy dalszych pracach.
 - **Faktury sprzedaży sprzed wprowadzenia `XmlWyslany`** drukują się ze starej
   drogi (model z bazy). To zamierzone zachowanie zapasowe, nie usterka.
 
@@ -69,32 +76,36 @@ Do przejścia w środowisku testowym Ministerstwa, gdy będzie token.
 
 ## Kolejność następnych funkcji
 
-### 1. KPiR — księga przychodów i rozchodów
+### 1. Amortyzacja środków trwałych
 
-Duża rzecz, na osobną sesję od początku. Dotyka pięciu warstw: model kolumn
-księgi, kwalifikacja dokumentów (sprzedaż i zakupy już są w bazie), ewidencja
-z numeracją ciągłą, wydruk księgi za okres i podsumowania roczne.
+Pierwsza rzecz do zrobienia, bo księga już jej potrzebuje. Zakup środka
+trwałego jest świadomie **wyłączony** z kosztów księgi - art. 22 ust. 8 ustawy
+o PIT każe rozliczać go odpisami - ale program tych odpisów nie liczy i trzeba
+je dziś dopisywać ręcznie na ekranie księgi.
 
-Rzecz do rozstrzygnięcia na starcie: **KPiR nie liczy tego samego co rejestr
-VAT.** Do księgi wchodzą kwoty netto, ale nie wszystkie — koszty
-niestanowiące kosztu uzyskania przychodu wypadają, a niektóre przychody
-(np. zwroty) wchodzą ze znakiem ujemnym. Nie da się jej zbudować jako widoku
-rejestru VAT i próba pójścia na skróty tutaj kończy się księgą, która nie
-zgadza się z zeznaniem rocznym.
+Do zrobienia: ewidencja środków trwałych, stawki i metody amortyzacji, plan
+odpisów i comiesięczne dopisywanie ich do kolumny 13.
 
-### 2. ZUS
+### 2. Spis z natury
 
-Składki właściciela, terminy, przypomnienia. Mniejsze niż KPiR, ale wymaga
-KPiR-u przed sobą przy uldze na start i małym ZUS-ie.
+Drugi brakujący element dochodu. Zakup towarów handlowych stoi poza sumą
+kolumny 14, bo rozlicza się go różnicą remanentów - bez spisu na początek
+i koniec roku dochód roczny nie jest kompletny.
 
-### 3. Kadry i płace
+
+### 3. ZUS
+
+Składki właściciela, terminy, przypomnienia. Księga jest już gotowa, więc przy
+małym ZUS-ie plus jest z czego wziąć przychód.
+
+### 4. Kadry i płace
 
 **Kilkakrotnie większe niż wszystko dotąd zbudowane razem.** Umowy, listy płac,
 PIT-4R, PIT-11, zgłoszenia do ZUS, urlopy, zwolnienia. To nie jest funkcja,
 tylko drugi program obok tego. Wymaga osobnej rozmowy o zakresie, zanim padnie
 pierwsza linijka kodu.
 
-### 4. Przebudowa pulpitu — świadomie na koniec
+### 5. Przebudowa pulpitu — świadomie na koniec
 
 Ustalone z właścicielem: pulpit przebudowujemy **po** KPiR, ZUS-ie i kadrach,
 żeby nie robić tego od nowa przy każdej nowej funkcji.
