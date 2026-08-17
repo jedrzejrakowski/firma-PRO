@@ -99,6 +99,44 @@
                    value="@Model.StopkaFaktury" maxlength="3500" />
         </div>
 
+        @* Forma opodatkowania nie jest preferencją, tylko stanem prawnym -
+           i to ona rozstrzyga, jaką księgę program prowadzi. *@
+        <h2 class="naglowek-sekcji">Podatek dochodowy</h2>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="forma">Forma opodatkowania</label>
+                <select id="forma" name="FormaOpodatkowania">
+                    @foreach (FormaOpodatkowania forma in UstawieniaModel.Formy)
+                    {
+                        <option value="@forma" selected="@(forma == Model.FormaOpodatkowania)">
+                            @UstawieniaModel.NazwaFormy(forma)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="pole">
+                <label for="stawkaRyczaltu">Domyślna stawka ryczałtu</label>
+                <select id="stawkaRyczaltu" name="StawkaRyczaltu">
+                    @foreach (decimal stawka in UstawieniaModel.StawkiRyczaltu)
+                    {
+                        <option value="@stawka.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                selected="@(stawka == Model.StawkaRyczaltu)">
+                            @UstawieniaModel.NazwaStawki(stawka)
+                        </option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Przy skali i podatku liniowym program prowadzi księgę przychodów
+            i rozchodów, przy ryczałcie ewidencję przychodów. Stawka ryczałtu
+            jest tylko podpowiedzią — przy fakturze można ją zmienić, bo jedna
+            działalność bywa opodatkowana kilkoma stawkami naraz.
+        </p>
+
         <h2 class="naglowek-sekcji">Rozliczenie VAT</h2>
 
         <div class="siatka">

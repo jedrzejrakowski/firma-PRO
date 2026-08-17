@@ -153,6 +153,7 @@ budowniczy.Services.AddScoped<UslugaZakupow>();
 budowniczy.Services.AddScoped<UslugaImportuZakupow>();
 budowniczy.Services.AddScoped<UslugaRejestruVat>();
 budowniczy.Services.AddScoped<UslugaZestawien>();
+budowniczy.Services.AddScoped<UslugaKsiegi>();
 budowniczy.Services.AddScoped<UslugaDeklaracji>();
 budowniczy.Services.AddScoped<UslugaDiagnostykiKsef>();
 budowniczy.Services.AddScoped<UslugaCertyfikatuKsef>();

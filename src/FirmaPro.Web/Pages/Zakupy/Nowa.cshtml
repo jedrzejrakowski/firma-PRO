@@ -176,6 +176,21 @@
                 </select>
             </div>
 
+            @* Rejestrowi VAT wystarcza podział na towary i środki trwałe,
+               ale księga ma osobne kolumny - bez tego wyboru wszystko
+               lądowałoby w jednym worku. *@
+            <div class="pole">
+                <label for="kolumna">Kolumna księgi</label>
+                <select id="kolumna" name="KolumnaKpir">
+                    @foreach (KolumnaKpir kolumna in NowaModel.KolumnyKosztowe)
+                    {
+                        <option value="@kolumna" selected="@(kolumna == Model.KolumnaKpir)">
+                            @NowaModel.NumerKolumny(kolumna) — @NowaModel.NazwaKolumny(kolumna)
+                        </option>
+                    }
+                </select>
+            </div>
+
             <div class="pole">
                 <label for="uwagi">Uwagi</label>
                 <input type="text" id="uwagi" name="Uwagi" value="@Model.Uwagi"
@@ -193,6 +208,15 @@
                się pierwsza z przesłanych wartości. *@
             <input type="hidden" name="Odliczany" value="false" />
             <label for="odliczany">Podatek z tej faktury podlega odliczeniu</label>
+        </div>
+
+        @* Odliczenie VAT i koszt w podatku dochodowym to dwie różne sprawy.
+           Reprezentacja nie jest kosztem, choć VAT bywa od niej do odliczenia. *@
+        <div class="pole-wyboru">
+            <input type="checkbox" id="kosztPodatkowy" name="KosztPodatkowy" value="true"
+                   checked="@Model.KosztPodatkowy" />
+            <input type="hidden" name="KosztPodatkowy" value="false" />
+            <label for="kosztPodatkowy">Wydatek jest kosztem podatkowym</label>
         </div>
 
         <p class="wskazowka">

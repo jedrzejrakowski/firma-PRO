@@ -43,6 +43,32 @@ public sealed class UstawieniaModel(
     [BindProperty] public int DomyslnyTerminPlatnosciDni { get; set; } = 14;
     [BindProperty] public SrodowiskoKsef Srodowisko { get; set; } = SrodowiskoKsef.Test;
     [BindProperty] public TypOkresu TypOkresuVat { get; set; } = TypOkresu.Miesieczny;
+
+    /// <summary>
+    /// Forma opodatkowania - decyduje, jaką księgę program prowadzi.
+    /// </summary>
+    [BindProperty]
+    public FormaOpodatkowania FormaOpodatkowania { get; set; } = FormaOpodatkowania.Skala;
+
+    /// <summary>Domyślna stawka ryczałtu podpowiadana przy fakturze.</summary>
+    [BindProperty] public decimal StawkaRyczaltu { get; set; } = 8.5m;
+
+    public static IReadOnlyList<FormaOpodatkowania> Formy { get; } =
+        Enum.GetValues<FormaOpodatkowania>();
+
+    public static IReadOnlyList<decimal> StawkiRyczaltu => Domena.StawkiRyczaltu.Wszystkie;
+
+    public static string NazwaStawki(decimal stawka) => Domena.StawkiRyczaltu.NaTekst(stawka);
+
+    /// <summary>Nazwa formy opodatkowania w języku użytkownika.</summary>
+    public static string NazwaFormy(FormaOpodatkowania forma) => forma switch
+    {
+        FormaOpodatkowania.Skala => "Skala podatkowa (12% i 32%)",
+        FormaOpodatkowania.Liniowy => "Podatek liniowy (19%)",
+        FormaOpodatkowania.Ryczalt => "Ryczałt od przychodów ewidencjonowanych",
+        FormaOpodatkowania.KsiegiRachunkowe => "Księgi rachunkowe (poza zakresem programu)",
+        _ => forma.ToString()
+    };
     [BindProperty] public string KodUrzeduSkarbowego { get; set; } = string.Empty;
 
     /// <summary>Nowy token KSeF - puste pole zostawia dotychczasowy.</summary>
@@ -203,6 +229,8 @@ public sealed class UstawieniaModel(
         firma.Srodowisko = Srodowisko;
         firma.MetodaUwierzytelnienia = MetodaUwierzytelnienia;
         firma.TypOkresuVat = TypOkresuVat;
+        firma.FormaOpodatkowania = FormaOpodatkowania;
+        firma.StawkaRyczaltu = StawkaRyczaltu;
         firma.KodUrzeduSkarbowego = Puste(KodUrzeduSkarbowego);
 
         if (UsunToken)
@@ -242,6 +270,8 @@ public sealed class UstawieniaModel(
         Srodowisko = firma.Srodowisko;
         MetodaUwierzytelnienia = firma.MetodaUwierzytelnienia;
         TypOkresuVat = firma.TypOkresuVat;
+        FormaOpodatkowania = firma.FormaOpodatkowania;
+        StawkaRyczaltu = firma.StawkaRyczaltu;
         KodUrzeduSkarbowego = firma.KodUrzeduSkarbowego ?? string.Empty;
 
         OdczytajStanTokena(firma);

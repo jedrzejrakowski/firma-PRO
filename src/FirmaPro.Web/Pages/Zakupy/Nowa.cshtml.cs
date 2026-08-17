@@ -42,6 +42,20 @@ public sealed class NowaModel(
 
     [BindProperty] public RodzajZakupu Rodzaj { get; set; } = RodzajZakupu.TowaryIUslugi;
     [BindProperty] public bool Odliczany { get; set; } = true;
+
+    /// <summary>Kolumna księgi, do której trafi ten koszt.</summary>
+    [BindProperty]
+    public KolumnaKpir KolumnaKpir { get; set; } = KolumnaKpir.PozostaleWydatki;
+
+    /// <summary>Czy wydatek jest kosztem podatkowym.</summary>
+    [BindProperty] public bool KosztPodatkowy { get; set; } = true;
+
+    /// <summary>Kolumny kosztowe do wyboru.</summary>
+    public static IReadOnlyList<KolumnaKpir> KolumnyKosztowe => Kolumny.Kosztowe;
+
+    public static string NazwaKolumny(KolumnaKpir kolumna) => Kolumny.Nazwa(kolumna);
+
+    public static int NumerKolumny(KolumnaKpir kolumna) => Kolumny.Numer(kolumna);
     [BindProperty] public string Uwagi { get; set; } = string.Empty;
 
     [BindProperty] public List<WierszKwot> Kwoty { get; set; } = [];
@@ -86,6 +100,7 @@ public sealed class NowaModel(
         WynikZapisuZakupu wynik = await uslugaZakupow.ZapiszAsync(
             Numer, DataWystawienia, DataWplywu, DataObowiazkuPodatkowego, DataUjecia,
             KontrahentId, SprzedawcaNazwa, SprzedawcaNip, Rodzaj, Odliczany,
+            KolumnaKpir, KosztPodatkowy,
             Kwoty.Where(k => !k.CzyPusty)
                  .Select(k => new KwotaZakupu(k.KodStawki, k.Netto, k.Vat))
                  .ToList(),

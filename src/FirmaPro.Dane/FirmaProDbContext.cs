@@ -95,6 +95,7 @@ public class FirmaProDbContext : DbContext
     public DbSet<KwotaVatZakupu> KwotyVatZakupu => Set<KwotaVatZakupu>();
     public DbSet<ZamkniecieOkresuVat> ZamknieciaOkresow => Set<ZamkniecieOkresuVat>();
     public DbSet<SeriaNumeracji> SerieNumeracji => Set<SeriaNumeracji>();
+    public DbSet<ZapisKsiegi> ZapisyKsiegi => Set<ZapisKsiegi>();
 
     // Nazwa parametru musi odpowiadać deklaracji z klasy bazowej, dlatego
     // jako jedyna w tym pliku pozostaje angielska.
@@ -113,6 +114,7 @@ public class FirmaProDbContext : DbContext
         KonfigurujZamknieciaOkresow(modelBuilder);
         KonfigurujNumeracje(modelBuilder);
         KonfigurujWzorce(modelBuilder);
+        KonfigurujKsiege(modelBuilder);
 
         ZastosujFiltryFirmy(modelBuilder);
     }
@@ -141,6 +143,8 @@ public class FirmaProDbContext : DbContext
             e.Property(f => f.CertyfikatOdcisk).HasMaxLength(128);
             e.Property(f => f.CertyfikatPodmiot).HasMaxLength(512);
             e.Property(f => f.TypOkresuVat).HasConversion<string>().HasMaxLength(16);
+            e.Property(f => f.FormaOpodatkowania).HasConversion<string>().HasMaxLength(24);
+            e.Property(f => f.StawkaRyczaltu).HasPrecision(5, 2);
             e.Property(f => f.KodUrzeduSkarbowego).HasMaxLength(8);
             e.HasIndex(f => f.Nip);
         });
@@ -322,6 +326,7 @@ public class FirmaProDbContext : DbContext
             e.Property(f => f.RazemNetto).HasPrecision(18, 2);
             e.Property(f => f.RazemVat).HasPrecision(18, 2);
             e.Property(f => f.RazemBrutto).HasPrecision(18, 2);
+            e.Property(f => f.StawkaRyczaltu).HasPrecision(5, 2);
 
             e.HasOne(f => f.Kontrahent)
                 .WithMany()
@@ -480,6 +485,7 @@ public class FirmaProDbContext : DbContext
             e.Property(f => f.SprzedawcaNazwa).HasMaxLength(512).IsRequired();
             e.Property(f => f.SprzedawcaNip).HasMaxLength(16);
             e.Property(f => f.Rodzaj).HasConversion<string>().HasMaxLength(16);
+            e.Property(f => f.KolumnaKpir).HasConversion<string>().HasMaxLength(32);
             e.Property(f => f.NumerKsef).HasMaxLength(64);
             e.Property(f => f.Uwagi).HasMaxLength(2000);
 
@@ -602,7 +608,30 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
         });
     }
 
-        private void ZastosujFiltryFirmy(ModelBuilder budowniczy)
+    private static void KonfigurujKsiege(ModelBuilder budowniczy)
+    {
+        budowniczy.Entity<ZapisKsiegi>(e =>
+        {
+            e.ToTable("zapisy_ksiegi");
+            e.HasKey(z => z.Id);
+            e.Property(z => z.NumerDowodu).HasMaxLength(256).IsRequired();
+            e.Property(z => z.Kontrahent).HasMaxLength(512);
+            e.Property(z => z.Adres).HasMaxLength(512);
+            e.Property(z => z.Opis).HasMaxLength(512).IsRequired();
+            e.Property(z => z.Uwagi).HasMaxLength(512);
+            e.Property(z => z.Kwota).HasPrecision(18, 2);
+            e.Property(z => z.StawkaRyczaltu).HasPrecision(5, 2);
+
+            // Nazwa kolumny słowem, nie numerem - przy zaglądaniu do bazy
+            // „ZakupTowarow" mówi wszystko, a „10" wymaga rozporządzenia.
+            e.Property(z => z.Kolumna).HasConversion<string>().HasMaxLength(32);
+
+            // Księgę czyta się zawsze po okresie, więc indeks po dacie.
+            e.HasIndex(z => new { z.FirmaId, z.Data });
+        });
+    }
+
+    private void ZastosujFiltryFirmy(ModelBuilder budowniczy)
     {
         budowniczy.Entity<Kontrahent>()
             .HasQueryFilter(k => k.FirmaId == AktualnaFirmaId);
@@ -644,6 +673,8 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<PodmiotInnyFaktury>()
             .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<ZapisKsiegi>()
+            .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

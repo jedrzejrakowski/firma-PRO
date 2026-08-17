@@ -96,6 +96,32 @@ public sealed class Firma : EncjaBazowa
     public TypOkresu TypOkresuVat { get; set; } = TypOkresu.Miesieczny;
 
     /// <summary>
+    /// Forma opodatkowania - rozstrzyga, jaką księgę firma prowadzi.
+    /// </summary>
+    /// <remarks>
+    /// Przy skali i podatku liniowym księga przychodów i rozchodów, przy
+    /// ryczałcie ewidencja przychodów. To dwa różne dokumenty, nie dwa widoki
+    /// tego samego - dlatego program pokazuje ten, który firmie przysługuje.
+    /// </remarks>
+    public FormaOpodatkowania FormaOpodatkowania { get; set; } = FormaOpodatkowania.Skala;
+
+    /// <summary>
+    /// Domyślna stawka ryczałtu podpowiadana przy fakturze.
+    /// </summary>
+    /// <remarks>
+    /// Podpowiedź, nie reguła: jedna działalność bywa opodatkowana kilkoma
+    /// stawkami naraz, więc przy fakturze można ją zmienić.
+    /// </remarks>
+    public decimal StawkaRyczaltu { get; set; } = 8.5m;
+
+    /// <summary>Czy firma prowadzi księgę przychodów i rozchodów.</summary>
+    public bool ProwadziKpir =>
+        FormaOpodatkowania is FormaOpodatkowania.Skala or FormaOpodatkowania.Liniowy;
+
+    /// <summary>Czy firma prowadzi ewidencję przychodów.</summary>
+    public bool ProwadziRyczalt => FormaOpodatkowania == FormaOpodatkowania.Ryczalt;
+
+    /// <summary>
     /// Czterocyfrowy kod urzędu skarbowego, do którego trafia JPK_V7.
     /// </summary>
     /// <remarks>
@@ -644,6 +670,16 @@ public sealed class FakturaSprzedazy : EncjaBazowa, INalezyDoFirmy
 
     public RodzajFaktury Rodzaj { get; set; } = RodzajFaktury.Vat;
 
+    /// <summary>
+    /// Stawka ryczałtu przypisana do tej sprzedaży.
+    /// </summary>
+    /// <remarks>
+    /// Puste u firm rozliczających się skalą albo liniowo - tam stawka nie ma
+    /// znaczenia. Przy ryczałcie decyduje o tym, do której rubryki ewidencji
+    /// trafi przychód, a więc i o kwocie podatku.
+    /// </remarks>
+    public decimal? StawkaRyczaltu { get; set; }
+
     public Guid KontrahentId { get; set; }
     public Kontrahent? Kontrahent { get; set; }
 
@@ -1019,6 +1055,27 @@ public sealed class FakturaZakupu : EncjaBazowa, INalezyDoFirmy
     /// </remarks>
     public bool Odliczany { get; set; } = true;
 
+    /// <summary>
+    /// Kolumna księgi, do której trafia ten koszt.
+    /// </summary>
+    /// <remarks>
+    /// Rejestrowi VAT wystarczy podział na towary i środki trwałe, ale księga
+    /// przychodów i rozchodów ma osobne kolumny na towary handlowe, koszty
+    /// uboczne zakupu, wynagrodzenia i pozostałe wydatki. Bez tego wyboru
+    /// wszystko lądowałoby w jednym worku i księgę trzeba by poprawiać ręcznie.
+    /// </remarks>
+    public KolumnaKpir KolumnaKpir { get; set; } = KolumnaKpir.PozostaleWydatki;
+
+    /// <summary>
+    /// Czy wydatek jest kosztem podatkowym.
+    /// </summary>
+    /// <remarks>
+    /// Odliczenie VAT i koszt w podatku dochodowym to dwie różne sprawy.
+    /// Reprezentacja nie jest kosztem, choć VAT bywa od niej do odliczenia;
+    /// zakup dla celów prywatnych nie jest ani jednym, ani drugim.
+    /// </remarks>
+    public bool KosztPodatkowy { get; set; } = true;
+
     public decimal RazemNetto { get; set; }
     public decimal RazemVat { get; set; }
     public decimal RazemBrutto { get; set; }
@@ -1090,4 +1147,65 @@ public sealed class ZamkniecieOkresuVat : EncjaBazowa, INalezyDoFirmy
     public long PodatekDoWplaty { get; set; }
 
     public DateTimeOffset DataZamkniecia { get; set; }
+}
+
+/// <summary>
+/// Zapis w księdze wprowadzony ręcznie.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Nie wszystko, co trafia do księgi, jest fakturą. Amortyzacja, odsetki
+/// od rachunku firmowego, sprzedaż wyposażenia, opłata skarbowa, ryczałt
+/// za używanie samochodu - to zdarzenia bez faktury, a księga musi je znać,
+/// bo bez nich dochód jest nieprawdziwy.
+/// </para>
+/// <para>
+/// Zapisy ręczne stoją w osobnej tabeli, a nie wśród faktur, bo nie są
+/// dokumentami sprzedaży ani zakupu: nie mają numeru KSeF, nie idą do JPK
+/// i nie podlegają niezmienności dokumentu wysłanego do urzędu.
+/// </para>
+/// </remarks>
+public sealed class ZapisKsiegi : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    /// <summary>Data zdarzenia gospodarczego - kolumna 2 księgi.</summary>
+    public DateOnly Data { get; set; }
+
+    /// <summary>Numer dowodu księgowego - kolumna 3.</summary>
+    public string NumerDowodu { get; set; } = string.Empty;
+
+    /// <summary>Nazwa kontrahenta - kolumna 4; puste przy zapisach własnych.</summary>
+    public string? Kontrahent { get; set; }
+
+    /// <summary>Adres kontrahenta - kolumna 5.</summary>
+    public string? Adres { get; set; }
+
+    /// <summary>Opis zdarzenia - kolumna 6.</summary>
+    public string Opis { get; set; } = string.Empty;
+
+    /// <summary>Kolumna, do której trafia kwota.</summary>
+    public KolumnaKpir Kolumna { get; set; } = KolumnaKpir.PozostaleWydatki;
+
+    /// <summary>
+    /// Kwota zapisu.
+    /// </summary>
+    /// <remarks>
+    /// Ujemna przy zmniejszeniu. Księga nie zna zapisów czerwonych, więc minus
+    /// jest jedynym sposobem pokazania, że coś ubyło.
+    /// </remarks>
+    public decimal Kwota { get; set; }
+
+    /// <summary>
+    /// Stawka ryczałtu - tylko przy przychodach firmy na ryczałcie.
+    /// </summary>
+    /// <remarks>
+    /// Przychód bez stawki nie da się opodatkować, więc przy ewidencji
+    /// przychodów jest obowiązkowa. Przy kosztach nie ma znaczenia - ryczałt
+    /// kosztów nie zna.
+    /// </remarks>
+    public decimal? StawkaRyczaltu { get; set; }
+
+    /// <summary>Uwagi - kolumna 16.</summary>
+    public string? Uwagi { get; set; }
 }

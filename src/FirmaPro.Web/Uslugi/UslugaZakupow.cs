@@ -36,6 +36,8 @@ public sealed class UslugaZakupow(FirmaProDbContext baza)
         string? sprzedawcaNip,
         RodzajZakupu rodzaj,
         bool odliczany,
+        KolumnaKpir kolumnaKpir,
+        bool kosztPodatkowy,
         IReadOnlyList<KwotaZakupu> kwoty,
         string? uwagi,
         CancellationToken anulowanie = default)
@@ -77,6 +79,8 @@ public sealed class UslugaZakupow(FirmaProDbContext baza)
                 : new string(sprzedawcaNip.Where(char.IsDigit).ToArray()),
             Rodzaj = rodzaj,
             Odliczany = odliczany,
+            KolumnaKpir = kolumnaKpir,
+            KosztPodatkowy = kosztPodatkowy,
             Uwagi = string.IsNullOrWhiteSpace(uwagi) ? null : uwagi.Trim()
         };
 

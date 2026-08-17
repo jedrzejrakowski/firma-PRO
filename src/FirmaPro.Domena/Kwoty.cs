@@ -60,6 +60,16 @@ public static class Kwoty
     public static string NaTekst(decimal kwota) => kwota.ToString("N2", ZapisPolski);
 
     /// <summary>
+    /// Kwota w pełnych złotych, po polsku.
+    /// </summary>
+    /// <remarks>
+    /// Do podatków i zaliczek, które zaokrągla się do złotych (art. 63 § 1
+    /// Ordynacji podatkowej) - grosze w takiej kwocie sugerowałyby dokładność,
+    /// której przepis nie przewiduje.
+    /// </remarks>
+    public static string ZloteNaTekst(long kwota) => kwota.ToString("N0", ZapisPolski);
+
+    /// <summary>
     /// Kurs waluty zapisany po polsku - tyle miejsc, ile podał bank.
     /// </summary>
     /// <remarks>

@@ -1,0 +1,383 @@
+@page
+@using FirmaPro.Domena
+@using FirmaPro.Dane.Encje
+@model FirmaPro.Web.Pages.Ksiega.IndexModel
+@{
+    bool ryczalt = Model.Forma == FormaOpodatkowania.Ryczalt;
+    ViewData["Tytul"] = ryczalt ? "Ewidencja przychodów" : "Księga przychodów i rozchodów";
+}
+
+<h1>@(ryczalt ? "Ewidencja przychodów" : "Podatkowa księga przychodów i rozchodów")</h1>
+<p class="podtytul">@Model.Okres.Nazwa</p>
+
+@if (Model.Forma == FormaOpodatkowania.KsiegiRachunkowe)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Ta firma prowadzi księgi rachunkowe.</strong>
+        Program ich nie obsługuje — księga przychodów i rozchodów oraz ewidencja
+        przychodów są przewidziane dla podatników podatku dochodowego od osób
+        fizycznych. Jeśli forma opodatkowania jest wpisana błędnie, popraw ją
+        w <a asp-page="/Ustawienia">ustawieniach firmy</a>.
+    </div>
+    return;
+}
+
+@if (Model.Bledy.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie można dopisać zapisu:</strong>
+        <ul class="bledy">
+            @foreach (string blad in Model.Bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="karta">
+    <form method="get" class="paskiem">
+        <div class="pole" style="margin:0">
+            <label for="okres">Okres</label>
+            <select id="okres" name="okres" onchange="this.form.submit()">
+                @foreach (OkresRozliczeniowy okres in Model.DostepneOkresy.Reverse())
+                {
+                    <option value="@okres.Kod" selected="@(okres.Kod == Model.Okres.Kod)">
+                        @okres.Nazwa
+                    </option>
+                }
+            </select>
+        </div>
+
+        <a class="przycisk przycisk-drugi" asp-page-handler="Csv"
+           asp-route-okres="@Model.Okres.Kod">Pobierz plik CSV</a>
+    </form>
+</div>
+
+@if (ryczalt)
+{
+    @* Ewidencja przychodów - bez kosztów, z podziałem na stawki. *@
+    <div class="karta">
+        <h2 style="margin-top:0">Przychody okresu</h2>
+
+        @if (Model.Ryczalt!.Wpisy.Count == 0)
+        {
+            <p class="wskazowka">W tym okresie nie ma jeszcze żadnego przychodu.</p>
+        }
+        else
+        {
+            <div class="przewijak">
+                <table class="pozycje">
+                    <thead>
+                        <tr>
+                            <th>Lp.</th>
+                            <th>Data</th>
+                            <th>Nr dowodu</th>
+                            <th>Opis</th>
+                            <th>Stawka</th>
+                            <th class="liczba">Przychód</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ int lp = 1; }
+                        @foreach (WpisRyczaltu wpis in Model.Ryczalt.Wpisy)
+                        {
+                            <tr>
+                                <td>@(lp++)</td>
+                                <td class="nowrap">@wpis.Data.ToString("yyyy-MM-dd")</td>
+                                <td class="nowrap"><strong>@wpis.NumerDowodu</strong></td>
+                                <td>@wpis.Opis</td>
+                                <td class="nowrap">@IndexModel.StawkaNaTekst(wpis.Stawka)</td>
+                                <td class="liczba">@Kwoty.NaTekst(wpis.Kwota)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="karta">
+        <h2 style="margin-top:0">Podatek</h2>
+
+        @* Podatek liczy się osobno w każdej stawce i dopiero sumuje - przy
+           działalności mieszanej podatek od sumy przychodów byłby kwotą
+           oderwaną od rzeczywistości. *@
+        <div class="przewijak">
+            <table class="pozycje">
+                <thead>
+                    <tr>
+                        <th>Stawka</th>
+                        <th class="liczba">Przychód okresu</th>
+                        <th class="liczba">Podatek okresu</th>
+                        <th class="liczba">Przychód narastająco</th>
+                        <th class="liczba">Podatek narastająco</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (PrzychodWStawce stawka in Model.Ryczalt.NarastajacoWedlugStawek)
+                    {
+                        PrzychodWStawce? okresu = Model.Ryczalt.WedlugStawek
+                            .FirstOrDefault(s => s.Stawka == stawka.Stawka);
+
+                        <tr>
+                            <td><strong>@IndexModel.StawkaNaTekst(stawka.Stawka)</strong></td>
+                            <td class="liczba">@Kwoty.NaTekst(okresu?.Przychod ?? 0m)</td>
+                            <td class="liczba">@IndexModel.PodatekNaTekst(okresu?.Podatek ?? 0L)</td>
+                            <td class="liczba">@Kwoty.NaTekst(stawka.Przychod)</td>
+                            <td class="liczba">@IndexModel.PodatekNaTekst(stawka.Podatek)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="podsumowanie-kwot">
+            <div>
+                <div class="etykieta">Przychód narastająco</div>
+                <div class="kwota">@Kwoty.NaTekst(Model.Ryczalt.PrzychodNarastajaco)</div>
+            </div>
+            <div class="razem">
+                <div class="etykieta">Podatek narastająco</div>
+                <div class="kwota">@IndexModel.PodatekNaTekst(Model.Ryczalt.PodatekNarastajaco) zł</div>
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Podatek policzony od samego przychodu, <strong>bez odliczenia
+            składek</strong> na ubezpieczenie społeczne i zdrowotne — program
+            ich jeszcze nie prowadzi. To kwota do sprawdzenia z księgową,
+            a nie gotowa zaliczka do przelania.
+        </p>
+    </div>
+}
+else
+{
+    @* Księga przychodów i rozchodów - układ kolumn z rozporządzenia. *@
+    <div class="karta">
+        <h2 style="margin-top:0">Zapisy okresu</h2>
+
+        @if (Model.Kpir!.Wpisy.Count == 0)
+        {
+            <p class="wskazowka">
+                W tym okresie nie ma jeszcze żadnego zapisu. Faktury sprzedaży
+                i kosztowe trafiają do księgi same; amortyzację i inne zdarzenia
+                bez faktury dopisz poniżej.
+            </p>
+        }
+        else
+        {
+            <div class="przewijak">
+                <table class="pozycje ksiega">
+                    <thead>
+                        <tr>
+                            <th>Lp.</th>
+                            <th>Data</th>
+                            <th>Nr dowodu</th>
+                            <th>Kontrahent</th>
+                            <th>Opis</th>
+                            <th class="liczba">Kolumna</th>
+                            <th class="liczba">Kwota</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ int lp = 1; }
+                        @foreach (WpisKsiegi wpis in Model.Kpir.Wpisy)
+                        {
+                            <tr>
+                                <td>@(lp++)</td>
+                                <td class="nowrap">@wpis.Data.ToString("yyyy-MM-dd")</td>
+                                <td class="nowrap"><strong>@wpis.NumerDowodu</strong></td>
+                                <td>@wpis.Kontrahent</td>
+                                <td>@wpis.Opis</td>
+                                <td class="liczba nowrap">
+                                    @IndexModel.NumerKolumny(wpis.Kolumna)
+                                    <span class="drobne">@IndexModel.NazwaKolumny(wpis.Kolumna)</span>
+                                </td>
+                                <td class="liczba">
+                                    <strong class="@(wpis.Przychod ? "kwota-przychod" : string.Empty)">
+                                        @Kwoty.NaTekst(wpis.Kwota)
+                                    </strong>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="karta">
+        <h2 style="margin-top:0">Sumy</h2>
+
+        <div class="przewijak">
+            <table class="pozycje">
+                <thead>
+                    <tr>
+                        <th>Kolumna</th>
+                        <th>Nazwa</th>
+                        <th class="liczba">Okres</th>
+                        <th class="liczba">Narastająco od 1 stycznia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (KolumnaKpir kolumna in IndexModel.Kolumny)
+                    {
+                        <tr>
+                            <td>@IndexModel.NumerKolumny(kolumna)</td>
+                            <td>@IndexModel.NazwaKolumny(kolumna)</td>
+                            <td class="liczba">@Kwoty.NaTekst(Model.Kpir.Kolumna(kolumna))</td>
+                            <td class="liczba">@Kwoty.NaTekst(Model.Kpir.Narastajaco(kolumna))</td>
+                        </tr>
+                    }
+                    <tr class="wiersz-sumy">
+                        <td>9</td>
+                        <td><strong>Razem przychód</strong></td>
+                        <td class="liczba"><strong>@Kwoty.NaTekst(Model.Kpir.RazemPrzychod)</strong></td>
+                        <td class="liczba"><strong>@Kwoty.NaTekst(Model.Kpir.PrzychodNarastajaco)</strong></td>
+                    </tr>
+                    <tr class="wiersz-sumy">
+                        <td>14</td>
+                        <td><strong>Razem wydatki</strong></td>
+                        <td class="liczba"><strong>@Kwoty.NaTekst(Model.Kpir.RazemWydatki)</strong></td>
+                        <td class="liczba"><strong>@Kwoty.NaTekst(Model.Kpir.WydatkiNarastajaco)</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="podsumowanie-kwot">
+            <div class="razem">
+                <div class="etykieta">Dochód narastająco</div>
+                <div class="kwota">@Kwoty.NaTekst(Model.Kpir.DochodNarastajaco)</div>
+            </div>
+        </div>
+
+        <p class="wskazowka">
+            Kolumna 14 sumuje wyłącznie wynagrodzenia i pozostałe wydatki.
+            Zakup towarów handlowych i koszty uboczne stoją poza tą sumą, bo
+            rozlicza się je przez spis z natury — <strong>dochód powyżej nie
+            uwzględnia więc ani spisu, ani amortyzacji</strong>. To kwota
+            do sprawdzenia z księgową, nie gotowa podstawa opodatkowania.
+        </p>
+    </div>
+}
+
+@* Nie wszystko, co trafia do księgi, jest fakturą: amortyzacja, odsetki
+   od rachunku, opłata skarbowa, sprzedaż wyposażenia. *@
+<div class="karta">
+    <h2 style="margin-top:0">Dopisz zapis bez faktury</h2>
+
+    <form method="post" asp-page-handler="Dodaj" asp-route-okres="@Model.Okres.Kod">
+        <div class="siatka">
+            <div class="pole">
+                <label for="data">Data zdarzenia</label>
+                <input type="date" id="data" name="Data"
+                       value="@Model.Data.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div class="pole">
+                <label for="dowod">Nr dowodu</label>
+                <input type="text" id="dowod" name="NumerDowodu" value="@Model.NumerDowodu"
+                       maxlength="256" placeholder="np. AM/08/2026" required />
+            </div>
+
+            <div class="pole">
+                <label for="kolumna">Kolumna księgi</label>
+                <select id="kolumna" name="Kolumna">
+                    @foreach (KolumnaKpir kolumna in IndexModel.Kolumny)
+                    {
+                        <option value="@kolumna" selected="@(kolumna == Model.Kolumna)">
+                            @IndexModel.NumerKolumny(kolumna) — @IndexModel.NazwaKolumny(kolumna)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="pole">
+                <label for="kwota">Kwota</label>
+                <input type="number" step="0.01" id="kwota" name="Kwota"
+                       value="@Model.Kwota" required />
+            </div>
+
+            @if (ryczalt)
+            {
+                <div class="pole">
+                    <label for="stawka">Stawka ryczałtu</label>
+                    <select id="stawka" name="StawkaRyczaltu">
+                        <option value="">— przy koszcie zostaw puste —</option>
+                        @foreach (decimal stawka in IndexModel.StawkiRyczaltu)
+                        {
+                            <option value="@stawka.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                    selected="@(stawka == Model.StawkaRyczaltu)">
+                                @IndexModel.StawkaNaTekst(stawka)
+                            </option>
+                        }
+                    </select>
+                </div>
+            }
+        </div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="opis">Opis zdarzenia</label>
+                <input type="text" id="opis" name="Opis" value="@Model.Opis"
+                       maxlength="512" placeholder="np. odpis amortyzacyjny — samochód" required />
+            </div>
+
+            <div class="pole">
+                <label for="kontrahent">Kontrahent (jeśli jest)</label>
+                <input type="text" id="kontrahent" name="Kontrahent"
+                       value="@Model.Kontrahent" maxlength="512" />
+            </div>
+        </div>
+
+        <div class="paskiem">
+            <button type="submit">Dopisz do księgi</button>
+            <span class="drobne">
+                Kwota ujemna zmniejsza zapis — księga nie zna zapisów czerwonych.
+            </span>
+        </div>
+    </form>
+</div>
+
+@if (Model.ZapisyReczne.Count > 0)
+{
+    <div class="karta">
+        <h2 style="margin-top:0">Zapisy dopisane ręcznie w tym okresie</h2>
+
+        <div class="przewijak">
+            <table class="pozycje">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Nr dowodu</th>
+                        <th>Opis</th>
+                        <th class="liczba">Kolumna</th>
+                        <th class="liczba">Kwota</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ZapisKsiegi zapis in Model.ZapisyReczne)
+                    {
+                        <tr>
+                            <td class="nowrap">@zapis.Data.ToString("yyyy-MM-dd")</td>
+                            <td class="nowrap"><strong>@zapis.NumerDowodu</strong></td>
+                            <td>@zapis.Opis</td>
+                            <td class="liczba">@IndexModel.NumerKolumny(zapis.Kolumna)</td>
+                            <td class="liczba">@Kwoty.NaTekst(zapis.Kwota)</td>
+                            <td>
+                                <form method="post" asp-page-handler="Usun"
+                                      asp-route-id="@zapis.Id" asp-route-okres="@Model.Okres.Kod"
+                                      onsubmit="return confirm('Usunąć zapis @zapis.NumerDowodu z księgi?')">
+                                    <button type="submit" class="usun-wiersz" title="Usuń">&times;</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
