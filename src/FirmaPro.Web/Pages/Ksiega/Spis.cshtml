@@ -1,0 +1,404 @@
+@page
+@using FirmaPro.Domena
+@using FirmaPro.Dane.Encje
+@model FirmaPro.Web.Pages.Ksiega.SpisModel
+@{
+    ViewData["Tytul"] = "Spis z natury";
+}
+
+<h1>Spis z natury</h1>
+<p class="podtytul">Remanenty i roczne rozliczenie dochodu — @Model.Rok</p>
+
+@if (Model.Bledy.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie można zapisać:</strong>
+        <ul class="bledy">
+            @foreach (string blad in Model.Bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="karta">
+    <form method="get" class="paskiem">
+        <div class="pole" style="margin:0">
+            <label for="rok">Rok podatkowy</label>
+            <input type="number" id="rok" name="rok" value="@Model.Rok"
+                   min="2000" max="2100" onchange="this.form.submit()" />
+        </div>
+        <a class="przycisk przycisk-drugi" asp-page="/Ksiega/Index">Wróć do księgi</a>
+    </form>
+</div>
+
+@* Rachunek roczny - to dla niego w ogóle sporządza się spis. *@
+<div class="karta">
+    <h2 style="margin-top:0">Rozliczenie roczne @Model.Rok</h2>
+
+    @if (Model.Rozliczenie is { } rozliczenie)
+    {
+        <div class="przewijak">
+            <table class="pozycje">
+                <tbody>
+                    <tr>
+                        <td>Przychód (kolumny 7 i 8)</td>
+                        <td class="liczba">@Kwoty.NaTekst(rozliczenie.Przychod)</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Remanent początkowy
+                            @if (Model.RemanentPoczatkowy is { } poczatkowy)
+                            {
+                                <span class="drobne">spis z @poczatkowy.Data.ToString("yyyy-MM-dd")</span>
+                            }
+                            else
+                            {
+                                <span class="drobne">brak spisu — liczone jako zero</span>
+                            }
+                        </td>
+                        <td class="liczba">@Kwoty.NaTekst(rozliczenie.RemanentPoczatkowy)</td>
+                    </tr>
+                    <tr>
+                        <td>+ Zakup towarów handlowych i materiałów (kolumna 10)</td>
+                        <td class="liczba">@Kwoty.NaTekst(rozliczenie.ZakupTowarow)</td>
+                    </tr>
+                    <tr>
+                        <td>+ Koszty uboczne zakupu (kolumna 11)</td>
+                        <td class="liczba">@Kwoty.NaTekst(rozliczenie.KosztyUboczne)</td>
+                    </tr>
+                    <tr class="wiersz-sumy">
+                        <td><strong>Razem z zakupami</strong></td>
+                        <td class="liczba"><strong>@Kwoty.NaTekst(rozliczenie.RazemZZakupami)</strong></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            − Remanent końcowy
+                            @if (Model.RemanentKoncowy is { } koncowy)
+                            {
+                                <span class="drobne">spis z @koncowy.Data.ToString("yyyy-MM-dd")</span>
+                            }
+                            else
+                            {
+                                <span class="drobne">brak spisu — liczone jako zero</span>
+                            }
+                        </td>
+                        <td class="liczba">@Kwoty.NaTekst(rozliczenie.RemanentKoncowy)</td>
+                    </tr>
+                    <tr class="wiersz-sumy">
+                        <td><strong>Wartość sprzedanych towarów i zużytych materiałów</strong></td>
+                        <td class="liczba">
+                            <strong>@Kwoty.NaTekst(rozliczenie.WartoscSprzedanychTowarow)</strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>+ Wynagrodzenia (kolumna 12)</td>
+                        <td class="liczba">@Kwoty.NaTekst(rozliczenie.Wynagrodzenia)</td>
+                    </tr>
+                    <tr>
+                        <td>+ Pozostałe wydatki (kolumna 13)</td>
+                        <td class="liczba">@Kwoty.NaTekst(rozliczenie.PozostaleWydatki)</td>
+                    </tr>
+                    <tr class="wiersz-sumy">
+                        <td><strong>Koszty uzyskania przychodu</strong></td>
+                        <td class="liczba"><strong>@Kwoty.NaTekst(rozliczenie.KosztyUzyskania)</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="podsumowanie-kwot">
+            @if (rozliczenie.MaRemanenty)
+            {
+                <div>
+                    <div class="etykieta">Wpływ remanentów na dochód</div>
+                    <div class="kwota">@Kwoty.NaTekst(rozliczenie.WplywRemanentow)</div>
+                </div>
+            }
+            <div class="razem">
+                <div class="etykieta">Dochód roczny</div>
+                <div class="kwota">@Kwoty.NaTekst(rozliczenie.Dochod)</div>
+            </div>
+        </div>
+
+        @* Reguła mylona najczęściej - warto ją mieć przed oczami przy liczbach. *@
+        <p class="wskazowka">
+            Zakup towaru <strong>nie jest kosztem w chwili zakupu</strong> —
+            kosztem jest towar sprzedany. To, co zostało na półce, siedzi
+            w remanencie końcowym i z kosztów roku wypada. Rok z dużym zakupem
+            towaru na magazyn potrafi więc dać wysoki dochód mimo pustej kasy.
+            @* Różnicę między dochodem rocznym a miesięcznym trzeba nazwać
+               po imieniu - inaczej wygląda na pomyłkę programu. *@
+            @if (rozliczenie.WplywRemanentow > 0)
+            {
+                <text>
+                    Dlatego dochód powyżej jest o
+                    @Kwoty.NaTekst(rozliczenie.WplywRemanentow)
+                    <strong>wyższy</strong> od tego, który widać w księdze
+                    miesięcznej — magazyn w tym roku urósł.
+                </text>
+            }
+            else if (rozliczenie.WplywRemanentow < 0)
+            {
+                <text>
+                    Dlatego dochód powyżej jest o
+                    @Kwoty.NaTekst(-rozliczenie.WplywRemanentow)
+                    <strong>niższy</strong> od tego, który widać w księdze
+                    miesięcznej — magazyn w tym roku zmalał.
+                </text>
+            }
+        </p>
+
+        @if (Model.RemanentKoncowy is null)
+        {
+            <div class="powiadomienie ostrzezenie">
+                <strong>Brak spisu na koniec roku @Model.Rok.</strong>
+                Dopóki go nie ma, cały zakup towarów liczy się w koszty i dochód
+                roczny jest zaniżony o wartość magazynu. Spis na 31 grudnia jest
+                obowiązkowy (§ 24 rozporządzenia w sprawie prowadzenia księgi).
+            </div>
+        }
+    }
+</div>
+
+@* Arkusz otwarty do wypełniania. *@
+@if (Model.Otwarty is { } arkusz)
+{
+    <div class="karta">
+        <h2 style="margin-top:0">
+            Arkusz spisu z @arkusz.Data.ToString("yyyy-MM-dd")
+            @if (arkusz.Zamkniety)
+            {
+                <span class="znacznik znacznik-wyslana">zamknięty</span>
+            }
+            else
+            {
+                <span class="znacznik znacznik-robocza">w trakcie</span>
+            }
+        </h2>
+
+        @if (!string.IsNullOrWhiteSpace(arkusz.Uwagi))
+        {
+            <p class="drobne">@arkusz.Uwagi</p>
+        }
+
+        @if (arkusz.Pozycje.Count == 0)
+        {
+            <p class="wskazowka">
+                Arkusz jest pusty. Spis o wartości zero też jest spisem — firma
+                usługowa ma obowiązek go sporządzić i wykazać w nim zero.
+            </p>
+        }
+        else
+        {
+            <div class="przewijak">
+                <table class="pozycje">
+                    <thead>
+                        <tr>
+                            <th>Lp.</th>
+                            <th>Nazwa</th>
+                            <th>Jednostka</th>
+                            <th class="liczba">Ilość</th>
+                            <th class="liczba">Cena</th>
+                            <th>Wycena</th>
+                            <th class="liczba">Wartość</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (PozycjaSpisuFirmy pozycja in arkusz.Pozycje.OrderBy(p => p.NrPozycji))
+                        {
+                            <tr>
+                                <td>@pozycja.NrPozycji</td>
+                                <td>@pozycja.Nazwa</td>
+                                <td class="nowrap">@pozycja.Jednostka</td>
+                                <td class="liczba">@pozycja.Ilosc.ToString("0.###")</td>
+                                <td class="liczba">@Kwoty.NaTekst(pozycja.CenaJednostkowa)</td>
+                                <td><span class="drobne">@SpisModel.NazwaWyceny(pozycja.Wycena)</span></td>
+                                <td class="liczba">
+                                    <strong>@Kwoty.NaTekst(Kwoty.Zaokraglij(pozycja.Ilosc * pozycja.CenaJednostkowa))</strong>
+                                </td>
+                                <td>
+                                    @if (!arkusz.Zamkniety)
+                                    {
+                                        <form method="post" asp-page-handler="UsunPozycje"
+                                              asp-route-rok="@Model.Rok" asp-route-spis="@arkusz.Id"
+                                              asp-route-id="@pozycja.Id">
+                                            <button type="submit" class="usun-wiersz" title="Usuń">&times;</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="podsumowanie-kwot">
+                <div class="razem">
+                    <div class="etykieta">Wartość spisu</div>
+                    <div class="kwota">@Kwoty.NaTekst(arkusz.NaModel().Wartosc)</div>
+                </div>
+            </div>
+        }
+
+        @if (!arkusz.Zamkniety)
+        {
+            <form method="post" asp-page-handler="Dodaj"
+                  asp-route-rok="@Model.Rok" asp-route-spis="@arkusz.Id">
+                <div class="siatka">
+                    <div class="pole">
+                        <label for="nazwa">Nazwa towaru lub materiału</label>
+                        <input type="text" id="nazwa" name="Nazwa" value="@Model.Nazwa"
+                               maxlength="512" placeholder="np. Deska sosnowa 25 mm" required />
+                    </div>
+
+                    <div class="pole">
+                        <label for="jednostka">Jednostka</label>
+                        <input type="text" id="jednostka" name="Jednostka"
+                               value="@Model.Jednostka" maxlength="16" />
+                    </div>
+
+                    <div class="pole">
+                        <label for="ilosc">Ilość</label>
+                        <input type="number" step="0.001" min="0" id="ilosc" name="Ilosc"
+                               value="@Model.Ilosc" required />
+                    </div>
+
+                    <div class="pole">
+                        <label for="cena">Cena jednostkowa</label>
+                        <input type="number" step="0.01" min="0" id="cena" name="CenaJednostkowa"
+                               value="@Model.CenaJednostkowa" required />
+                    </div>
+                </div>
+
+                @* Przy kontroli trzeba umieć powiedzieć, skąd wzięła się cena
+                   - dlatego sposób wyceny zapisujemy przy pozycji (§ 26). *@
+                <div class="pole">
+                    <label for="wycena">Sposób wyceny</label>
+                    <select id="wycena" name="Wycena">
+                        @foreach (SposobWyceny wycena in SpisModel.SposobyWyceny)
+                        {
+                            <option value="@wycena" selected="@(wycena == Model.Wycena)">
+                                @SpisModel.NazwaWyceny(wycena)
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="paskiem">
+                    <button type="submit">Dopisz pozycję</button>
+                </div>
+            </form>
+
+            <form method="post" asp-page-handler="Zamknij"
+                  asp-route-rok="@Model.Rok" asp-route-spis="@arkusz.Id"
+                  onsubmit="return confirm('Zamknąć spis z @arkusz.Data.ToString("yyyy-MM-dd")? Po zamknięciu nie dopisze się już do niego pozycji.')">
+                <div class="paskiem">
+                    <button type="submit" class="przycisk-drugi">Zamknij spis</button>
+                    <span class="drobne">
+                        Zamknięty spis podpisuje się i przechowuje razem z księgą —
+                        poprawkę robi się nowym spisem, nie zmianą starego.
+                    </span>
+                </div>
+            </form>
+        }
+    </div>
+}
+
+<div class="karta">
+    <h2 style="margin-top:0">Spisy</h2>
+
+    @if (Model.Spisy.Count == 0)
+    {
+        <p class="wskazowka">
+            Nie ma jeszcze żadnego spisu. Sporządza się go obowiązkowo na koniec
+            roku i na jego początek, a poza tym przy rozpoczęciu działalności,
+            jej likwidacji i zmianie wspólnika (§ 24 rozporządzenia).
+        </p>
+    }
+    else
+    {
+        <div class="przewijak">
+            <table class="pozycje">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Rola w roku @Model.Rok</th>
+                        <th class="liczba">Pozycji</th>
+                        <th class="liczba">Wartość</th>
+                        <th>Stan</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (SpisZNaturyFirmy spis in Model.Spisy)
+                    {
+                        SpisZNatury model = spis.NaModel();
+
+                        <tr>
+                            <td class="nowrap">
+                                <a asp-page="Spis" asp-route-rok="@Model.Rok" asp-route-spis="@spis.Id">
+                                    <strong>@spis.Data.ToString("yyyy-MM-dd")</strong>
+                                </a>
+                            </td>
+                            <td>
+                                @if (Model.RemanentPoczatkowy?.Data == spis.Data)
+                                {
+                                    <span class="znacznik znacznik-wyslana">remanent początkowy</span>
+                                }
+                                else if (Model.RemanentKoncowy?.Data == spis.Data)
+                                {
+                                    <span class="znacznik znacznik-wyslana">remanent końcowy</span>
+                                }
+                                else
+                                {
+                                    <span class="drobne">poza rozliczeniem tego roku</span>
+                                }
+                            </td>
+                            <td class="liczba">@spis.Pozycje.Count</td>
+                            <td class="liczba">@Kwoty.NaTekst(model.Wartosc)</td>
+                            <td>@(spis.Zamkniety ? "zamknięty" : "w trakcie")</td>
+                            <td>
+                                <form method="post" asp-page-handler="UsunSpis"
+                                      asp-route-rok="@Model.Rok" asp-route-id="@spis.Id"
+                                      onsubmit="return confirm('Usunąć spis z @spis.Data.ToString("yyyy-MM-dd") wraz z pozycjami? Dochód roczny policzy się bez niego.')">
+                                    <button type="submit" class="usun-wiersz" title="Usuń">&times;</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="karta">
+    <h2 style="margin-top:0">Załóż nowy spis</h2>
+
+    <form method="post" asp-page-handler="Zaloz" asp-route-rok="@Model.Rok">
+        <div class="siatka">
+            <div class="pole">
+                <label for="data">Data spisu</label>
+                <input type="date" id="data" name="DataSpisu"
+                       value="@Model.DataSpisu.ToString("yyyy-MM-dd")" required />
+            </div>
+
+            <div class="pole">
+                <label for="uwagi">Uwagi</label>
+                <input type="text" id="uwagi" name="UwagiSpisu" value="@Model.UwagiSpisu"
+                       maxlength="512" placeholder="np. spis roczny, magazyn główny" />
+            </div>
+        </div>
+
+        <div class="paskiem">
+            <button type="submit">Załóż arkusz</button>
+            <span class="drobne">
+                Spis na 31 grudnia zamyka rok i jednocześnie otwiera następny —
+                nie trzeba zakładać drugiego na 1 stycznia.
+            </span>
+        </div>
+    </form>
+</div>

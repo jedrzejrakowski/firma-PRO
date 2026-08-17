@@ -97,6 +97,8 @@ public class FirmaProDbContext : DbContext
     public DbSet<SeriaNumeracji> SerieNumeracji => Set<SeriaNumeracji>();
     public DbSet<ZapisKsiegi> ZapisyKsiegi => Set<ZapisKsiegi>();
     public DbSet<SrodekTrwalyFirmy> SrodkiTrwale => Set<SrodekTrwalyFirmy>();
+    public DbSet<SpisZNaturyFirmy> Spisy => Set<SpisZNaturyFirmy>();
+    public DbSet<PozycjaSpisuFirmy> PozycjeSpisow => Set<PozycjaSpisuFirmy>();
 
     // Nazwa parametru musi odpowiadać deklaracji z klasy bazowej, dlatego
     // jako jedyna w tym pliku pozostaje angielska.
@@ -649,6 +651,35 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             // dwa nierozróżnialne odpisy.
             e.HasIndex(s => new { s.FirmaId, s.NumerInwentarzowy }).IsUnique();
         });
+
+        budowniczy.Entity<SpisZNaturyFirmy>(e =>
+        {
+            e.ToTable("spisy_z_natury");
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Uwagi).HasMaxLength(512);
+
+            // Dwa spisy na ten sam dzień oznaczałyby, że nie wiadomo, który
+            // z nich jest remanentem - a od tego zależy dochód roczny.
+            e.HasIndex(s => new { s.FirmaId, s.Data }).IsUnique();
+        });
+
+        budowniczy.Entity<PozycjaSpisuFirmy>(e =>
+        {
+            e.ToTable("pozycje_spisow");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Nazwa).HasMaxLength(512).IsRequired();
+            e.Property(p => p.Jednostka).HasMaxLength(32).IsRequired();
+            e.Property(p => p.Ilosc).HasPrecision(18, 6);
+            e.Property(p => p.CenaJednostkowa).HasPrecision(18, 2);
+            e.Property(p => p.Wycena).HasConversion<string>().HasMaxLength(24);
+
+            e.HasOne(p => p.Spis)
+                .WithMany(s => s!.Pozycje)
+                .HasForeignKey(p => p.SpisId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(p => new { p.FirmaId, p.SpisId });
+        });
     }
 
     private void ZastosujFiltryFirmy(ModelBuilder budowniczy)
@@ -697,6 +728,10 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<SrodekTrwalyFirmy>()
             .HasQueryFilter(s => s.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<SpisZNaturyFirmy>()
+            .HasQueryFilter(s => s.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<PozycjaSpisuFirmy>()
+            .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

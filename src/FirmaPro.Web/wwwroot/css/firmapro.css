@@ -488,6 +488,14 @@ th.liczba { text-align: right; }
 
 tfoot td { border-top: 1px solid var(--kreska); border-bottom: 0; font-weight: 600; }
 
+/* Wiersz podsumowujący w środku tabeli - w rachunku rocznym takich sum
+   jest kilka, więc muszą się odcinać od zwykłych pozycji. */
+.wiersz-sumy td {
+    background: color-mix(in srgb, var(--atrament) 4%, transparent);
+    border-top: 1px solid var(--kreska);
+    font-weight: 600;
+}
+
 table.waska { max-width: 560px; }
 
 /* Tabela wstawiona wprost w treść, bez karty - dostaje własne obramowanie. */

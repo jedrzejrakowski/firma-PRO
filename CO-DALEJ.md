@@ -13,6 +13,14 @@ Księga przychodów i rozchodów oraz ewidencja przychodów przy ryczałcie:
 wybór formy opodatkowania, kwalifikacja kosztów do kolumn, sumy narastające,
 zapisy ręczne bez faktury, wydruk księgi i plik CSV dla biura rachunkowego.
 
+Ewidencja środków trwałych z planem odpisów (liniowa, degresywna z przejściem
+na liniową, jednorazowa), limit kosztu przy samochodach osobowych, likwidacja
+zamykająca plan bez kasowania historii. Odpisy wchodzą do kolumny 13 same.
+
+Spis z natury: arkusze remanentowe z czterema sposobami wyceny (§ 26
+rozporządzenia), zamknięcie arkusza, dobór remanentu początkowego i końcowego
+dla roku oraz roczne rozliczenie dochodu różnicą remanentów.
+
 Wystawianie faktur (zwykłe, korygujące, zaliczkowe, końcowe, duplikaty),
 wysyłka do KSeF z pobraniem UPO, faktury cykliczne, cennik, kontrahenci,
 płatności i należności, rejestr VAT, deklaracja JPK\_V7, import faktur zakupu
@@ -66,9 +74,10 @@ Do przejścia w środowisku testowym Ministerstwa, gdy będzie token.
 - **Faktury zakupu sprzed wprowadzenia `XmlKsef`** nie mają zapisanego pliku,
   więc nie da się dla nich zrobić wizualizacji. Ponowny import tego samego
   okresu uzupełnia braki — duplikaty są pomijane.
-- **Dochód w księdze nie jest podstawą opodatkowania** - nie uwzględnia spisu
-  z natury, amortyzacji ani składek ZUS. Napisane jest to i na ekranie,
-  i na wydruku, ale warto o tym pamiętać przy dalszych pracach.
+- **Dochód w księdze nie jest podstawą opodatkowania** - kolumna 14 nie
+  obejmuje zakupu towarów, więc dochód miesięczny w księdze różni się od
+  rocznego. Pełny rachunek jest na ekranie „Spis z natury"; brakuje w nim
+  jeszcze tylko składek ZUS. Napisane jest to i na ekranie, i na wydruku.
 - **Faktury sprzedaży sprzed wprowadzenia `XmlWyslany`** drukują się ze starej
   drogi (model z bazy). To zamierzone zachowanie zapasowe, nie usterka.
 
@@ -76,36 +85,23 @@ Do przejścia w środowisku testowym Ministerstwa, gdy będzie token.
 
 ## Kolejność następnych funkcji
 
-### 1. Amortyzacja środków trwałych
+### 1. ZUS
 
-Pierwsza rzecz do zrobienia, bo księga już jej potrzebuje. Zakup środka
-trwałego jest świadomie **wyłączony** z kosztów księgi - art. 22 ust. 8 ustawy
-o PIT każe rozliczać go odpisami - ale program tych odpisów nie liczy i trzeba
-je dziś dopisywać ręcznie na ekranie księgi.
+Ostatni brakujący element dochodu i jedyna rzecz, której program jeszcze nie
+liczy, a która wchodzi wprost do zeznania. Składki właściciela, terminy,
+przypomnienia. Księga jest już gotowa, więc przy małym ZUS-ie plus jest
+z czego wziąć przychód.
 
-Do zrobienia: ewidencja środków trwałych, stawki i metody amortyzacji, plan
-odpisów i comiesięczne dopisywanie ich do kolumny 13.
+Dopiero po tym da się na pulpicie pokazać kwotę PIT, która nie będzie zgadywana.
 
-### 2. Spis z natury
-
-Drugi brakujący element dochodu. Zakup towarów handlowych stoi poza sumą
-kolumny 14, bo rozlicza się go różnicą remanentów - bez spisu na początek
-i koniec roku dochód roczny nie jest kompletny.
-
-
-### 3. ZUS
-
-Składki właściciela, terminy, przypomnienia. Księga jest już gotowa, więc przy
-małym ZUS-ie plus jest z czego wziąć przychód.
-
-### 4. Kadry i płace
+### 2. Kadry i płace
 
 **Kilkakrotnie większe niż wszystko dotąd zbudowane razem.** Umowy, listy płac,
 PIT-4R, PIT-11, zgłoszenia do ZUS, urlopy, zwolnienia. To nie jest funkcja,
 tylko drugi program obok tego. Wymaga osobnej rozmowy o zakresie, zanim padnie
 pierwsza linijka kodu.
 
-### 5. Przebudowa pulpitu — świadomie na koniec
+### 3. Przebudowa pulpitu — świadomie na koniec
 
 Ustalone z właścicielem: pulpit przebudowujemy **po** KPiR, ZUS-ie i kadrach,
 żeby nie robić tego od nowa przy każdej nowej funkcji.

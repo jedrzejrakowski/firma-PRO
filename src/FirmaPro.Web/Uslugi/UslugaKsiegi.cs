@@ -84,6 +84,36 @@ public sealed class UslugaKsiegi(FirmaProDbContext baza)
         return EwidencjaRyczaltu.Zbuduj(okres, wpisy);
     }
 
+    /// <summary>
+    /// Roczne rozliczenie dochodu z uwzględnieniem remanentów.
+    /// </summary>
+    /// <remarks>
+    /// Dochód widoczny w miesiącach a dochód roczny to dwie różne liczby
+    /// i nie jest to usterka: zakup towaru nie jest kosztem w chwili zakupu,
+    /// kosztem jest towar sprzedany. Różnicę pokazują dopiero spisy z natury,
+    /// dlatego rozliczenie liczy się raz, za cały rok.
+    /// </remarks>
+    public async Task<RozliczenieRoczne> RozliczenieRoczneAsync(
+        int rok, CancellationToken anulowanie = default)
+    {
+        Kpir ksiega = await KpirAsync(OkresRozliczeniowy.Miesiac(rok, 12), anulowanie);
+
+        List<SpisZNatury> spisy = await SpisyAsync(anulowanie);
+
+        return RozliczenieRoczne.Zbuduj(ksiega,
+            Remanenty.Poczatkowy(spisy, rok),
+            Remanenty.Koncowy(spisy, rok));
+    }
+
+    /// <summary>Wszystkie spisy z natury firmy, od najstarszego.</summary>
+    public async Task<List<SpisZNatury>> SpisyAsync(CancellationToken anulowanie = default) =>
+        [.. (await baza.Spisy
+                .AsNoTracking()
+                .Include(s => s.Pozycje)
+                .OrderBy(s => s.Data)
+                .ToListAsync(anulowanie))
+            .Select(s => s.NaModel())];
+
     /// <summary>Forma opodatkowania firmy - po niej wybiera się księgę.</summary>
     public async Task<FormaOpodatkowania> FormaAsync(CancellationToken anulowanie = default) =>
         (await FirmaAsync(anulowanie)).FormaOpodatkowania;

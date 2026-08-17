@@ -1282,3 +1282,59 @@ public sealed class SrodekTrwalyFirmy : EncjaBazowa, INalezyDoFirmy
         DataLikwidacji = DataLikwidacji
     };
 }
+
+/// <summary>
+/// Spis z natury zapisany w programie.
+/// </summary>
+/// <remarks>
+/// Sporządzany obowiązkowo na koniec i na początek roku (§ 24 rozporządzenia
+/// w sprawie prowadzenia księgi). Nie jest ani przychodem, ani kosztem - jest
+/// stanem magazynu, który wchodzi do rozliczenia dopiero różnicą między
+/// remanentem początkowym a końcowym.
+/// </remarks>
+public sealed class SpisZNaturyFirmy : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    /// <summary>Dzień, na który sporządzono spis.</summary>
+    public DateOnly Data { get; set; }
+
+    /// <summary>Opis okoliczności - koniec roku, likwidacja, zmiana wspólnika.</summary>
+    public string? Uwagi { get; set; }
+
+    /// <summary>Czy spis jest zamknięty i nie podlega już zmianom.</summary>
+    /// <remarks>
+    /// Spis podpisuje się i przechowuje razem z księgą, więc po zamknięciu nie
+    /// dopisuje się do niego pozycji. Poprawka to nowy spis, nie zmiana starego.
+    /// </remarks>
+    public bool Zamkniety { get; set; }
+
+    public ICollection<PozycjaSpisuFirmy> Pozycje { get; set; } = [];
+
+    /// <summary>Model dziedziny - do wyceny i rozliczenia rocznego.</summary>
+    public SpisZNatury NaModel() => new(Data,
+        [.. Pozycje
+            .OrderBy(p => p.NrPozycji)
+            .Select(p => new PozycjaSpisu(p.Nazwa, p.Jednostka, p.Ilosc,
+                                          p.CenaJednostkowa, p.Wycena))]);
+}
+
+/// <summary>Pozycja spisu z natury.</summary>
+public sealed class PozycjaSpisuFirmy : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    public Guid SpisId { get; set; }
+    public SpisZNaturyFirmy? Spis { get; set; }
+
+    /// <summary>Numer porządkowy w arkuszu spisu.</summary>
+    public int NrPozycji { get; set; }
+
+    public string Nazwa { get; set; } = string.Empty;
+    public string Jednostka { get; set; } = "szt.";
+    public decimal Ilosc { get; set; }
+    public decimal CenaJednostkowa { get; set; }
+
+    /// <summary>Sposób ustalenia ceny - przy kontroli trzeba go umieć podać.</summary>
+    public SposobWyceny Wycena { get; set; } = SposobWyceny.CenaZakupu;
+}
