@@ -38,6 +38,7 @@ public sealed class UslugaKsiegi(FirmaProDbContext baza)
         wpisy.AddRange(await KosztyAsync(od, doDnia, anulowanie));
         wpisy.AddRange(await ReczneAsync(od, doDnia, anulowanie));
         wpisy.AddRange(await OdpisyAsync(okres, anulowanie));
+        wpisy.AddRange(await SkladkiAsync(od, doDnia, anulowanie));
 
         return Kpir.Zbuduj(okres, wpisy);
     }
@@ -244,6 +245,62 @@ public sealed class UslugaKsiegi(FirmaProDbContext baza)
     /// (art. 23 ust. 1 pkt 4), więc wpisanie pełnej raty zaniżałoby dochód.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Zapłacone składki ZUS jako koszt księgi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Do kolumny 13 wchodzi Fundusz Pracy zawsze, a składki społeczne tylko
+    /// wtedy, gdy podatnik wybrał ujęcie ich w kosztach zamiast odliczenia
+    /// od dochodu - ta sama składka nie może być jednym i drugim naraz.
+    /// </para>
+    /// <para>
+    /// Składka zdrowotna nie jest kosztem <b>nigdy</b>. Przy liniowym
+    /// i ryczałcie odlicza się ją poza księgą, przy skali nie odlicza wcale.
+    /// </para>
+    /// <para>
+    /// Liczy się data zapłaty, nie miesiąc, za który składka jest należna
+    /// (art. 26 ust. 1 pkt 2 ustawy o PIT mówi o składkach zapłaconych) -
+    /// dlatego składka za grudzień trafia zwykle do księgi w styczniu.
+    /// </para>
+    /// </remarks>
+    private async Task<List<WpisKsiegi>> SkladkiAsync(
+        DateOnly od, DateOnly doDnia, CancellationToken anulowanie)
+    {
+        List<SkladkaZusFirmy> zaplacone = await baza.SkladkiZus
+            .AsNoTracking()
+            .Where(s => s.DataZaplaty != null
+                        && s.DataZaplaty >= od && s.DataZaplaty <= doDnia)
+            .OrderBy(s => s.DataZaplaty)
+            .ToListAsync(anulowanie);
+
+        List<WpisKsiegi> wpisy = [];
+
+        foreach (SkladkaZusFirmy skladka in zaplacone)
+        {
+            decimal kwota = skladka.FunduszPracy
+                          + (skladka.SpoleczneWKosztach ? skladka.Ubezpieczenia : 0m);
+
+            if (kwota <= 0m)
+            {
+                continue;
+            }
+
+            wpisy.Add(new WpisKsiegi(
+                skladka.DataZaplaty!.Value,
+                $"ZUS/{skladka.Miesiac:00}/{skladka.Rok}",
+                "Zakład Ubezpieczeń Społecznych",
+                null,
+                skladka.SpoleczneWKosztach
+                    ? $"Składki społeczne i Fundusz Pracy za {skladka.Miesiac:00}/{skladka.Rok}"
+                    : $"Fundusz Pracy za {skladka.Miesiac:00}/{skladka.Rok}",
+                KolumnaKpir.PozostaleWydatki,
+                Kwoty.Zaokraglij(kwota)));
+        }
+
+        return wpisy;
+    }
+
     private async Task<List<WpisKsiegi>> OdpisyAsync(OkresRozliczeniowy okres,
                                                      CancellationToken anulowanie)
     {

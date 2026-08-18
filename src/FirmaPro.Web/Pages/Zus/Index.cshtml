@@ -1,0 +1,369 @@
+@page
+@using FirmaPro.Domena
+@using FirmaPro.Web.Uslugi
+@model FirmaPro.Web.Pages.Zus.IndexModel
+@{
+    ViewData["Tytul"] = "ZUS";
+}
+
+<h1>Składki ZUS</h1>
+<p class="podtytul">Rok @Model.Rok</p>
+
+@if (Model.Bledy.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie można zapisać ustawień:</strong>
+        <ul class="bledy">
+            @foreach (string blad in Model.Bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="karta">
+    <form method="get" class="paskiem">
+        <div class="pole" style="margin:0">
+            <label for="rok">Rok</label>
+            <input type="number" id="rok" name="rok" value="@Model.Rok"
+                   min="2000" max="2100" onchange="this.form.submit()" />
+        </div>
+        <a class="przycisk przycisk-drugi" asp-page="/Ksiega/Index">Księga</a>
+    </form>
+</div>
+
+@if (Model.Stawki is null)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Program nie zna kwot ZUS na rok @Model.Rok.</strong>
+        Minimalne wynagrodzenie, prognozowane przeciętne i progi zmieniają się
+        co roku. Policzenie składki kwotami z innego roku dałoby wynik
+        wyglądający poprawnie i niedopłatę, o której nikt by się nie dowiedział —
+        dlatego program woli nie liczyć wcale.
+    </div>
+    return;
+}
+
+@if (!Model.Stawki.Potwierdzone)
+{
+    <div class="powiadomienie ostrzezenie">
+        <strong>Kwoty na @Model.Rok rok wpisano wstępnie.</strong>
+        Przed pierwszym przelewem sprawdź minimalne wynagrodzenie
+        (@Kwoty.NaTekst(Model.Stawki.MinimalneWynagrodzenie) zł) i prognozowane
+        przeciętne (@Kwoty.NaTekst(Model.Stawki.PrognozowanePrzecietne) zł)
+        z ogłoszonymi aktami. Rachunek poniżej opiera się na tych liczbach.
+    </div>
+}
+
+@if (Model.Forma == FormaOpodatkowania.KsiegiRachunkowe)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Ta firma prowadzi księgi rachunkowe.</strong>
+        Program liczy składki przedsiębiorcy rozliczającego się podatkiem
+        dochodowym od osób fizycznych.
+    </div>
+    return;
+}
+
+@if (Model.PoTerminie.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Składki po terminie:</strong>
+        @string.Join(", ", Model.PoTerminie.Select(m =>
+            $"{FirmaPro.Web.Pages.Zus.IndexModel.NazwaMiesiaca(m.Okres.Numer)} " +
+            $"(termin {m.Termin:yyyy-MM-dd})"))
+        — od zaległości ZUS nalicza odsetki, a nieopłacone chorobowe ustaje
+        z mocy prawa i wraca dopiero po przerwie.
+    </div>
+}
+
+<div class="karta">
+    <h2 style="margin-top:0">Miesiące</h2>
+
+    <div class="przewijak">
+        <table class="pozycje">
+            <thead>
+                <tr>
+                    <th>Miesiąc</th>
+                    <th class="liczba">Podstawa społ.</th>
+                    <th class="liczba">Społeczne</th>
+                    <th class="liczba">FP</th>
+                    <th class="liczba">@(Model.Ryczalt ? "Przychód narast." : "Dochód m-1")</th>
+                    <th class="liczba">Zdrowotna</th>
+                    <th class="liczba">Razem</th>
+                    <th>Termin</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (MiesiacZus miesiac in Model.Miesiace)
+                {
+                    <tr>
+                        <td class="nowrap">
+                            <strong>@FirmaPro.Web.Pages.Zus.IndexModel.NazwaMiesiaca(miesiac.Okres.Numer)</strong>
+                        </td>
+                        <td class="liczba">@Kwoty.NaTekst(miesiac.Spoleczne.Podstawa)</td>
+                        <td class="liczba">@Kwoty.NaTekst(miesiac.Spoleczne.Ubezpieczenia)</td>
+                        <td class="liczba">@Kwoty.NaTekst(miesiac.Spoleczne.FunduszPracy)</td>
+                        <td class="liczba">@Kwoty.NaTekst(miesiac.PodstawaZDochodu)</td>
+                        <td class="liczba">
+                            @Kwoty.NaTekst(miesiac.Zdrowotna.Kwota)
+                            @if (miesiac.Zdrowotna.ZNajnizszejPodstawy)
+                            {
+                                <span class="drobne">najniższa podstawa</span>
+                            }
+                        </td>
+                        <td class="liczba nowrap"><strong>@Kwoty.NaTekst(miesiac.Razem)</strong></td>
+                        <td>
+                            <span class="nowrap">@miesiac.Termin.ToString("yyyy-MM-dd")</span>
+                            @if (miesiac.PoTerminie(Model.Dzis))
+                            {
+                                <span class="znacznik znacznik-odrzucona">po terminie</span>
+                            }
+                            else if (!miesiac.Zaplacona
+                                     && miesiac.DniDoTerminu(Model.Dzis) >= 0
+                                     && miesiac.DniDoTerminu(Model.Dzis) <= UslugaZus.DniPrzypomnienia)
+                            {
+                                <span class="znacznik znacznik-wyslana">
+                                    za @miesiac.DniDoTerminu(Model.Dzis) dni
+                                </span>
+                            }
+                        </td>
+                        <td class="nowrap">
+                            @if (miesiac.Zaplacona)
+                            {
+                                <form method="post" asp-page-handler="Cofnij"
+                                      asp-route-rok="@Model.Rok"
+                                      asp-route-miesiac="@miesiac.Okres.Numer"
+                                      onsubmit="return confirm('Cofnąć zapłatę? Zapis zniknie także z księgi.')">
+                                    <span class="znacznik znacznik-przyjeta">
+                                        zapłacono @miesiac.Zapisana!.DataZaplaty!.Value.ToString("yyyy-MM-dd")
+                                    </span>
+                                    <button type="submit" class="usun-wiersz" title="Cofnij">&times;</button>
+                                </form>
+                            }
+                            else
+                            {
+                                @* Data zapłaty, nie termin - od niej zależy,
+                                   w którym miesiącu składka wejdzie do księgi. *@
+                                <form method="post" asp-page-handler="Zaplac"
+                                      asp-route-rok="@Model.Rok"
+                                      asp-route-miesiac="@miesiac.Okres.Numer"
+                                      class="zaplata">
+                                    <input type="date" name="dzien"
+                                           value="@miesiac.Termin.ToString("yyyy-MM-dd")" />
+                                    <button type="submit" class="przycisk-drugi">Zapłacono</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="podsumowanie-kwot">
+        <div>
+            <div class="etykieta">Naliczone w roku</div>
+            <div class="kwota">@Kwoty.NaTekst(Model.RazemRok)</div>
+        </div>
+        <div class="razem">
+            <div class="etykieta">Potwierdzone jako zapłacone</div>
+            <div class="kwota">@Kwoty.NaTekst(Model.RazemZaplacone)</div>
+        </div>
+    </div>
+
+    @* Kolejność jest tu istotna: dopóki nie ma potwierdzenia zapłaty,
+       składka nie jest ani kosztem, ani odliczeniem. *@
+    <p class="wskazowka">
+        Kosztem i odliczeniem jest składka <strong>zapłacona</strong>, nie
+        naliczona (art. 26 ust. 1 pkt 2 ustawy o PIT) — dlatego do księgi
+        wchodzi dopiero to, co potwierdzisz tutaj. Fundusz Pracy jest kosztem
+        zawsze; społeczne — kosztem albo odliczeniem od dochodu, zależnie od
+        wyboru w zasadach poniżej. Jedno albo drugie, nigdy oba naraz.
+    </p>
+</div>
+
+<div class="karta">
+    <h2 style="margin-top:0">Co z tych składek wraca</h2>
+
+    <div class="przewijak">
+        <table class="pozycje">
+            <tbody>
+                <tr>
+                    <td>Społeczne do odliczenia od dochodu</td>
+                    <td class="liczba">@Kwoty.NaTekst(Model.SpoleczneDoOdliczenia)</td>
+                </tr>
+                <tr>
+                    <td>
+                        Zdrowotna do odliczenia
+                        <span class="drobne">
+                            @switch (Model.Forma)
+                            {
+                                case FormaOpodatkowania.Skala:
+                                    <text>przy skali nie odlicza się jej wcale</text>
+                                    break;
+                                case FormaOpodatkowania.Liniowy:
+                                    <text>
+                                        od dochodu, do
+                                        @Kwoty.NaTekst(Model.Stawki.LimitOdliczeniaZdrowotnej) zł rocznie
+                                    </text>
+                                    break;
+                                case FormaOpodatkowania.Ryczalt:
+                                    <text>połowa zapłaconych składek, od przychodu</text>
+                                    break;
+                            }
+                        </span>
+                    </td>
+                    <td class="liczba">@Kwoty.NaTekst(Model.ZdrowotnaDoOdliczenia)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Forma == FormaOpodatkowania.Skala)
+    {
+        <p class="wskazowka">
+            Na skali podatkowej składki zdrowotnej <strong>nie odlicza się
+            w ogóle</strong> — ani od podatku, ani od dochodu. To nie jest brak
+            w programie, tylko stan prawny od 2022 roku.
+        </p>
+    }
+</div>
+
+@if (Model.RozliczenieRoczne is { } rozliczenie)
+{
+    <div class="karta">
+        <h2 style="margin-top:0">Roczne rozliczenie zdrowotnej</h2>
+
+        <div class="przewijak">
+            <table class="pozycje">
+                <tbody>
+                    <tr>
+                        <td>Składka należna za rok</td>
+                        <td class="liczba">@Kwoty.NaTekst(rozliczenie.Nalezna)</td>
+                    </tr>
+                    <tr>
+                        <td>Zapłacono w miesiącach</td>
+                        <td class="liczba">@Kwoty.NaTekst(rozliczenie.Zaplacona)</td>
+                    </tr>
+                    <tr class="wiersz-sumy">
+                        <td>
+                            <strong>@(rozliczenie.DoDoplaty > 0 ? "Do dopłaty" : "Do zwrotu")</strong>
+                        </td>
+                        <td class="liczba">
+                            <strong>
+                                @Kwoty.NaTekst(rozliczenie.DoDoplaty > 0
+                                    ? rozliczenie.DoDoplaty
+                                    : rozliczenie.DoZwrotu)
+                            </strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p class="wskazowka">
+            Składki płaci się co miesiąc od dochodu miesięcznego, a należne są
+            od rocznego — te dwie kwoty nie muszą się zgadzać. Różnicę rozlicza
+            się do
+            @RozliczenieZdrowotnej.Termin(Model.Rok).ToString("d MMMM yyyy",
+                System.Globalization.CultureInfo.GetCultureInfo("pl-PL")).
+            Kwota powyżej jest liczona z księgi za ten rok, więc zmieni się,
+            dopóki księga nie jest domknięta.
+        </p>
+    </div>
+}
+
+<div class="karta">
+    <h2 style="margin-top:0">Zasady opłacania składek</h2>
+
+    <form method="post" asp-page-handler="Ustawienia" asp-route-rok="@Model.Rok">
+        <div class="siatka">
+            <div class="pole">
+                <label for="tytul">Tytuł ubezpieczenia</label>
+                <select id="tytul" name="Tytul">
+                    @foreach (TytulUbezpieczenia tytul in FirmaPro.Web.Pages.Zus.IndexModel.Tytuly)
+                    {
+                        <option value="@tytul" selected="@(tytul == Model.Tytul)">
+                            @FirmaPro.Web.Pages.Zus.IndexModel.NazwaTytulu(tytul)
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="pole">
+                <label for="wypadkowa">Stopa wypadkowa</label>
+                <input type="number" step="0.0001" min="0" max="0.1" id="wypadkowa"
+                       name="StopaWypadkowa" value="@Model.StopaWypadkowa" />
+            </div>
+        </div>
+
+        <div class="siatka">
+            <div class="pole">
+                <label for="dochod">Dochód za rok poprzedni</label>
+                <input type="number" step="0.01" id="dochod" name="DochodPoprzedniegoRoku"
+                       value="@Model.DochodPoprzedniegoRoku"
+                       placeholder="tylko przy Małym ZUS Plus" />
+            </div>
+
+            <div class="pole">
+                <label for="przychod">Przychód za rok poprzedni</label>
+                <input type="number" step="0.01" min="0" id="przychod"
+                       name="PrzychodPoprzedniegoRoku"
+                       value="@Model.PrzychodPoprzedniegoRoku"
+                       placeholder="decyduje o prawie do ulgi" />
+            </div>
+
+            @* Rok zaczęty albo zawieszony w trakcie wymaga przeliczenia dochodu
+               na pełny miesiąc - inaczej podstawa wyszłaby zaniżona. *@
+            <div class="pole">
+                <label for="dni">Dni działalności w roku poprzednim</label>
+                <input type="number" min="1" max="366" id="dni"
+                       name="DniProwadzeniaPoprzedniegoRoku"
+                       value="@Model.DniProwadzeniaPoprzedniegoRoku" />
+            </div>
+        </div>
+
+        <div class="pole-wyboru">
+            <input type="checkbox" id="chorobowe" name="Chorobowe" value="true"
+                   checked="@Model.Chorobowe" />
+            @* Odznaczone pole wyboru nie wysyła nic, a właściwość ma wartość
+               początkową "true" - bez ukrytego pola odznaczenie zostałoby
+               po cichu zignorowane. *@
+            <input type="hidden" name="Chorobowe" value="false" />
+            <label for="chorobowe">Dobrowolne ubezpieczenie chorobowe</label>
+        </div>
+
+        <div class="pole-wyboru">
+            <input type="checkbox" id="wKosztach" name="SpoleczneWKosztach" value="true"
+                   checked="@Model.SpoleczneWKosztach" />
+            <input type="hidden" name="SpoleczneWKosztach" value="false" />
+            <label for="wKosztach">
+                Składki społeczne zaliczam do kosztów zamiast odliczać od dochodu
+            </label>
+        </div>
+
+        <div class="pole-wyboru">
+            <input type="checkbox" id="bezFp" name="BezFunduszuPracy" value="true"
+                   checked="@Model.BezFunduszuPracy" />
+            <input type="hidden" name="BezFunduszuPracy" value="false" />
+            <label for="bezFp">
+                Zwolnienie z Funduszu Pracy ze względu na wiek — kobiety
+                po 55., mężczyźni po 60. roku życia
+            </label>
+        </div>
+
+        <div class="paskiem">
+            <button type="submit">Zapisz zasady</button>
+            <span class="drobne">
+                Podstawa pełna w @Model.Rok roku:
+                @Kwoty.NaTekst(Model.Stawki.PodstawaPelna) zł,
+                preferencyjna: @Kwoty.NaTekst(Model.Stawki.PodstawaPreferencyjna(1)) zł,
+                najniższa podstawa zdrowotnej:
+                @Kwoty.NaTekst(Model.Stawki.NajnizszaPodstawaZdrowotnej) zł.
+            </span>
+        </div>
+    </form>
+</div>

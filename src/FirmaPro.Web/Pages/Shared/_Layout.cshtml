@@ -4,6 +4,7 @@
 @inject UslugaKont UslugaKont
 @inject UslugaPulpitu UslugaPulpitu
 @inject UslugaFakturCyklicznych UslugaCyklicznych
+@inject UslugaZus UslugaZus
 @{
     string? nazwaFirmy = User.FindFirstValue(Tozsamosc.NazwaFirmy);
     bool zalogowany = User.Identity?.IsAuthenticated == true;
@@ -24,6 +25,12 @@
     // Drugi licznik w menu: ile faktur cyklicznych czeka na potwierdzenie.
     // Program ich nie wystawia sam, więc bez tej liczby przepadałyby po cichu.
     int cykliczne = zalogowany ? await UslugaCyklicznych.IleCzekaAsync() : 0;
+
+    // Trzeci znacznik: termin ZUS. Składka po terminie nie upomni się sama,
+    // a odsetki liczą się od dnia następnego - dlatego widać ją z każdego
+    // ekranu, tak samo jak zaległe należności.
+    bool zusPoTerminie = zalogowany
+        && await UslugaZus.PilnyTerminAsync(DateOnly.FromDateTime(DateTime.Today));
 
     string strona = ViewContext.RouteData.Values["page"] as string ?? string.Empty;
 }
@@ -147,6 +154,14 @@ else
                 <a class="@Tu(strona, "/Ksiega/Spis")" asp-page="/Ksiega/Spis">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16v12H4z" /><path d="M4 8 6 4h12l2 4" /><path d="M9 12h6" /></svg>
                     Spis z natury
+                </a>
+                <a class="@Tu(strona, "/Zus")" asp-page="/Zus/Index">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6.5v5c0 4.6 3.2 8.4 8 9.5 4.8-1.1 8-4.9 8-9.5v-5z" /><path d="M9 12.2l2.2 2.2L15.5 10" /></svg>
+                    ZUS
+                    @if (zusPoTerminie)
+                    {
+                        <span class="licznik" title="Składka po terminie albo termin w tym tygodniu">!</span>
+                    }
                 </a>
                 <a class="@Tu(strona, "/Rejestry/Zestawienia")" asp-page="/Rejestry/Zestawienia">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5" /><path d="M10 13h5M10 17h3" /></svg>

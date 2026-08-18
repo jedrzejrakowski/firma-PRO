@@ -21,6 +21,12 @@ Spis z natury: arkusze remanentowe z czterema sposobami wyceny (§ 26
 rozporządzenia), zamknięcie arkusza, dobór remanentu początkowego i końcowego
 dla roku oraz roczne rozliczenie dochodu różnicą remanentów.
 
+ZUS przedsiębiorcy: cztery tytuły ubezpieczenia (ulga na start, preferencyjny,
+Mały ZUS Plus liczony z dochodu roku poprzedniego, pełny), składka zdrowotna
+osobnym wzorem dla skali, liniowego i ryczałtu, Fundusz Pracy zależny
+od podstawy, terminy przesuwane na dzień roboczy, przypomnienie w menu,
+roczne rozliczenie zdrowotnej i wpisywanie zapłaconych składek do kolumny 13.
+
 Wystawianie faktur (zwykłe, korygujące, zaliczkowe, końcowe, duplikaty),
 wysyłka do KSeF z pobraniem UPO, faktury cykliczne, cennik, kontrahenci,
 płatności i należności, rejestr VAT, deklaracja JPK\_V7, import faktur zakupu
@@ -74,10 +80,20 @@ Do przejścia w środowisku testowym Ministerstwa, gdy będzie token.
 - **Faktury zakupu sprzed wprowadzenia `XmlKsef`** nie mają zapisanego pliku,
   więc nie da się dla nich zrobić wizualizacji. Ponowny import tego samego
   okresu uzupełnia braki — duplikaty są pomijane.
+- **Kwoty ZUS na rok bieżący trzeba potwierdzić.** Minimalne wynagrodzenie,
+  prognozowane przeciętne i progi zmieniają się co roku i siedzą
+  w `StawkiZus.Wpisane`. Rok 2026 jest oznaczony jako niepotwierdzony i program
+  mówi o tym na ekranie; rok, którego nie zna, nie liczy się wcale.
+  **Do rozstrzygnięcia:** czy stawki mają być edytowalne w programie. Dziś są
+  w kodzie, bo są krajowe, a baza jest wielofirmowa - tabela per firma
+  znaczyłaby poprawianie tych samych liczb w każdej firmie osobno.
 - **Dochód w księdze nie jest podstawą opodatkowania** - kolumna 14 nie
   obejmuje zakupu towarów, więc dochód miesięczny w księdze różni się od
-  rocznego. Pełny rachunek jest na ekranie „Spis z natury"; brakuje w nim
-  jeszcze tylko składek ZUS. Napisane jest to i na ekranie, i na wydruku.
+  rocznego. Pełny rachunek jest na ekranie „Spis z natury". Napisane jest
+  to i na ekranie, i na wydruku.
+- **Program nie liczy jeszcze zaliczki na PIT.** Ma już wszystkie składniki:
+  dochód z księgi, remanenty i składki ZUS. To najbliższa rzecz do zrobienia
+  i jedyna, która brakuje do kafelka podatku na pulpicie.
 - **Faktury sprzedaży sprzed wprowadzenia `XmlWyslany`** drukują się ze starej
   drogi (model z bazy). To zamierzone zachowanie zapasowe, nie usterka.
 
@@ -85,14 +101,17 @@ Do przejścia w środowisku testowym Ministerstwa, gdy będzie token.
 
 ## Kolejność następnych funkcji
 
-### 1. ZUS
+### 1. Zaliczka na PIT
 
-Ostatni brakujący element dochodu i jedyna rzecz, której program jeszcze nie
-liczy, a która wchodzi wprost do zeznania. Składki właściciela, terminy,
-przypomnienia. Księga jest już gotowa, więc przy małym ZUS-ie plus jest
-z czego wziąć przychód.
+Wszystkie składniki są już policzone - dochód z księgi, remanenty ze spisu
+i składki ZUS. Zostaje sam rachunek: skala z kwotą wolną i drugim progiem
+albo 19% liniowo, odliczenie składek społecznych, narastająco od 1 stycznia,
+zaokrąglenie do pełnych złotych (art. 63 § 1 Ordynacji) i termin do 20.
+dnia następnego miesiąca. Przy ryczałcie podatek już się liczy, brakuje
+odliczenia połowy zdrowotnej.
 
-Dopiero po tym da się na pulpicie pokazać kwotę PIT, która nie będzie zgadywana.
+Rzecz na jeden zamknięty kawałek pracy - i dopiero po niej pulpit może
+pokazać kwotę podatku, która nie będzie zgadywana.
 
 ### 2. Kadry i płace
 
@@ -111,7 +130,8 @@ koszty na jednym wykresie, struktura należności (wykres pierścieniowy),
 najwięksi dłużnicy, ostatnie koszty, szybkie przyciski.
 
 **Bez kafelków PIT i ZUS, dopóki program ich nie liczy.** Kafelek pokazujący
-kwotę, której nikt nie wyliczył, jest gorszy niż jego brak.
+kwotę, której nikt nie wyliczył, jest gorszy niż jego brak. ZUS program już
+liczy, więc jego kafelek jest odblokowany; PIT czeka na zaliczkę.
 
 ---
 

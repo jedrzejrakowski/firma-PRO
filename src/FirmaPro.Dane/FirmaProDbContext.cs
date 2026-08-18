@@ -99,6 +99,8 @@ public class FirmaProDbContext : DbContext
     public DbSet<SrodekTrwalyFirmy> SrodkiTrwale => Set<SrodekTrwalyFirmy>();
     public DbSet<SpisZNaturyFirmy> Spisy => Set<SpisZNaturyFirmy>();
     public DbSet<PozycjaSpisuFirmy> PozycjeSpisow => Set<PozycjaSpisuFirmy>();
+    public DbSet<UstawieniaZusFirmy> UstawieniaZus => Set<UstawieniaZusFirmy>();
+    public DbSet<SkladkaZusFirmy> SkladkiZus => Set<SkladkaZusFirmy>();
 
     // Nazwa parametru musi odpowiadać deklaracji z klasy bazowej, dlatego
     // jako jedyna w tym pliku pozostaje angielska.
@@ -680,6 +682,38 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
 
             e.HasIndex(p => new { p.FirmaId, p.SpisId });
         });
+
+        budowniczy.Entity<UstawieniaZusFirmy>(e =>
+        {
+            e.ToTable("ustawienia_zus");
+            e.HasKey(u => u.Id);
+            e.Property(u => u.Tytul).HasConversion<string>().HasMaxLength(24);
+            e.Property(u => u.StopaWypadkowa).HasPrecision(6, 4);
+            e.Property(u => u.DochodPoprzedniegoRoku).HasPrecision(18, 2);
+            e.Property(u => u.PrzychodPoprzedniegoRoku).HasPrecision(18, 2);
+
+            // Jedna firma opłaca składki na jednych zasadach - drugi wiersz
+            // znaczyłby, że nie wiadomo, który rachunek jest właściwy.
+            e.HasIndex(u => u.FirmaId).IsUnique();
+        });
+
+        budowniczy.Entity<SkladkaZusFirmy>(e =>
+        {
+            e.ToTable("skladki_zus");
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Uwagi).HasMaxLength(512);
+            e.Property(s => s.Emerytalna).HasPrecision(18, 2);
+            e.Property(s => s.Rentowa).HasPrecision(18, 2);
+            e.Property(s => s.Chorobowe).HasPrecision(18, 2);
+            e.Property(s => s.Wypadkowa).HasPrecision(18, 2);
+            e.Property(s => s.FunduszPracy).HasPrecision(18, 2);
+            e.Property(s => s.Zdrowotna).HasPrecision(18, 2);
+            e.Property(s => s.PodstawaSpolecznych).HasPrecision(18, 2);
+            e.Property(s => s.PodstawaZdrowotnej).HasPrecision(18, 2);
+
+            // Jedna deklaracja na miesiąc - dwie dałyby podwójne odliczenie.
+            e.HasIndex(s => new { s.FirmaId, s.Rok, s.Miesiac }).IsUnique();
+        });
     }
 
     private void ZastosujFiltryFirmy(ModelBuilder budowniczy)
@@ -732,6 +766,10 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             .HasQueryFilter(s => s.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<PozycjaSpisuFirmy>()
             .HasQueryFilter(p => p.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<UstawieniaZusFirmy>()
+            .HasQueryFilter(u => u.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<SkladkaZusFirmy>()
+            .HasQueryFilter(s => s.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

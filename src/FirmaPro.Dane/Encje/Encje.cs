@@ -1338,3 +1338,139 @@ public sealed class PozycjaSpisuFirmy : EncjaBazowa, INalezyDoFirmy
     /// <summary>Sposób ustalenia ceny - przy kontroli trzeba go umieć podać.</summary>
     public SposobWyceny Wycena { get; set; } = SposobWyceny.CenaZakupu;
 }
+
+/// <summary>
+/// Jak firma opłaca składki ZUS.
+/// </summary>
+/// <remarks>
+/// Te ustawienia stoją osobno od danych firmy, bo zmieniają się w czasie -
+/// ulga na start przechodzi w preferencyjne, preferencyjne w Mały ZUS Plus.
+/// Data rozpoczęcia działalności pozwala programowi powiedzieć, kiedy jeden
+/// tytuł się kończy, zamiast czekać, aż użytkownik sam zauważy.
+/// </remarks>
+public sealed class UstawieniaZusFirmy : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    /// <summary>Tytuł, z jakiego opłacane są składki.</summary>
+    public TytulUbezpieczenia Tytul { get; set; } = TytulUbezpieczenia.Pelny;
+
+    /// <summary>Czy przedsiębiorca przystąpił do dobrowolnego chorobowego.</summary>
+    public bool Chorobowe { get; set; } = true;
+
+    /// <summary>Stopa składki wypadkowej - różna dla różnych płatników.</summary>
+    public decimal StopaWypadkowa { get; set; } = StopyZus.WypadkowaMalyPlatnik;
+
+    /// <summary>
+    /// Zwolnienie z Funduszu Pracy ze względu na wiek.
+    /// </summary>
+    /// <remarks>
+    /// Kobiety po 55. i mężczyźni po 60. roku życia (art. 104b ustawy
+    /// o promocji zatrudnienia). Program nie zna daty urodzenia, więc pyta.
+    /// </remarks>
+    public bool BezFunduszuPracy { get; set; }
+
+    /// <summary>Dzień rozpoczęcia działalności - od niego liczą się ulgi.</summary>
+    public DateOnly? DataRozpoczecia { get; set; }
+
+    /// <summary>
+    /// Czy składki społeczne trafiają do kosztów zamiast odliczenia od dochodu.
+    /// </summary>
+    /// <remarks>
+    /// Wybór należy do podatnika i <b>musi być konsekwentny</b> - ta sama
+    /// składka nie może być jednocześnie kosztem i odliczeniem. Dlatego stoi
+    /// przy zasadach opłacania składek, a nie przy pojedynczym miesiącu.
+    /// </remarks>
+    public bool SpoleczneWKosztach { get; set; }
+
+    /// <summary>Dochód roku poprzedniego - podstawa Małego ZUS Plus.</summary>
+    public decimal? DochodPoprzedniegoRoku { get; set; }
+
+    /// <summary>Przychód roku poprzedniego - decyduje o prawie do Małego ZUS Plus.</summary>
+    public decimal? PrzychodPoprzedniegoRoku { get; set; }
+
+    /// <summary>Dni prowadzenia działalności w roku poprzednim.</summary>
+    /// <remarks>
+    /// Rok zaczęty albo zawieszony w trakcie wymaga przeliczenia dochodu
+    /// na pełny miesiąc, inaczej podstawa wyszłaby zaniżona (art. 18c ust. 3).
+    /// </remarks>
+    public int DniProwadzeniaPoprzedniegoRoku { get; set; } = 365;
+
+    /// <summary>Model dziedziny do rachunku składek.</summary>
+    /// <param name="stawki">Kwoty roku, za który liczone są składki.</param>
+    /// <param name="miesiac">Miesiąc - przy zmianie minimalnego w połowie roku.</param>
+    public UstawieniaZus NaModel(StawkiZus stawki, int miesiac)
+    {
+        ArgumentNullException.ThrowIfNull(stawki);
+
+        decimal? podstawaMzp = Tytul == TytulUbezpieczenia.MalyZusPlus
+                               && DochodPoprzedniegoRoku is decimal dochod
+            ? Zus.PodstawaMalegoZusPlus(dochod,
+                                        Math.Max(DniProwadzeniaPoprzedniegoRoku, 1),
+                                        stawki, miesiac)
+            : null;
+
+        return new UstawieniaZus(Tytul, Chorobowe, StopaWypadkowa,
+                                 BezFunduszuPracy, podstawaMzp);
+    }
+}
+
+/// <summary>
+/// Składki za jeden miesiąc - naliczone przez program i zapłacone.
+/// </summary>
+/// <remarks>
+/// Program liczy składki sam, ale zapisuje je dopiero wtedy, gdy użytkownik
+/// potwierdzi zapłatę. Dopiero zapłacona składka jest kosztem albo odliczeniem
+/// (art. 26 ust. 1 pkt 2 ustawy o PIT mówi o składkach <b>zapłaconych</b>),
+/// więc naliczenie samo w sobie do księgi nie wchodzi.
+/// </remarks>
+public sealed class SkladkaZusFirmy : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    /// <summary>Miesiąc, za który należne są składki.</summary>
+    public int Rok { get; set; }
+
+    /// <summary>Numer miesiąca od 1 do 12.</summary>
+    public int Miesiac { get; set; }
+
+    public decimal Emerytalna { get; set; }
+    public decimal Rentowa { get; set; }
+    public decimal Chorobowe { get; set; }
+    public decimal Wypadkowa { get; set; }
+    public decimal FunduszPracy { get; set; }
+    public decimal Zdrowotna { get; set; }
+
+    /// <summary>Podstawa wymiaru składek społecznych.</summary>
+    public decimal PodstawaSpolecznych { get; set; }
+
+    /// <summary>Podstawa wymiaru składki zdrowotnej.</summary>
+    public decimal PodstawaZdrowotnej { get; set; }
+
+    /// <summary>Dzień zapłaty; puste, dopóki składka nie została zapłacona.</summary>
+    public DateOnly? DataZaplaty { get; set; }
+
+    /// <summary>
+    /// Czy składki społeczne ujęto w kosztach zamiast odliczyć od dochodu.
+    /// </summary>
+    /// <remarks>
+    /// Wybór należy do podatnika i musi być konsekwentny - ta sama składka
+    /// nie może być jednocześnie kosztem i odliczeniem.
+    /// </remarks>
+    public bool SpoleczneWKosztach { get; set; }
+
+    public string? Uwagi { get; set; }
+
+    /// <summary>Same ubezpieczenia społeczne, bez Funduszu Pracy.</summary>
+    public decimal Ubezpieczenia =>
+        Kwoty.Zaokraglij(Emerytalna + Rentowa + Chorobowe + Wypadkowa);
+
+    /// <summary>Cała kwota jednego przelewu do ZUS.</summary>
+    public decimal Razem => Kwoty.Zaokraglij(Ubezpieczenia + FunduszPracy + Zdrowotna);
+
+    /// <summary>Czy składka została zapłacona.</summary>
+    public bool Zaplacona => DataZaplaty is not null;
+
+    /// <summary>Okres, za który należna jest składka.</summary>
+    public OkresRozliczeniowy Okres() => OkresRozliczeniowy.Miesiac(Rok, Miesiac);
+}

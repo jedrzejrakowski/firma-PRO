@@ -488,6 +488,12 @@ th.liczba { text-align: right; }
 
 tfoot td { border-top: 1px solid var(--kreska); border-bottom: 0; font-weight: 600; }
 
+/* Potwierdzenie zapłaty w wierszu tabeli: data nad przyciskiem. Obok siebie
+   rozpychały ostatnią kolumnę tak, że przycisk uciekał poza ekran. */
+.zaplata { display: flex; flex-direction: column; gap: 5px; margin: 0; width: 8.6rem; }
+.zaplata input { padding: 4px 6px; font-size: 12.5px; }
+.zaplata button { padding: 4px 9px; font-size: 12.5px; }
+
 /* Wiersz podsumowujący w środku tabeli - w rachunku rocznym takich sum
    jest kilka, więc muszą się odcinać od zwykłych pozycji. */
 .wiersz-sumy td {
