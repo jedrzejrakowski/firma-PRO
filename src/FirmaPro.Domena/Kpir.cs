@@ -215,12 +215,14 @@ public sealed class Kpir
         Narastajaco(KolumnaKpir.Wynagrodzenia) + Narastajaco(KolumnaKpir.PozostaleWydatki);
 
     /// <summary>
-    /// Dochód narastająco - podstawa zaliczki na podatek dochodowy.
+    /// Dochód narastająco liczony kolumnami 9 i 14 - tak, jak pokazuje go księga.
     /// </summary>
     /// <remarks>
-    /// Bez spisu z natury i bez amortyzacji, których program jeszcze nie
-    /// prowadzi. To kwota do sprawdzenia z księgową, nie gotowa podstawa
-    /// opodatkowania - i tak trzeba ją podpisać.
+    /// <b>To nie jest podstawa zaliczki na podatek.</b> Kolumna 14 nie obejmuje
+    /// zakupu towarów ani kosztów ubocznych, bo te rozlicza się przez spis
+    /// z natury - firma handlowa miałaby tu dochód zawyżony o wartość całego
+    /// zakupionego towaru. Do podatku służy
+    /// <see cref="RozliczenieRoczne.Zbuduj"/>, które te kolumny uwzględnia.
     /// </remarks>
     public decimal DochodNarastajaco => PrzychodNarastajaco - WydatkiNarastajaco;
 

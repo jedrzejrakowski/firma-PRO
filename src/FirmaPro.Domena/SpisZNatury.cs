@@ -139,7 +139,12 @@ public sealed record RozliczenieRoczne(
     /// <summary>
     /// Buduje rozliczenie roczne z księgi i dwóch spisów.
     /// </summary>
-    /// <param name="ksiega">Księga za ostatni okres roku - liczą się jej sumy narastające.</param>
+    /// <param name="ksiega">
+    /// Księga za okres - liczą się jej sumy narastające od 1 stycznia. Dla
+    /// rozliczenia rocznego podaje się grudzień, ale ten sam rachunek służy
+    /// zaliczce za dowolny okres w trakcie roku: bez remanentów sprowadza się
+    /// do przychodu pomniejszonego o wszystkie kolumny kosztowe.
+    /// </param>
     /// <param name="remanentPoczatkowy">Spis na początek roku; puste, gdy go nie ma.</param>
     /// <param name="remanentKoncowy">Spis na koniec roku; puste, gdy go nie ma.</param>
     public static RozliczenieRoczne Zbuduj(Kpir ksiega,
@@ -188,14 +193,27 @@ public static class Remanenty
     /// jednym spisie datowanym na 1 stycznia różnica remanentów wyszłaby zerem
     /// i towar z magazynu zniknąłby z rachunku.
     /// </remarks>
-    public static SpisZNatury? Koncowy(IEnumerable<SpisZNatury> spisy, int rok)
+    public static SpisZNatury? Koncowy(IEnumerable<SpisZNatury> spisy, int rok) =>
+        DoDnia(spisy, rok, new DateOnly(rok, 12, 31));
+
+    /// <summary>
+    /// Ostatni spis roku sporządzony do wskazanego dnia.
+    /// </summary>
+    /// <remarks>
+    /// Do zaliczki w trakcie roku. Spisu śródrocznego nikt nie ma obowiązku
+    /// sporządzać, ale kto go zrobi, ten liczy zaliczkę od dochodu bliższego
+    /// prawdy - bez niego cały zakupiony towar obciąża koszty od razu.
+    /// </remarks>
+    public static SpisZNatury? DoDnia(IEnumerable<SpisZNatury> spisy, int rok, DateOnly dzien)
     {
         ArgumentNullException.ThrowIfNull(spisy);
 
         SpisZNatury? poczatkowy = Poczatkowy(spisy, rok);
 
         return spisy
-            .Where(s => s.Data.Year == rok && s.Data > (poczatkowy?.Data ?? DateOnly.MinValue))
+            .Where(s => s.Data.Year == rok
+                        && s.Data <= dzien
+                        && s.Data > (poczatkowy?.Data ?? DateOnly.MinValue))
             .OrderByDescending(s => s.Data)
             .FirstOrDefault();
     }

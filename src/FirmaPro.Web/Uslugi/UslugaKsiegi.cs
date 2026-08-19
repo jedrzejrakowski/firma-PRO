@@ -106,6 +106,38 @@ public sealed class UslugaKsiegi(FirmaProDbContext baza)
             Remanenty.Koncowy(spisy, rok));
     }
 
+    /// <summary>
+    /// Dochód narastająco od 1 stycznia - podstawa zaliczki i składki zdrowotnej.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Nie jest to różnica kolumn 9 i 14 z księgi.</b> Kolumna 14 nie
+    /// obejmuje zakupu towarów ani kosztów ubocznych, bo te rozlicza się przez
+    /// spis z natury - wzięcie jej wprost zawyżyłoby dochód firmy handlowej
+    /// o wartość całego zakupionego towaru i kazało płacić zaliczkę od pieniędzy,
+    /// których nie ma.
+    /// </para>
+    /// <para>
+    /// Remanent początkowy wchodzi zawsze, gdy jest. Remanent śródroczny -
+    /// gdy firma sporządziła spis w trakcie roku; nie ma takiego obowiązku,
+    /// ale kto go zrobi, ten liczy zaliczkę od dochodu bliższego prawdy.
+    /// </para>
+    /// </remarks>
+    public async Task<decimal> DochodNarastajacoAsync(OkresRozliczeniowy okres,
+                                                      CancellationToken anulowanie = default)
+    {
+        ArgumentNullException.ThrowIfNull(okres);
+
+        Kpir ksiega = await KpirAsync(okres, anulowanie);
+        List<SpisZNatury> spisy = await SpisyAsync(anulowanie);
+
+        int rok = okres.PierwszyDzien.Year;
+
+        return RozliczenieRoczne.Zbuduj(ksiega,
+            Remanenty.Poczatkowy(spisy, rok),
+            Remanenty.DoDnia(spisy, rok, okres.OstatniDzien)).Dochod;
+    }
+
     /// <summary>Wszystkie spisy z natury firmy, od najstarszego.</summary>
     public async Task<List<SpisZNatury>> SpisyAsync(CancellationToken anulowanie = default) =>
         [.. (await baza.Spisy

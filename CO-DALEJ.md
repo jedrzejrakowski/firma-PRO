@@ -21,6 +21,11 @@ Spis z natury: arkusze remanentowe z czterema sposobami wyceny (§ 26
 rozporządzenia), zamknięcie arkusza, dobór remanentu początkowego i końcowego
 dla roku oraz roczne rozliczenie dochodu różnicą remanentów.
 
+Zaliczka na podatek dochodowy: skala z kwotą wolną i progiem, podatek liniowy,
+ryczałt z odliczeniami dzielonymi między stawki, rozliczenie miesięczne albo
+kwartalne, odliczenie składek i straty z lat ubiegłych, zaokrąglenie do złotych
+i terminy z przypomnieniem w menu.
+
 ZUS przedsiębiorcy: cztery tytuły ubezpieczenia (ulga na start, preferencyjny,
 Mały ZUS Plus liczony z dochodu roku poprzedniego, pełny), składka zdrowotna
 osobnym wzorem dla skali, liniowego i ryczałtu, Fundusz Pracy zależny
@@ -91,9 +96,13 @@ Do przejścia w środowisku testowym Ministerstwa, gdy będzie token.
   obejmuje zakupu towarów, więc dochód miesięczny w księdze różni się od
   rocznego. Pełny rachunek jest na ekranie „Spis z natury". Napisane jest
   to i na ekranie, i na wydruku.
-- **Program nie liczy jeszcze zaliczki na PIT.** Ma już wszystkie składniki:
-  dochód z księgi, remanenty i składki ZUS. To najbliższa rzecz do zrobienia
-  i jedyna, która brakuje do kafelka podatku na pulpicie.
+- **Zaliczka na PIT nie zna ulg.** Program nie liczy ulgi na dzieci,
+  rehabilitacyjnej, IP Box, wspólnego rozliczenia z małżonkiem ani daniny
+  solidarnościowej. Ekran mówi to wprost - to wyliczenie, nie deklaracja.
+- **Podstawa zaliczki to nie różnica kolumn 9 i 14.** Kolumna 14 nie obejmuje
+  zakupu towarów, więc podatek liczy się przez `RozliczenieRoczne.Zbuduj`,
+  które te kolumny uwzględnia i koryguje o remanenty. Ta sama droga służy
+  podstawie składki zdrowotnej.
 - **Faktury sprzedaży sprzed wprowadzenia `XmlWyslany`** drukują się ze starej
   drogi (model z bazy). To zamierzone zachowanie zapasowe, nie usterka.
 
@@ -101,17 +110,16 @@ Do przejścia w środowisku testowym Ministerstwa, gdy będzie token.
 
 ## Kolejność następnych funkcji
 
-### 1. Zaliczka na PIT
+### 1. Przebudowa pulpitu
 
-Wszystkie składniki są już policzone - dochód z księgi, remanenty ze spisu
-i składki ZUS. Zostaje sam rachunek: skala z kwotą wolną i drugim progiem
-albo 19% liniowo, odliczenie składek społecznych, narastająco od 1 stycznia,
-zaokrąglenie do pełnych złotych (art. 63 § 1 Ordynacji) i termin do 20.
-dnia następnego miesiąca. Przy ryczałcie podatek już się liczy, brakuje
-odliczenia połowy zdrowotnej.
+Awansuje na pierwsze miejsce, bo powód, dla którego czekała, właśnie zniknął:
+program liczy już VAT, ZUS i PIT, więc kafelki mogą pokazywać kwoty
+wyliczone, a nie zgadywane.
 
-Rzecz na jeden zamknięty kawałek pracy - i dopiero po niej pulpit może
-pokazać kwotę podatku, która nie będzie zgadywana.
+Uzgodniona zawartość: VAT z terminem, kalendarz terminów, przychody kontra
+koszty na jednym wykresie, struktura należności (wykres pierścieniowy),
+najwięksi dłużnicy, ostatnie koszty, szybkie przyciski - a teraz także
+kafelki ZUS i PIT z najbliższym terminem.
 
 ### 2. Kadry i płace
 
@@ -120,18 +128,11 @@ PIT-4R, PIT-11, zgłoszenia do ZUS, urlopy, zwolnienia. To nie jest funkcja,
 tylko drugi program obok tego. Wymaga osobnej rozmowy o zakresie, zanim padnie
 pierwsza linijka kodu.
 
-### 3. Przebudowa pulpitu — świadomie na koniec
+### 3. Zeznanie roczne
 
-Ustalone z właścicielem: pulpit przebudowujemy **po** KPiR, ZUS-ie i kadrach,
-żeby nie robić tego od nowa przy każdej nowej funkcji.
-
-Uzgodniona zawartość: VAT z terminem, kalendarz terminów, przychody kontra
-koszty na jednym wykresie, struktura należności (wykres pierścieniowy),
-najwięksi dłużnicy, ostatnie koszty, szybkie przyciski.
-
-**Bez kafelków PIT i ZUS, dopóki program ich nie liczy.** Kafelek pokazujący
-kwotę, której nikt nie wyliczył, jest gorszy niż jego brak. ZUS program już
-liczy, więc jego kafelek jest odblokowany; PIT czeka na zaliczkę.
+PIT-36, PIT-36L albo PIT-28. Program ma już wszystkie składniki - dochód
+z remanentami, składki, zapłacone zaliczki - ale zeznanie to osobny dokument
+z własnym schematem i własnymi ulgami. Do rozmowy o zakresie.
 
 ---
 

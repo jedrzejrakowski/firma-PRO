@@ -101,6 +101,7 @@ public class FirmaProDbContext : DbContext
     public DbSet<PozycjaSpisuFirmy> PozycjeSpisow => Set<PozycjaSpisuFirmy>();
     public DbSet<UstawieniaZusFirmy> UstawieniaZus => Set<UstawieniaZusFirmy>();
     public DbSet<SkladkaZusFirmy> SkladkiZus => Set<SkladkaZusFirmy>();
+    public DbSet<ZaliczkaPitFirmy> ZaliczkiPit => Set<ZaliczkaPitFirmy>();
 
     // Nazwa parametru musi odpowiadać deklaracji z klasy bazowej, dlatego
     // jako jedyna w tym pliku pozostaje angielska.
@@ -150,6 +151,7 @@ public class FirmaProDbContext : DbContext
             e.Property(f => f.TypOkresuVat).HasConversion<string>().HasMaxLength(16);
             e.Property(f => f.FormaOpodatkowania).HasConversion<string>().HasMaxLength(24);
             e.Property(f => f.StawkaRyczaltu).HasPrecision(5, 2);
+            e.Property(f => f.StrataDoOdliczenia).HasPrecision(18, 2);
             e.Property(f => f.KodUrzeduSkarbowego).HasMaxLength(8);
             e.HasIndex(f => f.Nip);
         });
@@ -714,6 +716,18 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             // Jedna deklaracja na miesiąc - dwie dałyby podwójne odliczenie.
             e.HasIndex(s => new { s.FirmaId, s.Rok, s.Miesiac }).IsUnique();
         });
+
+        budowniczy.Entity<ZaliczkaPitFirmy>(e =>
+        {
+            e.ToTable("zaliczki_pit");
+            e.HasKey(z => z.Id);
+            e.Property(z => z.Uwagi).HasMaxLength(512);
+
+            // Jedna zaliczka na okres. Miesiąc i kwartał noszą ten sam numer,
+            // więc rozróżnia je znacznik - inaczej zaliczka za marzec
+            // i za pierwszy kwartał kłóciłyby się o to samo miejsce.
+            e.HasIndex(z => new { z.FirmaId, z.Rok, z.Kwartalna, z.Numer }).IsUnique();
+        });
     }
 
     private void ZastosujFiltryFirmy(ModelBuilder budowniczy)
@@ -770,6 +784,8 @@ private static void KonfigurujWzorce(ModelBuilder budowniczy)
             .HasQueryFilter(u => u.FirmaId == AktualnaFirmaId);
         budowniczy.Entity<SkladkaZusFirmy>()
             .HasQueryFilter(s => s.FirmaId == AktualnaFirmaId);
+        budowniczy.Entity<ZaliczkaPitFirmy>()
+            .HasQueryFilter(z => z.FirmaId == AktualnaFirmaId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

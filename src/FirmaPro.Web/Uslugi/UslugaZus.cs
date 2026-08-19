@@ -175,10 +175,12 @@ public sealed class UslugaZus(FirmaProDbContext baza, UslugaKsiegi ksiega)
             return 0m;
         }
 
-        Kpir ksiegaPoprzedniego = await ksiega.KpirAsync(poprzedni, anulowanie);
+        // Dochód samego miesiąca poprzedniego to różnica sum narastających.
+        // Obie liczone tak, jak liczy się je do podatku - z zakupem towarów
+        // i remanentami, a nie samą różnicą kolumn 9 i 14.
+        decimal doPoprzedniego = await ksiega.DochodNarastajacoAsync(poprzedni, anulowanie);
 
-        return ksiegaPoprzedniego.DochodNarastajaco
-             - (await DochodDoMiesiacaAsync(poprzedni, anulowanie));
+        return doPoprzedniego - await DochodDoMiesiacaAsync(poprzedni, anulowanie);
     }
 
     /// <summary>Potwierdza zapłatę składek za miesiąc.</summary>
@@ -375,8 +377,6 @@ public sealed class UslugaZus(FirmaProDbContext baza, UslugaKsiegi ksiega)
             return 0m;
         }
 
-        Kpir poprzednia = await ksiega.KpirAsync(okres.Poprzedni, anulowanie);
-
-        return poprzednia.DochodNarastajaco;
+        return await ksiega.DochodNarastajacoAsync(okres.Poprzedni, anulowanie);
     }
 }

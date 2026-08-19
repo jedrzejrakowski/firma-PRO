@@ -114,6 +114,27 @@ public sealed class Firma : EncjaBazowa
     /// </remarks>
     public decimal StawkaRyczaltu { get; set; } = 8.5m;
 
+    /// <summary>
+    /// Czy zaliczki na podatek dochodowy płacone są kwartalnie.
+    /// </summary>
+    /// <remarks>
+    /// Prawo do kwartalnych zaliczek mają mali podatnicy i rozpoczynający
+    /// działalność (art. 44 ust. 3g ustawy o PIT). Wybór zgłasza się w zeznaniu
+    /// rocznym, więc program go nie sprawdza - zapisuje to, co poda właściciel.
+    /// </remarks>
+    public bool ZaliczkiKwartalne { get; set; }
+
+    /// <summary>
+    /// Strata z lat ubiegłych pozostała do odliczenia.
+    /// </summary>
+    /// <remarks>
+    /// Odlicza się ją od dochodu w ciągu pięciu kolejnych lat, przy czym
+    /// w jednym roku nie więcej niż połowę straty - albo jednorazowo do
+    /// 5 000 000 zł (art. 9 ust. 3 ustawy o PIT). Ile wolno odliczyć w tym
+    /// roku, rozstrzyga podatnik; program przyjmuje podaną kwotę.
+    /// </remarks>
+    public decimal StrataDoOdliczenia { get; set; }
+
     /// <summary>Czy firma prowadzi księgę przychodów i rozchodów.</summary>
     public bool ProwadziKpir =>
         FormaOpodatkowania is FormaOpodatkowania.Skala or FormaOpodatkowania.Liniowy;
@@ -1473,4 +1494,46 @@ public sealed class SkladkaZusFirmy : EncjaBazowa, INalezyDoFirmy
 
     /// <summary>Okres, za który należna jest składka.</summary>
     public OkresRozliczeniowy Okres() => OkresRozliczeniowy.Miesiac(Rok, Miesiac);
+}
+
+/// <summary>
+/// Zaliczka na podatek dochodowy za okres.
+/// </summary>
+/// <remarks>
+/// Program zapisuje zaliczkę dopiero po potwierdzeniu zapłaty. Kwota
+/// naliczona zmienia się przy każdej dopisanej fakturze, a zapłacona już nie -
+/// i to ona odejmuje się od podatku w okresach następnych. Gdyby program
+/// odejmował kwoty naliczone, korekta faktury sprzed pół roku po cichu
+/// zmieniłaby wszystkie późniejsze zaliczki.
+/// </remarks>
+public sealed class ZaliczkaPitFirmy : EncjaBazowa, INalezyDoFirmy
+{
+    public Guid FirmaId { get; set; }
+
+    /// <summary>Rok podatkowy.</summary>
+    public int Rok { get; set; }
+
+    /// <summary>Numer okresu - miesiąc 1-12 albo kwartał 1-4.</summary>
+    public int Numer { get; set; }
+
+    /// <summary>Czy okres jest kwartałem.</summary>
+    /// <remarks>
+    /// Zapisane przy zaliczce, a nie odczytywane z ustawień firmy: zmiana
+    /// sposobu rozliczania w kolejnym roku nie może przemianować zaliczek
+    /// zapłaconych wcześniej.
+    /// </remarks>
+    public bool Kwartalna { get; set; }
+
+    /// <summary>Kwota zapłacona, w pełnych złotych.</summary>
+    public long Kwota { get; set; }
+
+    /// <summary>Dzień zapłaty.</summary>
+    public DateOnly DataZaplaty { get; set; }
+
+    public string? Uwagi { get; set; }
+
+    /// <summary>Okres, za który zapłacono zaliczkę.</summary>
+    public OkresRozliczeniowy Okres() => Kwartalna
+        ? OkresRozliczeniowy.Kwartal(Rok, Numer)
+        : OkresRozliczeniowy.Miesiac(Rok, Numer);
 }

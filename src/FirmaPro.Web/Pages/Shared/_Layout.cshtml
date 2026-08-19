@@ -5,6 +5,7 @@
 @inject UslugaPulpitu UslugaPulpitu
 @inject UslugaFakturCyklicznych UslugaCyklicznych
 @inject UslugaZus UslugaZus
+@inject UslugaPit UslugaPit
 @{
     string? nazwaFirmy = User.FindFirstValue(Tozsamosc.NazwaFirmy);
     bool zalogowany = User.Identity?.IsAuthenticated == true;
@@ -31,6 +32,11 @@
     // ekranu, tak samo jak zaległe należności.
     bool zusPoTerminie = zalogowany
         && await UslugaZus.PilnyTerminAsync(DateOnly.FromDateTime(DateTime.Today));
+
+    // Czwarty znacznik: zaliczka na podatek. Ta sama reguła co przy ZUS-ie -
+    // od zaległości naliczają się odsetki, a nikt się o nią nie upomni.
+    bool pitPoTerminie = zalogowany
+        && await UslugaPit.PilnyTerminAsync(DateOnly.FromDateTime(DateTime.Today));
 
     string strona = ViewContext.RouteData.Values["page"] as string ?? string.Empty;
 }
@@ -161,6 +167,14 @@ else
                     @if (zusPoTerminie)
                     {
                         <span class="licznik" title="Składka po terminie albo termin w tym tygodniu">!</span>
+                    }
+                </a>
+                <a class="@Tu(strona, "/Podatek")" asp-page="/Podatek/Index">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z" /><path d="M9 8h6M9 12h6M9 16h3" /></svg>
+                    Podatek
+                    @if (pitPoTerminie)
+                    {
+                        <span class="licznik" title="Zaliczka po terminie albo termin w tym tygodniu">!</span>
                     }
                 </a>
                 <a class="@Tu(strona, "/Rejestry/Zestawienia")" asp-page="/Rejestry/Zestawienia">

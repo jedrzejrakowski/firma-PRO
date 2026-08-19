@@ -1,0 +1,352 @@
+@page
+@using FirmaPro.Domena
+@using FirmaPro.Web.Uslugi
+@model FirmaPro.Web.Pages.Podatek.IndexModel
+@{
+    ViewData["Tytul"] = "Podatek dochodowy";
+}
+
+<h1>Zaliczki na podatek dochodowy</h1>
+<p class="podtytul">
+    @FirmaPro.Web.Pages.Podatek.IndexModel.NazwaFormy(Model.Firma.FormaOpodatkowania)
+    · rok @Model.Rok
+</p>
+
+@if (Model.Bledy.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Nie można zapisać:</strong>
+        <ul class="bledy">
+            @foreach (string blad in Model.Bledy)
+            {
+                <li>@blad</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="karta">
+    <form method="get" class="paskiem">
+        <div class="pole" style="margin:0">
+            <label for="rok">Rok</label>
+            <input type="number" id="rok" name="rok" value="@Model.Rok"
+                   min="2000" max="2100" onchange="this.form.submit()" />
+        </div>
+        <a class="przycisk przycisk-drugi" asp-page="/Ksiega/Index">Księga</a>
+        <a class="przycisk przycisk-drugi" asp-page="/Zus/Index">ZUS</a>
+    </form>
+</div>
+
+@if (Model.Firma.FormaOpodatkowania == FormaOpodatkowania.KsiegiRachunkowe)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Ta firma prowadzi księgi rachunkowe.</strong>
+        Program liczy zaliczki podatnika podatku dochodowego od osób fizycznych.
+    </div>
+    return;
+}
+
+@if (Model.Okresy.Count == 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Program nie zna skali podatkowej na rok @Model.Rok.</strong>
+        Kwota wolna, próg i stawki bywają zmieniane ustawą. Policzenie zaliczki
+        skalą z innego roku dałoby kwotę wyglądającą poprawnie i niedopłatę,
+        o której nikt by się nie dowiedział.
+    </div>
+    return;
+}
+
+@if (Model.PoTerminie.Count > 0)
+{
+    <div class="powiadomienie niepowodzenie">
+        <strong>Zaliczki po terminie:</strong>
+        @string.Join(", ", Model.PoTerminie.Select(o =>
+            $"{FirmaPro.Web.Pages.Podatek.IndexModel.NazwaOkresu(o.Zaliczka.Okres)} " +
+            $"(termin {o.Zaliczka.Termin:yyyy-MM-dd})"))
+        — od zaległości podatkowej naliczają się odsetki, liczone od dnia
+        następującego po terminie.
+    </div>
+}
+
+<div class="karta">
+    <h2 style="margin-top:0">Okresy</h2>
+
+    <div class="przewijak">
+        <table class="pozycje">
+            <thead>
+                <tr>
+                    <th>Okres</th>
+                    <th class="liczba">@(Model.Ryczalt ? "Przychód narast." : "Dochód narast.")</th>
+                    <th class="liczba">Odliczenia</th>
+                    <th class="liczba">Podstawa</th>
+                    <th class="liczba">Podatek narast.</th>
+                    <th class="liczba">Do zapłaty</th>
+                    <th>Termin</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (OkresPit okres in Model.Okresy)
+                {
+                    <tr>
+                        <td class="nowrap">
+                            <strong>@FirmaPro.Web.Pages.Podatek.IndexModel.NazwaOkresu(okres.Zaliczka.Okres)</strong>
+                        </td>
+                        <td class="liczba">@Kwoty.NaTekst(okres.Zaliczka.PodstawaPrzedOdliczeniem)</td>
+                        <td class="liczba">@Kwoty.NaTekst(okres.Zaliczka.Odliczenia)</td>
+                        <td class="liczba">@Kwoty.ZloteNaTekst(okres.Zaliczka.Podstawa)</td>
+                        <td class="liczba">
+                            @Kwoty.ZloteNaTekst(okres.Zaliczka.PodatekNarastajaco)
+                            @if (Model.Skala is { } skala
+                                 && !Model.Ryczalt && !Model.Liniowy
+                                 && skala.PonadProgiem(okres.Zaliczka.Podstawa))
+                            {
+                                <span class="drobne">ponad progiem — 32%</span>
+                            }
+                        </td>
+                        <td class="liczba nowrap">
+                            <strong>@Kwoty.ZloteNaTekst(okres.Zaliczka.DoZaplaty)</strong>
+                        </td>
+                        <td>
+                            <span class="nowrap">@okres.Zaliczka.Termin.ToString("yyyy-MM-dd")</span>
+                            @if (okres.PoTerminie(Model.Dzis))
+                            {
+                                <span class="znacznik znacznik-odrzucona">po terminie</span>
+                            }
+                            else if (!okres.Zaplacona && okres.Zaliczka.CosDoZaplaty
+                                     && okres.DniDoTerminu(Model.Dzis) >= 0
+                                     && okres.DniDoTerminu(Model.Dzis) <= UslugaPit.DniPrzypomnienia)
+                            {
+                                <span class="znacznik znacznik-wyslana">
+                                    za @okres.DniDoTerminu(Model.Dzis) dni
+                                </span>
+                            }
+                        </td>
+                        <td class="nowrap">
+                            @if (okres.Zaplacona)
+                            {
+                                <form method="post" asp-page-handler="Cofnij"
+                                      asp-route-rok="@Model.Rok"
+                                      asp-route-numer="@okres.Zaliczka.Okres.Numer"
+                                      asp-route-kwartalna="@Model.Firma.ZaliczkiKwartalne"
+                                      onsubmit="return confirm('Cofnąć zapłatę? Zaliczki za okresy następne przeliczą się od nowa.')">
+                                    <span class="znacznik znacznik-przyjeta">
+                                        @Kwoty.ZloteNaTekst(okres.Zaplacono) zł
+                                        · @okres.Zapisana!.DataZaplaty.ToString("yyyy-MM-dd")
+                                    </span>
+                                    <button type="submit" class="usun-wiersz" title="Cofnij">&times;</button>
+                                </form>
+                            }
+                            else if (okres.Zaliczka.CosDoZaplaty)
+                            {
+                                @* Kwota jest do poprawienia: zaliczka bywa
+                                   zapłacona inaczej, niż policzył program, a od
+                                   okresu następnego odejmuje się to, co poszło
+                                   przelewem. *@
+                                <form method="post" asp-page-handler="Zaplac"
+                                      asp-route-rok="@Model.Rok"
+                                      asp-route-numer="@okres.Zaliczka.Okres.Numer"
+                                      asp-route-kwartalna="@Model.Firma.ZaliczkiKwartalne"
+                                      class="zaplata">
+                                    <input type="number" name="kwota" step="1" min="0"
+                                           value="@okres.Zaliczka.DoZaplaty" />
+                                    <input type="date" name="dzien"
+                                           value="@okres.Zaliczka.Termin.ToString("yyyy-MM-dd")" />
+                                    <button type="submit" class="przycisk-drugi">Zapłacono</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="drobne">bez zaliczki</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="podsumowanie-kwot">
+        <div>
+            <div class="etykieta">Podatek narastająco</div>
+            <div class="kwota">@Kwoty.ZloteNaTekst(Model.PodatekRoku) zł</div>
+        </div>
+        <div class="razem">
+            <div class="etykieta">Zapłacone zaliczki</div>
+            <div class="kwota">@Kwoty.ZloteNaTekst(Model.RazemZaplacone) zł</div>
+        </div>
+    </div>
+</div>
+
+@* Skąd wzięła się podstawa - bez tego zaliczka jest liczbą nie do sprawdzenia. *@
+<div class="karta">
+    <h2 style="margin-top:0">Skąd wzięła się ta kwota</h2>
+
+    @{
+        OkresPit ostatni = Model.Okresy[^1];
+    }
+
+    <div class="przewijak">
+        <table class="pozycje">
+            <tbody>
+                <tr>
+                    <td>
+                        @(Model.Ryczalt ? "Przychód narastająco" : "Dochód narastająco")
+                        <span class="drobne">
+                            @if (Model.Ryczalt)
+                            {
+                                <text>z ewidencji przychodów</text>
+                            }
+                            else
+                            {
+                                <text>
+                                    z księgi, po odjęciu zakupu towarów i kosztów
+                                    ubocznych oraz po korekcie o remanenty
+                                </text>
+                            }
+                        </span>
+                    </td>
+                    <td class="liczba">@Kwoty.NaTekst(ostatni.Zaliczka.PodstawaPrzedOdliczeniem)</td>
+                </tr>
+                <tr>
+                    <td>− Składki społeczne zapłacone</td>
+                    <td class="liczba">@Kwoty.NaTekst(ostatni.SkladkiSpoleczne)</td>
+                </tr>
+                <tr>
+                    <td>
+                        − Składka zdrowotna do odliczenia
+                        <span class="drobne">
+                            @switch (Model.Firma.FormaOpodatkowania)
+                            {
+                                case FormaOpodatkowania.Skala:
+                                    <text>przy skali nie odlicza się jej wcale</text>
+                                    break;
+                                case FormaOpodatkowania.Liniowy:
+                                    <text>od dochodu, do rocznego limitu</text>
+                                    break;
+                                case FormaOpodatkowania.Ryczalt:
+                                    <text>połowa zapłaconych składek</text>
+                                    break;
+                            }
+                        </span>
+                    </td>
+                    <td class="liczba">@Kwoty.NaTekst(ostatni.SkladkaZdrowotna)</td>
+                </tr>
+                @if (ostatni.Strata > 0m)
+                {
+                    <tr>
+                        <td>− Strata z lat ubiegłych</td>
+                        <td class="liczba">@Kwoty.NaTekst(ostatni.Strata)</td>
+                    </tr>
+                }
+                <tr class="wiersz-sumy">
+                    <td>
+                        <strong>Podstawa opodatkowania</strong>
+                        <span class="drobne">zaokrąglona do pełnych złotych</span>
+                    </td>
+                    <td class="liczba">
+                        <strong>@Kwoty.ZloteNaTekst(ostatni.Zaliczka.Podstawa) zł</strong>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Ryczalt && ostatni.Zaliczka.WedlugStawek.Count > 0)
+    {
+        @* Odliczenia dzielą się proporcjonalnie - przy działalności mieszanej
+           to ten podział rozstrzyga o kwocie podatku. *@
+        <div class="przewijak">
+            <table class="pozycje">
+                <thead>
+                    <tr>
+                        <th>Stawka</th>
+                        <th class="liczba">Przychód</th>
+                        <th class="liczba">Odliczenie</th>
+                        <th class="liczba">Podstawa</th>
+                        <th class="liczba">Podatek</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (RyczaltWStawce stawka in ostatni.Zaliczka.WedlugStawek)
+                    {
+                        <tr>
+                            <td><strong>@StawkiRyczaltu.NaTekst(stawka.Stawka)</strong></td>
+                            <td class="liczba">@Kwoty.NaTekst(stawka.Przychod)</td>
+                            <td class="liczba">@Kwoty.NaTekst(stawka.Odliczenie)</td>
+                            <td class="liczba">@Kwoty.NaTekst(stawka.Podstawa)</td>
+                            <td class="liczba">@Kwoty.ZloteNaTekst(stawka.Podatek) zł</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <p class="wskazowka">
+            Odliczenia dzielą się między stawki <strong>proporcjonalnie do
+            udziału przychodu</strong>. Odliczenie w całości od najwyższej
+            stawki byłoby korzystniejsze, ale przepis go nie przewiduje.
+        </p>
+    }
+
+    @if (Model.Skala is { } skalaOpis && !Model.Ryczalt && !Model.Liniowy)
+    {
+        <p class="wskazowka">
+            Kwota wolna (@Kwoty.NaTekst(skalaOpis.KwotaWolna) zł) działa przez
+            <strong>zmniejszenie podatku o @Kwoty.NaTekst(skalaOpis.KwotaZmniejszajaca) zł</strong>,
+            a nie przez zmniejszenie podstawy. Powyżej
+            @Kwoty.NaTekst(skalaOpis.Prog) zł stawka 32% dotyczy
+            <strong>samej nadwyżki</strong>, nie całego dochodu.
+        </p>
+    }
+
+    <p class="wskazowka">
+        Zaliczka liczy się od kwoty narastającej od 1 stycznia, a od podatku
+        odejmuje się zaliczki <strong>zapłacone</strong> w okresach wcześniejszych
+        (art. 44 ust. 3 ustawy o PIT). Dlatego strata w jednym okresie sama
+        koryguje zawyżoną zaliczkę z poprzedniego — ale nadwyżki nie odzyskuje
+        się w trakcie roku, tylko w zeznaniu.
+    </p>
+</div>
+
+<div class="karta">
+    <h2 style="margin-top:0">Zasady rozliczania</h2>
+
+    <form method="post" asp-page-handler="Ustawienia" asp-route-rok="@Model.Rok">
+        <div class="pole-wyboru">
+            <input type="checkbox" id="kwartalnie" name="ZaliczkiKwartalne" value="true"
+                   checked="@Model.ZaliczkiKwartalne" />
+            @* Odznaczone pole wyboru nie wysyła nic - bez ukrytego pola
+               odznaczenie zostałoby po cichu zignorowane. *@
+            <input type="hidden" name="ZaliczkiKwartalne" value="false" />
+            <label for="kwartalnie">
+                Zaliczki płacę kwartalnie — prawo mają mali podatnicy
+                i rozpoczynający działalność (art. 44 ust. 3g)
+            </label>
+        </div>
+
+        <div class="pole">
+            <label for="strata">Strata z lat ubiegłych do odliczenia w tym roku</label>
+            <input type="number" step="0.01" min="0" id="strata" name="StrataDoOdliczenia"
+                   value="@Model.StrataDoOdliczenia" />
+        </div>
+
+        <div class="paskiem">
+            <button type="submit">Zapisz zasady</button>
+            <span class="drobne">
+                Stratę odlicza się w ciągu pięciu lat, w jednym roku nie więcej
+                niż połowę — albo jednorazowo do 5 000 000 zł (art. 9 ust. 3).
+                Ile wolno w tym roku, rozstrzyga podatnik; program przyjmuje
+                podaną kwotę.
+            </span>
+        </div>
+    </form>
+</div>
+
+<div class="powiadomienie ostrzezenie">
+    <strong>To wyliczenie, nie deklaracja.</strong>
+    Program nie zna ulg (na dzieci, rehabilitacyjnej, IP Box), wspólnego
+    rozliczenia z małżonkiem ani daniny solidarnościowej. Kwota powyżej jest
+    do sprawdzenia z księgową — zwłaszcza w pierwszym roku.
+</div>
